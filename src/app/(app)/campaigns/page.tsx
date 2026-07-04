@@ -8,7 +8,7 @@ export default function Page() {
     <ModuleStub
       title="Campañas"
       phase="Fase 6"
-      description="Fuente, canal, presupuesto, UTMs, leads y ventas generadas."
+      description="Fuente, canal, presupuesto, UTMs, leads y ventas generadas. Los leads ya guardan UTMs y fuente para cuando este módulo llegue."
     />
   );
 }

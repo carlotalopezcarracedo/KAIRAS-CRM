@@ -135,6 +135,13 @@ enum ProjectStatus {
   cancelled
 }
 
+enum ProjectBillingMode {
+  fixed // precio cerrado
+  hourly // facturación por horas
+  retainer // cuota recurrente
+  mixed
+}
+
 enum TaskType {
   follow_up
   call
@@ -766,8 +773,9 @@ model Project {
   mainService   Service?  @relation("ProjectMainService", fields: [mainServiceId], references: [id])
   secondaryServices Service[] @relation("ProjectSecondaryServices")
 
-  status    ProjectStatus @default(not_started)
-  priority  Priority      @default(medium)
+  status      ProjectStatus      @default(not_started)
+  priority    Priority           @default(medium)
+  billingMode ProjectBillingMode @default(fixed)
   startAt   DateTime?
   deadline  DateTime?
   budget    Decimal?      @db.Decimal(12, 2)
@@ -812,6 +820,8 @@ model Task {
   result      String?
   checklist   Json? // [{label, done}]
   recurrence  String? // rrule-like string, opcional
+  estimatedHours Decimal? @db.Decimal(6, 2)
+  billable       Boolean  @default(true)
 
   leadId        String?
   lead          Lead?        @relation(fields: [leadId], references: [id])
@@ -930,6 +940,8 @@ model HourlyRate {
   serviceId String?
   service   Service?  @relation(fields: [serviceId], references: [id])
   active    Boolean   @default(true)
+  validFrom DateTime?
+  validTo   DateTime?
   notes     String?
 
   createdAt DateTime @default(now())

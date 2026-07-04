@@ -8,7 +8,7 @@ export default function Page() {
     <ModuleStub
       title="Propuestas"
       phase="Fase 5"
-      description="Draft, enviada, aceptada o rechazada; crear proyecto y solicitud de factura al aceptar."
+      description="Draft, enviada, aceptada o rechazada; crear proyecto y solicitud de factura al aceptar. Mientras tanto, registra propuestas como oportunidades en etapa Propuesta enviada."
     />
   );
 }

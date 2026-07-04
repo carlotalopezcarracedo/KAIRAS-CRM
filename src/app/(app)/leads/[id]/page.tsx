@@ -88,6 +88,13 @@ export default async function LeadDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           <StatusSelect leadId={lead.id} current={lead.status} />
           <InteractionDialog leadId={lead.id} />
+          <ButtonLink
+            href={`/pipeline/new?leadId=${lead.id}`}
+            variant="secondary"
+            size="sm"
+          >
+            + Oportunidad
+          </ButtonLink>
           <ButtonLink href={`/leads/${lead.id}/edit`} variant="secondary" size="sm">
             <Pencil className="h-3.5 w-3.5" />
             Editar
