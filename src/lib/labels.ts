@@ -146,9 +146,16 @@ export const TASK_STATUS: LabelMap<
 > = {
   todo: { label: "Pendiente", tone: "neutral" },
   in_progress: { label: "En curso", tone: "violet" },
-  waiting: { label: "Esperando", tone: "warn" },
+  waiting: { label: "Bloqueada", tone: "warn" },
   done: { label: "Hecha", tone: "ok" },
   cancelled: { label: "Cancelada", tone: "neutral" },
+};
+
+export const PROJECT_BILLING: LabelMap<"fixed" | "hourly" | "retainer" | "mixed"> = {
+  fixed: { label: "Precio cerrado", tone: "neutral" },
+  hourly: { label: "Por horas", tone: "violet" },
+  retainer: { label: "Cuota recurrente", tone: "ok" },
+  mixed: { label: "Mixto", tone: "info" },
 };
 
 export const TASK_TYPE: LabelMap<
