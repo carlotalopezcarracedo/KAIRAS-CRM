@@ -3,6 +3,35 @@
 Regla: **si un dato solo existe en un sitio, no existe.** Esta guía cubre
 desarrollo local y producción.
 
+## Qué datos son críticos (por orden)
+
+1. **Leads, clientes, oportunidades e interacciones** — la memoria comercial;
+   irreemplazables si se pierden.
+2. **Entradas de tiempo** — justifican facturación; irreemplazables.
+3. **Cola de facturación y snapshots de facturas** — reconstruibles a mano
+   desde Odoo, pero costoso.
+4. **Proyectos, tareas, notas** — alto valor operativo.
+5. Servicios/tarifas/settings — se rehacen en minutos (y el seed recrea la base).
+6. AuditLog / MetaEventLog / OdooSyncJob — trazabilidad; prescindibles en
+   una restauración de emergencia.
+
+Un `pg_dump` completo cubre todo lo anterior; la lista sirve para priorizar
+si alguna vez hay que restaurar parcialmente.
+
+## Riesgo real de seguir en PGlite local
+
+Durante el desarrollo, el servidor `prisma dev` **se colgó tres veces**
+(puerto abierto pero sin responder, hubo que matar el proceso y limpiar un
+lockfile). Los datos sobrevivieron, pero:
+
+- no hay backups automáticos de ningún tipo,
+- un disco roto o un `.pglite` corrupto = pérdida total,
+- solo accesible desde este PC.
+
+**Conclusión: no metas datos reales de clientes en local más tiempo del
+necesario.** Migra a Neon siguiendo [deployment.md](./deployment.md) y usa
+local solo como entorno de pruebas.
+
 ## Desarrollo local (`prisma dev`)
 
 Los datos viven en un directorio PGlite:
@@ -28,14 +57,12 @@ backup binario válido (restaurar = volver a colocar el directorio).
 > copia semanal del directorio `.pglite` o un `pg_dump` a una carpeta
 > sincronizada (Drive/OneDrive).
 
-## Producción (recomendado: Supabase o Neon)
-
-Cuando la app se despliegue con BD gestionada:
+## Producción (recomendado: Neon — ver deployment.md)
 
 | Proveedor | Backups automáticos | Retención (free) | Restore |
 | --- | --- | --- | --- |
-| Supabase | diarios | 7 días (plan Pro) / point-in-time en planes de pago | dashboard → Database → Backups |
-| Neon | point-in-time (branching) | 24 h free / más en pago | crear branch desde un punto en el tiempo |
+| **Neon** (elegido) | point-in-time vía branching | ~24 h free / más en pago | Branches → Restore desde un instante; apuntar DATABASE_URL a la rama |
+| Supabase (alternativa) | diarios | 7 días (plan Pro) | dashboard → Database → Backups |
 
 Además de lo que haga el proveedor, mantener **backups propios**:
 
