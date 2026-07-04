@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn, formatDuration } from "@/lib/utils";
+import { cn, formatDuration, dateKey } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -44,9 +44,10 @@ function parseDate(value: string | undefined): Date {
   return new Date();
 }
 
+// Clave de día en Europe/Madrid: así celdas e items agrupan igual aunque
+// el servidor corra en UTC (Vercel).
 function toParam(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return dateKey(d);
 }
 
 function startOfWeek(d: Date): Date {

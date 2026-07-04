@@ -95,15 +95,30 @@ export async function getClientFull(id: string) {
   });
   if (!client) return null;
 
-  // Horas registradas (total y facturables)
-  const hours = await prisma.timeEntry.aggregate({
-    where: { clientId: id, deletedAt: null },
-    _sum: { durationSeconds: true, calculatedAmount: true },
-  });
-  const billableHours = await prisma.timeEntry.aggregate({
-    where: { clientId: id, deletedAt: null, billable: true },
-    _sum: { durationSeconds: true },
-  });
+  // Horas y totales de facturación con agregados (la lista de arriba está
+  // limitada a 20 elementos para la UI; los totales deben ser completos)
+  const [hours, billableHours, paidAgg, pendingAgg] = await Promise.all([
+    prisma.timeEntry.aggregate({
+      where: { clientId: id, deletedAt: null },
+      _sum: { durationSeconds: true, calculatedAmount: true },
+    }),
+    prisma.timeEntry.aggregate({
+      where: { clientId: id, deletedAt: null, billable: true },
+      _sum: { durationSeconds: true },
+    }),
+    prisma.invoiceRecord.aggregate({
+      where: { clientId: id, deletedAt: null, status: "paid" },
+      _sum: { amountTotal: true },
+    }),
+    prisma.invoiceRecord.aggregate({
+      where: {
+        clientId: id,
+        deletedAt: null,
+        status: { in: ["created_in_odoo", "sent", "overdue"] },
+      },
+      _sum: { amountTotal: true },
+    }),
+  ]);
 
   const mrr = client.recurringServices
     .filter((r) => r.status === "active")
@@ -112,12 +127,8 @@ export async function getClientFull(id: string) {
       0,
     );
 
-  const invoicedTotal = client.invoiceRecords
-    .filter((r) => r.status === "paid")
-    .reduce((acc, r) => acc + Number(r.amountTotal ?? 0), 0);
-  const pendingTotal = client.invoiceRecords
-    .filter((r) => ["created_in_odoo", "sent", "overdue"].includes(r.status))
-    .reduce((acc, r) => acc + Number(r.amountTotal ?? 0), 0);
+  const invoicedTotal = Number(paidAgg._sum.amountTotal ?? 0);
+  const pendingTotal = Number(pendingAgg._sum.amountTotal ?? 0);
 
   return {
     client,

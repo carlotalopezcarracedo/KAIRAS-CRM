@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "smoke": "tsx scripts/smoke-lead-flow.ts && tsx scripts/smoke-operations.ts",
     "db:dev": "prisma dev",
     "db:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",

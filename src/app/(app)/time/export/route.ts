@@ -8,6 +8,18 @@ function csvEscape(value: string): string {
   return value;
 }
 
+const madridDate = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Madrid",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const madridTime = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 export async function GET(request: NextRequest) {
   let user;
   try {
@@ -44,9 +56,9 @@ export async function GET(request: NextRequest) {
   ];
 
   const rows = entries.map((e) => [
-    e.startedAt.toISOString().slice(0, 10),
-    e.startedAt.toISOString().slice(11, 16),
-    e.endedAt ? e.endedAt.toISOString().slice(11, 16) : "",
+    madridDate.format(e.startedAt),
+    madridTime.format(e.startedAt),
+    e.endedAt ? madridTime.format(e.endedAt) : "",
     (e.durationSeconds / 3600).toFixed(2),
     e.title ?? "",
     e.description ?? "",

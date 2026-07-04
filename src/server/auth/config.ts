@@ -6,6 +6,9 @@ import type { NextAuthConfig } from "next-auth";
  */
 export const authConfig = {
   pages: { signIn: "/login" },
+  // Necesario fuera de Vercel (y no hace daño dentro): confiar en el host
+  // declarado en AUTH_URL. Sin esto, Auth.js v5 devuelve UntrustedHost.
+  trustHost: true,
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 14 }, // 14 días
   callbacks: {
     authorized({ auth, request }) {

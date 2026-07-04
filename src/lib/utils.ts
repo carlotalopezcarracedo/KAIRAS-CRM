@@ -70,6 +70,22 @@ export function relativeDays(date: Date | string | null | undefined): string {
   return rtf.format(Math.round(diffMs / 60_000), "minute");
 }
 
+const madridDateKey = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Madrid",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/**
+ * Clave de día YYYY-MM-DD en Europe/Madrid. Usar SIEMPRE esta función para
+ * agrupar por día: `toISOString().slice(0,10)` agrupa en UTC y mete el
+ * trabajo de 00:00–02:00 (Madrid) en el día anterior.
+ */
+export function dateKey(date: Date): string {
+  return madridDateKey.format(date);
+}
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)

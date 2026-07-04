@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { WORK_TYPE, TIME_ENTRY_STATUS } from "@/lib/labels";
-import { formatMoney, formatDuration, cn } from "@/lib/utils";
+import { formatMoney, formatDuration, cn, dateKey } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -107,10 +107,10 @@ export default async function TimePage({
   // Cronómetro olvidado (más de 8h)
   const timerTooLong = activeTimer && isTimerTooLong(activeTimer.startedAt);
 
-  // Agrupar entradas por día
+  // Agrupar entradas por día (en horario de Madrid, no UTC)
   const byDay = new Map<string, typeof entries>();
   for (const entry of entries) {
-    const key = entry.startedAt.toISOString().slice(0, 10);
+    const key = dateKey(entry.startedAt);
     const list = byDay.get(key) ?? [];
     list.push(entry);
     byDay.set(key, list);

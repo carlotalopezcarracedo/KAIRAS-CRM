@@ -1,6 +1,8 @@
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
+import { dateKey } from "@/lib/utils";
 import { resolveHourlyRate } from "@/server/services/rate-service";
+import { getAppDefaults } from "@/server/services/settings-service";
 import type {
   TimerStartInput,
   TimeEntryCreateInput,
@@ -77,19 +79,31 @@ export async function startTimer(userId: string, input: TimerStartInput) {
   return session;
 }
 
+/**
+ * Redondeo de facturación: hacia ARRIBA al múltiplo de N minutos
+ * (Ajustes → Preferencias → Redondeo de tiempo). 0 = sin redondeo.
+ */
+function applyRounding(seconds: number, roundingMinutes: number): number {
+  if (!roundingMinutes || roundingMinutes <= 0) return seconds;
+  const step = roundingMinutes * 60;
+  return Math.ceil(seconds / step) * step;
+}
+
 /** Para el cronómetro activo y crea la TimeEntry correspondiente. */
 export async function stopTimer(userId: string) {
   const session = await getActiveTimer(userId);
   if (!session) throw new Error("NO_ACTIVE_TIMER");
 
   const endedAt = new Date();
-  const durationSeconds = Math.max(
+  const defaults = await getAppDefaults();
+  const rawSeconds = Math.max(
     1,
     Math.round(
       (endedAt.getTime() - session.startedAt.getTime()) / 1000 +
         session.accumulatedSeconds,
     ),
   );
+  const durationSeconds = applyRounding(rawSeconds, defaults.timeRounding);
 
   const rate = await resolveHourlyRate({
     projectId: session.projectId,
@@ -430,7 +444,7 @@ export async function getTimeSummary(userId: string, range: TimeRange) {
     projectEntry.amount += e.billable ? Number(e.calculatedAmount ?? 0) : 0;
     byProject.set(projectKey, projectEntry);
 
-    const dayKey = e.startedAt.toISOString().slice(0, 10);
+    const dayKey = dateKey(e.startedAt);
     const dayEntry = byDay.get(dayKey) ?? { seconds: 0, billableSeconds: 0 };
     dayEntry.seconds += e.durationSeconds;
     if (e.billable) dayEntry.billableSeconds += e.durationSeconds;

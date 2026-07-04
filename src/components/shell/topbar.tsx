@@ -28,14 +28,25 @@ export async function Topbar() {
     }
   }
 
+  const isProduction = process.env.APP_ENV === "production";
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-ink/85 px-4 backdrop-blur sm:px-6">
-      <Link href="/dashboard" className="lg:hidden">
-        <span className="text-sm font-extrabold tracking-[0.3em] text-foam">
-          KAIRAS
-        </span>
-      </Link>
-      <div className="hidden lg:block" />
+      <div className="flex items-center gap-2.5">
+        <Link href="/dashboard" className="lg:hidden">
+          <span className="text-sm font-extrabold tracking-[0.3em] text-foam">
+            KAIRAS
+          </span>
+        </Link>
+        {!isProduction ? (
+          <span
+            title="Estás en el entorno local de desarrollo. Los datos NO están en la nube ni tienen backups automáticos."
+            className="rounded-full border border-warn/40 bg-warn-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-warn"
+          >
+            Local
+          </span>
+        ) : null}
+      </div>
 
       <div className="flex items-center gap-2.5">
         <TimerWidget active={activeTimer} />
