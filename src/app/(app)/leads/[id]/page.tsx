@@ -29,6 +29,7 @@ import { StatusSelect } from "./status-select";
 import { InteractionDialog } from "./interaction-dialog";
 import { NoteForm } from "./note-form";
 import { DeleteLeadButton } from "./delete-lead-button";
+import { ConvertLeadButton } from "./convert-lead-button";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -95,6 +96,9 @@ export default async function LeadDetailPage({
           >
             + Oportunidad
           </ButtonLink>
+          {!lead.clientId ? (
+            <ConvertLeadButton leadId={lead.id} leadName={lead.name} />
+          ) : null}
           <ButtonLink href={`/leads/${lead.id}/edit`} variant="secondary" size="sm">
             <Pencil className="h-3.5 w-3.5" />
             Editar
