@@ -85,11 +85,15 @@ UI (form) → Server Action → requireUser() → Zod.safeParse
 | Fase | Contenido | Estado |
 | --- | --- | --- |
 | 1 — Base | setup, schema completo, auth, layout, dashboard, leads | ✅ hecha |
-| 3 — CRM | oportunidades, kanban pipeline, personas/empresas | pendiente |
-| 4 — Operación | clientes, proyectos, tareas, **time tracking**, calendario, servicios, recurrentes | pendiente (schema ya preparado) |
-| 5 — Finanzas | propuestas, cola facturación, finanzas | pendiente (schema ya preparado) |
-| 6 — Integraciones | Odoo (api/csv/playwright), Meta CAPI, campañas, settings | pendiente (schema y env ya preparados) |
-| 7 — Pulido | PWA, tests e2e, deploy | pendiente |
+| 3 — CRM | oportunidades, kanban pipeline, ganada/perdida, métricas | ✅ hecha |
+| 4 — Operación | clientes, proyectos, tareas, time tracking + tarifas, calendario, servicios, recurrentes | ✅ hecha |
+| 5 — Finanzas | cola facturación (manual/horas/recurrentes), snapshots, informes | ✅ hecha (propuestas como módulo dedicado: pendiente) |
+| 6 — Integraciones | Odoo CSV operativo + API preparada, Meta CAPI con hooks reales, settings | ✅ hecha (campañas: pendiente) |
+| 7 — Pulido | PWA, tests e2e, deploy a producción | pendiente (deploy documentado en deployment.md) |
+
+Verificación: `scripts/smoke-lead-flow.ts` y `scripts/smoke-operations.ts`
+(flujo completo lead → oportunidad → cliente → proyecto → cronómetro →
+factura → cobro → eventos Meta).
 
 ## Decisiones técnicas registradas
 

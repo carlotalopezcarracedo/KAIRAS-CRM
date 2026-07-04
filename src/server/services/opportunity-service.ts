@@ -7,7 +7,7 @@ import type {
   OpportunityUpdateInput,
   StageChangeInput,
 } from "@/server/validators/opportunity";
-import type { OpportunityStage, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 const notDeleted = { deletedAt: null } as const;
 

@@ -26,7 +26,7 @@ export function RateForm({
   useEffect(() => {
     if (state?.ok) {
       formRef.current?.reset();
-      setScope("global");
+      queueMicrotask(() => setScope("global"));
       toast.success("Tarifa creada");
     }
   }, [state]);

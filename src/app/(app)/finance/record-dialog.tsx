@@ -28,7 +28,7 @@ export function RecordDialog({
   useEffect(() => {
     if (state?.ok) {
       toast.success("Factura registrada");
-      setOpen(false);
+      queueMicrotask(() => setOpen(false));
     }
   }, [state]);
 

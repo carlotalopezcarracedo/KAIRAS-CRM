@@ -48,6 +48,10 @@ function getRange(range: Range): { from: Date; to: Date; label: string } {
   return { from, to, label: "Esta semana" };
 }
 
+function isTimerTooLong(startedAt: Date): boolean {
+  return Date.now() - startedAt.getTime() > 8 * 3600 * 1000;
+}
+
 const dayFormatter = new Intl.DateTimeFormat("es-ES", {
   weekday: "long",
   day: "numeric",
@@ -101,9 +105,7 @@ export default async function TimePage({
   const selects: EntrySelectData = { clients, projects, services, tasks };
 
   // Cronómetro olvidado (más de 8h)
-  const timerTooLong =
-    activeTimer &&
-    Date.now() - activeTimer.startedAt.getTime() > 8 * 3600 * 1000;
+  const timerTooLong = activeTimer && isTimerTooLong(activeTimer.startedAt);
 
   // Agrupar entradas por día
   const byDay = new Map<string, typeof entries>();

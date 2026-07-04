@@ -23,7 +23,7 @@ export function InteractionDialog({ leadId }: { leadId: string }) {
   useEffect(() => {
     if (state?.ok) {
       toast.success("Interacción registrada");
-      setOpen(false);
+      queueMicrotask(() => setOpen(false));
     }
   }, [state]);
 

@@ -45,22 +45,35 @@ BD te la imprime `npm run db:dev` al arrancar; añade
 | `npm run db:studio` | inspector visual de la BD |
 | `npm run db:diff` | genera SQL de migración desde cambios del schema |
 | `npx tsx scripts/smoke-lead-flow.ts` | smoke test del flujo de leads |
+| `npx tsx scripts/smoke-operations.ts` | smoke test operativo completo (lead→factura) |
 | `npm run lint` / `npm test` | linter / tests unitarios |
 
-## Estado actual (Fase 1 completada)
+## Estado actual
 
-- ✅ Autenticación (Auth.js v5, sesión JWT, rutas protegidas, bcrypt)
-- ✅ Schema Prisma completo: 27 entidades (incluye time tracking, calendario,
-  finanzas, Odoo y Meta, ya migradas y listas para las siguientes fases)
-- ✅ Design system KAIRAS (dark premium, Plus Jakarta Sans, morado como acento)
-- ✅ Dashboard "Hoy" con KPIs reales desde BD
-- ✅ Módulo Leads completo: lista con filtros y búsqueda, alta/edición
-  validadas con Zod, detalle con interacciones, notas, seguimiento,
-  acciones rápidas (llamar / WhatsApp / email), cambio de estado, soft delete
-- ✅ Audit log de acciones importantes
-- ✅ Responsive real: tablas → cards en móvil, navegación inferior
-- ⏳ Siguientes fases: pipeline (kanban), clientes, proyectos, tareas,
-  control horario + calendario, propuestas, finanzas, Odoo, Meta CAPI
+Módulos **funcionales** (datos reales, validación Zod, audit log, responsive):
+
+- ✅ Auth (Auth.js v5, JWT, cambio de contraseña), design system KAIRAS
+- ✅ Dashboard "Hoy" con KPIs reales
+- ✅ Leads: filtros, detalle, interacciones, notas, estados, convertir a cliente
+- ✅ Pipeline: kanban drag & drop, tabla, ganada/perdida, métricas y forecast
+- ✅ Clientes: ficha 360 (MRR, horas, facturación, contactos, proyectos)
+- ✅ Proyectos: alcance, modos de facturación, rentabilidad estimada
+- ✅ Tareas: Hoy/Vencidas/Próximas, checklist, iniciar cronómetro desde tarea
+- ✅ Tiempo: cronómetro global persistente, entradas manuales, resúmenes
+  día/semana/mes por cliente/proyecto/tipo, export CSV, bloqueo de facturadas
+- ✅ Tarifas: global/cliente/proyecto/servicio con vigencias
+- ✅ Calendario: mes/semana/día con 6 capas filtrables y eventos propios
+- ✅ Informes: funnel, horas semanales, rentabilidad, ranking clientes
+- ✅ Recurrentes: MRR/ARR, ciclos, generar solicitud de factura
+- ✅ Finanzas: cola de facturación → Odoo (manual/horas/recurrentes),
+  snapshots de facturas con estados de cobro, export CSV Odoo
+- ✅ Servicios: catálogo editable
+- ✅ Integraciones: Odoo (CSV operativo, API preparada) y Meta CAPI
+  (eventos automáticos en cola, envío solo con credenciales y consentimiento)
+- ✅ Ajustes: datos KAIRAS, preferencias, seguridad, tarifas
+
+Pendiente (stubs declarados): Propuestas (módulo dedicado) y Campañas.
+Paso a producción documentado en [docs/deployment.md](./docs/deployment.md).
 
 ## Estructura
 

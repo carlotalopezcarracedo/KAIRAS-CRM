@@ -22,13 +22,16 @@ const periodicityLabel: Record<string, string> = {
   custom: "custom",
 };
 
+function nowPlusDays(days: number): Date {
+  return new Date(Date.now() + days * 86_400_000);
+}
+
 export default async function RecurringPage() {
   const { rows, mrr } = await listRecurring();
+  const horizon = nowPlusDays(7);
+  const today = nowPlusDays(0);
   const dueSoon = rows.filter(
-    (r) =>
-      r.status === "active" &&
-      r.nextInvoiceAt &&
-      r.nextInvoiceAt <= new Date(Date.now() + 7 * 86_400_000),
+    (r) => r.status === "active" && r.nextInvoiceAt && r.nextInvoiceAt <= horizon,
   );
 
   return (
@@ -86,9 +89,7 @@ export default async function RecurringPage() {
           <TBody>
             {rows.map((r) => {
               const due =
-                r.status === "active" &&
-                r.nextInvoiceAt &&
-                r.nextInvoiceAt <= new Date();
+                r.status === "active" && r.nextInvoiceAt && r.nextInvoiceAt <= today;
               return (
                 <TR key={r.id}>
                   <TD>

@@ -20,7 +20,7 @@ export function ContactDialog({ clientId }: { clientId: string }) {
   useEffect(() => {
     if (state?.ok) {
       toast.success("Contacto añadido");
-      setOpen(false);
+      queueMicrotask(() => setOpen(false));
     }
   }, [state]);
 
