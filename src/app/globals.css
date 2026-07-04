@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   KAIRAS OS — design tokens
+   Dark premium, sobrio, con aire. Morado solo como acento.
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* Paleta KAIRAS */
+  --color-ink: #0d090b; /* negro base */
+  --color-surface: #121015; /* superficie / cards */
+  --color-raise: #18151d; /* superficie elevada / hover */
+  --color-foam: #e1e8f0; /* blanco frío */
+  --color-violet: #8b5df5; /* morado KAIRAS */
+  --color-lavender: #c7b2ff; /* lavanda */
+
+  /* Derivados */
+  --color-line: rgba(225, 232, 240, 0.1); /* borde sutil */
+  --color-line-strong: rgba(225, 232, 240, 0.18);
+  --color-mist: rgba(225, 232, 240, 0.68); /* texto secundario */
+  --color-faint: rgba(225, 232, 240, 0.42); /* texto apagado */
+  --color-violet-soft: rgba(139, 93, 245, 0.14); /* fondos de acento */
+  --color-violet-line: rgba(139, 93, 245, 0.35);
+
+  /* Estados (desaturados, sobrios) */
+  --color-ok: #57b98d;
+  --color-ok-soft: rgba(87, 185, 141, 0.13);
+  --color-warn: #d9a854;
+  --color-warn-soft: rgba(217, 168, 84, 0.13);
+  --color-danger: #d96565;
+  --color-danger-soft: rgba(217, 101, 101, 0.13);
+  --color-info: #6c9bd1;
+  --color-info-soft: rgba(108, 155, 209, 0.13);
+
+  /* Tipografía */
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  /* Radios */
+  --radius-card: 1rem;
+  --radius-pill: 9999px;
+}
+
+html {
+  background: var(--color-ink);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-foam);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Label uppercase KAIRAS */
+.k-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+/* Scrollbar sobrio */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(225, 232, 240, 0.14) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(225, 232, 240, 0.14);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Focus visible accesible sin ruido */
+:focus-visible {
+  outline: 2px solid var(--color-violet-line);
+  outline-offset: 2px;
+}
+
+/* Inputs date/time en dark */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+}

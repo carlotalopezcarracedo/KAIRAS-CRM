@@ -1,0 +1,1235 @@
+// KAIRAS OS — Prisma schema
+// Fuente de verdad comercial/operativa. Odoo es la fuente de verdad fiscal.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------------------------
+
+enum LeadStatus {
+  new
+  contacted
+  responded
+  interested
+  meeting_scheduled
+  diagnosis_done
+  proposal_needed
+  proposal_sent
+  follow_up
+  negotiation
+  won
+  lost
+  nurture
+  client_active
+  client_inactive
+  do_not_contact
+}
+
+enum Temperature {
+  cold
+  warm
+  hot
+  urgent
+}
+
+enum LeadSource {
+  instagram_cold
+  instagram_inbound
+  meta_ads
+  website
+  whatsapp
+  referral
+  door_to_door
+  cold_call
+  email
+  linkedin
+  existing_client
+  networking
+  other
+}
+
+enum ConsentStatus {
+  unknown
+  legitimate_interest
+  explicit_consent
+  withdrawn
+  do_not_contact
+}
+
+enum OpportunityStage {
+  discovered
+  qualified
+  diagnosis
+  proposal_drafting
+  proposal_sent
+  follow_up
+  negotiation
+  accepted
+  won
+  lost
+  paused
+}
+
+enum ClientStatus {
+  active
+  paused
+  completed
+  recurring
+  inactive
+  archived
+}
+
+enum ServiceCategory {
+  automation_ai
+  custom_software
+  website
+  website_maintenance
+  social_media_management
+  content_creation
+  meta_ads
+  marketing_strategy
+  branding_naming
+  consulting
+  audiovisual
+  other
+}
+
+enum BillingUnit {
+  project
+  hour
+  month
+  piece
+  other
+}
+
+enum ProposalStatus {
+  draft
+  sent
+  viewed
+  followed_up
+  accepted
+  rejected
+  expired
+  archived
+}
+
+enum ProjectStatus {
+  not_started
+  discovery
+  planning
+  design
+  development
+  review
+  delivery
+  support
+  blocked
+  completed
+  cancelled
+}
+
+enum TaskType {
+  follow_up
+  call
+  meeting
+  proposal
+  invoice
+  delivery
+  review
+  content
+  admin
+  technical
+  other
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  waiting
+  done
+  cancelled
+}
+
+enum Priority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum InteractionChannel {
+  call
+  whatsapp
+  email
+  instagram
+  linkedin
+  meeting
+  video_call
+  in_person
+  website_form
+  other
+}
+
+enum InteractionDirection {
+  outbound
+  inbound
+}
+
+enum RecurringStatus {
+  active
+  paused
+  cancelled
+  ended
+  trial
+}
+
+enum Periodicity {
+  monthly
+  quarterly
+  yearly
+  weekly
+  custom
+}
+
+enum TimeEntryStatus {
+  draft
+  reviewed
+  approved
+  queued_for_invoice
+  invoiced
+  non_billable
+  written_off
+}
+
+enum WorkType {
+  strategy
+  sales
+  meeting
+  proposal
+  web_design
+  web_development
+  automation
+  ai_development
+  crm_system
+  debugging
+  content_planning
+  copywriting
+  design
+  video_editing
+  social_media
+  meta_ads
+  admin
+  accounting
+  learning
+  internal
+  other
+}
+
+enum TimeEntrySource {
+  timer
+  manual
+  manual_import
+  toggl_import
+  clockify_import
+}
+
+enum RateScope {
+  global
+  client
+  project
+  service
+}
+
+enum CalendarEventType {
+  meeting
+  call
+  task
+  deadline
+  follow_up
+  delivery
+  time_block
+  personal
+  other
+}
+
+enum CalendarEventStatus {
+  scheduled
+  confirmed
+  done
+  cancelled
+}
+
+enum InvoiceStatus {
+  draft_needed
+  queued_for_odoo
+  created_in_odoo
+  sent
+  paid
+  overdue
+  cancelled
+  error
+}
+
+enum InvoiceOrigin {
+  manual
+  odoo_api
+  odoo_csv
+  playwright
+  imported_pdf
+}
+
+enum InvoiceDraftStatus {
+  pending
+  queued
+  sent_to_odoo
+  created_in_odoo
+  error
+  discarded
+}
+
+enum CampaignChannel {
+  instagram_organic
+  instagram_ads
+  facebook_ads
+  linkedin
+  website
+  whatsapp
+  door_to_door
+  cold_call
+  referral
+  email
+  other
+}
+
+enum CampaignStatus {
+  draft
+  active
+  paused
+  finished
+  archived
+}
+
+enum MetaEventName {
+  lead_created
+  lead_contacted
+  meeting_scheduled
+  diagnosis_done
+  proposal_sent
+  qualified_lead
+  deal_won
+  invoice_paid
+  recurring_client_started
+}
+
+enum MetaSendStatus {
+  pending
+  sent
+  failed
+  skipped_no_consent
+  test
+}
+
+enum OdooSyncType {
+  contacts_export
+  contacts_import
+  invoices_export
+  invoices_import
+  payments_import
+  products_export
+  expenses_import
+}
+
+enum OdooSyncMode {
+  api
+  csv
+  playwright
+}
+
+enum OdooSyncStatus {
+  pending
+  running
+  success
+  error
+  cancelled
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  status_change
+  sync
+  meta_event
+  invoice_queue
+  import
+  export
+  login
+  unlock
+}
+
+// ---------------------------------------------------------------------------
+// CORE
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String    @default("owner")
+  timezone     String    @default("Europe/Madrid")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  timeEntries   TimeEntry[]
+  timerSessions TimerSession[]
+  auditLogs     AuditLog[]
+}
+
+model Company {
+  id        String    @id @default(cuid())
+  name      String
+  legalName String?
+  vatId     String? // CIF/NIF
+  sector    String?
+  website   String?
+  instagram String?
+  phone     String?
+  email     String?
+  address   String?
+  city      String?
+  province  String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  people  Person[]
+  leads   Lead[]
+  clients Client[]
+}
+
+model Person {
+  id        String    @id @default(cuid())
+  firstName String
+  lastName  String?
+  role      String? // cargo
+  phone     String?
+  email     String?
+  instagram String?
+  notes     String?
+  companyId String?
+  company   Company?  @relation(fields: [companyId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  leads          Lead[]
+  clientContacts Client[] @relation("ClientContacts")
+}
+
+// ---------------------------------------------------------------------------
+// CRM
+// ---------------------------------------------------------------------------
+
+model Lead {
+  id      String @id @default(cuid())
+  name    String // nombre de contacto o negocio
+  contact String? // persona de contacto si name = negocio
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  personId  String?
+  person    Person?  @relation(fields: [personId], references: [id])
+
+  role      String?
+  phone     String?
+  email     String?
+  instagram String?
+  website   String?
+  city      String?
+  province  String?
+  sector    String?
+
+  status      LeadStatus  @default(new)
+  temperature Temperature @default(cold)
+  source      LeadSource  @default(other)
+  probability Int? // 0-100
+  score       Int? // lead scoring 0-100
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  metaClickId String? // fbc
+  metaLeadId  String?
+  metaFbp     String?
+
+  painDetected     String? // dolor detectado
+  potentialService String?
+  serviceId        String?
+  service          Service? @relation(fields: [serviceId], references: [id])
+  estimatedBudget  Decimal? @db.Decimal(12, 2)
+  objections       String?
+  internalNotes    String?
+
+  consentStatus ConsentStatus @default(unknown)
+  consentNote   String?
+
+  firstContactAt DateTime?
+  lastContactAt  DateTime?
+  nextAction     String?
+  nextActionAt   DateTime?
+  lostReason     String?
+
+  clientId String? // si se convierte
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  opportunities Opportunity[]
+  interactions  Interaction[]
+  notes         Note[]
+  tasks         Task[]
+  proposals     Proposal[]
+  calendarEvents CalendarEvent[]
+  metaEvents    MetaEventLog[]
+  tags          Tag[]           @relation("LeadTags")
+
+  @@index([status])
+  @@index([source])
+  @@index([temperature])
+  @@index([nextActionAt])
+}
+
+model Interaction {
+  id        String               @id @default(cuid())
+  channel   InteractionChannel
+  direction InteractionDirection @default(outbound)
+  summary   String
+  detail    String?
+  occurredAt DateTime            @default(now())
+
+  leadId        String?
+  lead          Lead?        @relation(fields: [leadId], references: [id])
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id])
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([leadId, occurredAt])
+}
+
+model Note {
+  id      String  @id @default(cuid())
+  title   String?
+  content String
+
+  leadId        String?
+  lead          Lead?        @relation(fields: [leadId], references: [id])
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id])
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+  proposalId    String?
+  proposal      Proposal?    @relation(fields: [proposalId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+// ---------------------------------------------------------------------------
+// PIPELINE
+// ---------------------------------------------------------------------------
+
+model Opportunity {
+  id    String @id @default(cuid())
+  title String
+
+  leadId   String?
+  lead     Lead?   @relation(fields: [leadId], references: [id])
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id])
+
+  stage          OpportunityStage @default(discovered)
+  estimatedValue Decimal?         @db.Decimal(12, 2)
+  acceptedValue  Decimal?         @db.Decimal(12, 2)
+  currency       String           @default("EUR")
+  probability    Int              @default(30) // 0-100
+  expectedCloseAt DateTime?
+  priority       Priority         @default(medium)
+  urgencyLevel   Int? // 1-5
+  costOfInaction String?
+  kairasFit      Int? // 1-5
+  lostReason     String?
+  nextAction     String?
+  nextActionAt   DateTime?
+  observations   String?
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  proposals    Proposal[]
+  tasks        Task[]
+  interactions Interaction[]
+  notes        Note[]
+  timeEntries  TimeEntry[]
+  calendarEvents CalendarEvent[]
+
+  @@index([stage])
+  @@index([expectedCloseAt])
+}
+
+// ---------------------------------------------------------------------------
+// CLIENTES Y SERVICIOS
+// ---------------------------------------------------------------------------
+
+model Client {
+  id          String       @id @default(cuid())
+  name        String
+  status      ClientStatus @default(active)
+  companyId   String?
+  company     Company?     @relation(fields: [companyId], references: [id])
+  vatId       String?
+  billingEmail String?
+  phone       String?
+  address     String?
+  city        String?
+  province    String?
+  odooPartnerId String? // ID de contacto en Odoo
+  satisfaction  Int? // 1-5
+  notes       String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  contacts          Person[]           @relation("ClientContacts")
+  leads             Lead[]
+  opportunities     Opportunity[]
+  projects          Project[]
+  proposals         Proposal[]
+  recurringServices RecurringService[]
+  invoiceRecords    InvoiceRecord[]
+  invoiceDrafts     InvoiceDraftRequest[]
+  interactions      Interaction[]
+  notesRel          Note[]
+  tasks             Task[]
+  timeEntries       TimeEntry[]
+  hourlyRates       HourlyRate[]
+  calendarEvents    CalendarEvent[]
+  expenses          ExpenseRecord[]
+  tags              Tag[]              @relation("ClientTags")
+
+  @@index([status])
+}
+
+model Service {
+  id             String          @id @default(cuid())
+  slug           String          @unique
+  name           String // nombre comercial
+  category       ServiceCategory
+  description    String?
+  basePrice      Decimal?        @db.Decimal(12, 2)
+  priceMin       Decimal?        @db.Decimal(12, 2)
+  priceMax       Decimal?        @db.Decimal(12, 2)
+  vatRate        Decimal         @default(21) @db.Decimal(5, 2)
+  billingUnit    BillingUnit     @default(project)
+  canBeRecurring Boolean         @default(false)
+  deliverables   String?
+  proposalTemplate String?
+  odooProductRef String? // referencia producto/categoría Odoo
+  active         Boolean         @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  leads             Lead[]
+  opportunities     Opportunity[]
+  projectsMain      Project[]          @relation("ProjectMainService")
+  projectsSecondary Project[]          @relation("ProjectSecondaryServices")
+  recurringServices RecurringService[]
+  proposalServices  Proposal[]         @relation("ProposalServices")
+  timeEntries       TimeEntry[]
+  hourlyRates       HourlyRate[]
+}
+
+model RecurringService {
+  id          String          @id @default(cuid())
+  clientId    String
+  client      Client          @relation(fields: [clientId], references: [id])
+  serviceId   String
+  service     Service         @relation(fields: [serviceId], references: [id])
+  title       String?
+  amount      Decimal         @db.Decimal(12, 2) // importe por ciclo
+  currency    String          @default("EUR")
+  periodicity Periodicity     @default(monthly)
+  status      RecurringStatus @default(active)
+  startedAt   DateTime
+  endsAt      DateTime?
+  billingDay  Int             @default(1) // día del mes
+  nextInvoiceAt DateTime?
+  paymentMethod String?
+  estimatedMargin Decimal?    @db.Decimal(5, 2) // %
+  notes       String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  invoiceDrafts InvoiceDraftRequest[]
+
+  @@index([status, nextInvoiceAt])
+}
+
+// ---------------------------------------------------------------------------
+// PROPUESTAS Y PROYECTOS
+// ---------------------------------------------------------------------------
+
+model Proposal {
+  id    String @id @default(cuid())
+  title String
+
+  leadId        String?
+  lead          Lead?        @relation(fields: [leadId], references: [id])
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  status      ProposalStatus @default(draft)
+  amountNet   Decimal?       @db.Decimal(12, 2)
+  vatRate     Decimal        @default(21) @db.Decimal(5, 2)
+  amountTotal Decimal?       @db.Decimal(12, 2)
+  currency    String         @default("EUR")
+  sentAt      DateTime?
+  validUntil  DateTime?
+  acceptedAt  DateTime?
+  rejectedReason String?
+  documentUrl String?
+  conditions  String?
+  version     Int            @default(1)
+  notes       String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  services      Service[]             @relation("ProposalServices")
+  projects      Project[]
+  notesRel      Note[]
+  timeEntries   TimeEntry[]
+  invoiceDrafts InvoiceDraftRequest[]
+
+  @@index([status])
+}
+
+model Project {
+  id   String @id @default(cuid())
+  name String
+
+  clientId   String
+  client     Client    @relation(fields: [clientId], references: [id])
+  proposalId String?
+  proposal   Proposal? @relation(fields: [proposalId], references: [id])
+
+  mainServiceId String?
+  mainService   Service?  @relation("ProjectMainService", fields: [mainServiceId], references: [id])
+  secondaryServices Service[] @relation("ProjectSecondaryServices")
+
+  status    ProjectStatus @default(not_started)
+  priority  Priority      @default(medium)
+  startAt   DateTime?
+  deadline  DateTime?
+  budget    Decimal?      @db.Decimal(12, 2)
+  estimatedMargin Decimal? @db.Decimal(5, 2)
+  description String?
+  scope       String? // alcance
+  outOfScope  String? // fuera de alcance
+  deliverables String?
+  nextSteps   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tasks        Task[]
+  interactions Interaction[]
+  notes        Note[]
+  timeEntries  TimeEntry[]
+  hourlyRates  HourlyRate[]
+  calendarEvents CalendarEvent[]
+  expenses     ExpenseRecord[]
+  tags         Tag[]           @relation("ProjectTags")
+
+  @@index([status])
+  @@index([deadline])
+}
+
+// ---------------------------------------------------------------------------
+// TAREAS
+// ---------------------------------------------------------------------------
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  type        TaskType   @default(other)
+  status      TaskStatus @default(todo)
+  priority    Priority   @default(medium)
+  dueAt       DateTime?
+  remindAt    DateTime?
+  completedAt DateTime?
+  result      String?
+  checklist   Json? // [{label, done}]
+  recurrence  String? // rrule-like string, opcional
+
+  leadId        String?
+  lead          Lead?        @relation(fields: [leadId], references: [id])
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id])
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  timeEntries    TimeEntry[]
+  calendarEvents CalendarEvent[]
+  tags           Tag[]           @relation("TaskTags")
+
+  @@index([status, dueAt])
+}
+
+// ---------------------------------------------------------------------------
+// CONTROL HORARIO
+// ---------------------------------------------------------------------------
+
+model TimeEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  title       String?
+  description String?
+  workType    WorkType        @default(other)
+  source      TimeEntrySource @default(timer)
+
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int       @default(0)
+  timezone        String    @default("Europe/Madrid")
+
+  billable         Boolean         @default(true)
+  hourlyRate       Decimal?        @db.Decimal(10, 2)
+  currency         String          @default("EUR")
+  calculatedAmount Decimal?        @db.Decimal(12, 2)
+  status           TimeEntryStatus @default(draft)
+
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id])
+  taskId        String?
+  task          Task?        @relation(fields: [taskId], references: [id])
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+  proposalId    String?
+  proposal      Proposal?    @relation(fields: [proposalId], references: [id])
+  serviceId     String?
+  service       Service?     @relation(fields: [serviceId], references: [id])
+  campaignId    String?
+  campaign      Campaign?    @relation(fields: [campaignId], references: [id])
+
+  invoiceDraftRequestId String?
+  invoiceDraftRequest   InvoiceDraftRequest? @relation(fields: [invoiceDraftRequestId], references: [id])
+  invoiceRecordId       String?
+  invoiceRecord         InvoiceRecord?       @relation(fields: [invoiceRecordId], references: [id])
+
+  lockedAt     DateTime?
+  lockedReason String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tags Tag[] @relation("TimeEntryTags")
+
+  @@index([userId, startedAt])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model TimerSession {
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id])
+  active Boolean @default(true)
+
+  startedAt          DateTime
+  pausedAt           DateTime?
+  accumulatedSeconds Int       @default(0)
+
+  currentTitle String?
+  workType     WorkType @default(other)
+  billable     Boolean  @default(true)
+  clientId     String?
+  projectId    String?
+  taskId       String?
+  serviceId    String?
+  metadata     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, active])
+}
+
+model HourlyRate {
+  id        String    @id @default(cuid())
+  scope     RateScope
+  rate      Decimal   @db.Decimal(10, 2)
+  currency  String    @default("EUR")
+  clientId  String?
+  client    Client?   @relation(fields: [clientId], references: [id])
+  projectId String?
+  project   Project?  @relation(fields: [projectId], references: [id])
+  serviceId String?
+  service   Service?  @relation(fields: [serviceId], references: [id])
+  active    Boolean   @default(true)
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TimeReport {
+  id          String   @id @default(cuid())
+  name        String
+  periodStart DateTime
+  periodEnd   DateTime
+  filters     Json? // criterios usados
+  totals      Json? // resumen calculado (snapshot)
+  shareToken  String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// CALENDARIO
+// ---------------------------------------------------------------------------
+
+model CalendarEvent {
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  type        CalendarEventType   @default(meeting)
+  status      CalendarEventStatus @default(scheduled)
+  startAt     DateTime
+  endAt       DateTime?
+  allDay      Boolean             @default(false)
+  timezone    String              @default("Europe/Madrid")
+  location    String?
+
+  leadId        String?
+  lead          Lead?        @relation(fields: [leadId], references: [id])
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  projectId     String?
+  project       Project?     @relation(fields: [projectId], references: [id])
+  taskId        String?
+  task          Task?        @relation(fields: [taskId], references: [id])
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+
+  source             String  @default("internal")
+  externalCalendarId String?
+  externalEventId    String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([startAt])
+}
+
+// ---------------------------------------------------------------------------
+// FINANZAS
+// ---------------------------------------------------------------------------
+
+model InvoiceRecord {
+  id       String  @id @default(cuid())
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  odooInvoiceNumber String?
+  odooId            String?
+  odooUrl           String?
+  concept           String?
+  status            InvoiceStatus @default(draft_needed)
+  origin            InvoiceOrigin @default(manual)
+
+  amountNet   Decimal? @db.Decimal(12, 2)
+  vatAmount   Decimal? @db.Decimal(12, 2)
+  amountTotal Decimal? @db.Decimal(12, 2)
+  currency    String   @default("EUR")
+
+  issuedAt DateTime?
+  dueAt    DateTime?
+  paidAt   DateTime?
+  syncedAt DateTime?
+  pdfUrl   String?
+  notes    String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  timeEntries   TimeEntry[]
+  invoiceDrafts InvoiceDraftRequest[]
+
+  @@index([status])
+  @@index([issuedAt])
+}
+
+model InvoiceDraftRequest {
+  id       String  @id @default(cuid())
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  proposalId String?
+  proposal   Proposal? @relation(fields: [proposalId], references: [id])
+  recurringServiceId String?
+  recurringService   RecurringService? @relation(fields: [recurringServiceId], references: [id])
+
+  concept     String
+  lines       Json? // [{description, quantity, unitPrice, vatRate}]
+  amountNet   Decimal? @db.Decimal(12, 2)
+  vatAmount   Decimal? @db.Decimal(12, 2)
+  amountTotal Decimal? @db.Decimal(12, 2)
+  currency    String   @default("EUR")
+
+  status InvoiceDraftStatus @default(pending)
+  error  String?
+  notes  String?
+
+  invoiceRecordId String?
+  invoiceRecord   InvoiceRecord? @relation(fields: [invoiceRecordId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  timeEntries TimeEntry[]
+
+  @@index([status])
+}
+
+model ExpenseRecord {
+  id          String   @id @default(cuid())
+  description String
+  category    String? // libre, configurable en settings
+  supplier    String?
+  amountNet   Decimal? @db.Decimal(12, 2)
+  vatAmount   Decimal? @db.Decimal(12, 2)
+  amountTotal Decimal  @db.Decimal(12, 2)
+  currency    String   @default("EUR")
+  expenseAt   DateTime
+  receiptUrl  String?
+  odooRef     String?
+  notes       String?
+
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([expenseAt])
+}
+
+// ---------------------------------------------------------------------------
+// CAMPAÑAS Y MARKETING
+// ---------------------------------------------------------------------------
+
+model Campaign {
+  id        String          @id @default(cuid())
+  name      String
+  channel   CampaignChannel @default(other)
+  objective String?
+  status    CampaignStatus  @default(draft)
+  startAt   DateTime?
+  endAt     DateTime?
+  budget    Decimal?        @db.Decimal(12, 2)
+  spent     Decimal?        @db.Decimal(12, 2)
+  promotedService String?
+  url       String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  manualCostPerLead Decimal? @db.Decimal(10, 2)
+  notes     String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  leads         Lead[]
+  opportunities Opportunity[]
+  timeEntries   TimeEntry[]
+  tags          Tag[]         @relation("CampaignTags")
+
+  @@index([status])
+}
+
+model MetaEventLog {
+  id            String        @id @default(cuid())
+  internalEvent MetaEventName
+  metaEventName String // Lead, Schedule, Purchase, custom...
+  eventId       String        @unique // para deduplicación
+  eventTime     DateTime      @default(now())
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  hashedEmail String?
+  hashedPhone String?
+  fbp         String?
+  fbc         String?
+  eventValue  Decimal? @db.Decimal(12, 2)
+  currency    String?
+
+  status       MetaSendStatus @default(pending)
+  testMode     Boolean        @default(true)
+  attempts     Int            @default(0)
+  lastError    String?
+  metaResponse Json?
+  sentAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([internalEvent])
+}
+
+// ---------------------------------------------------------------------------
+// INTEGRACIONES / SISTEMA
+// ---------------------------------------------------------------------------
+
+model OdooSyncJob {
+  id     String         @id @default(cuid())
+  type   OdooSyncType
+  mode   OdooSyncMode
+  status OdooSyncStatus @default(pending)
+
+  payload    Json?
+  result     Json?
+  error      String?
+  itemsTotal Int?
+  itemsOk    Int?
+  itemsError Int?
+  fileName   String?
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([status, type])
+}
+
+model Attachment {
+  id         String  @id @default(cuid())
+  entityType String // lead | client | project | proposal | invoice | campaign
+  entityId   String
+  name       String
+  url        String
+  kind       String? // proposal_pdf | contract | briefing | screenshot | resource | invoice | other
+  mimeType   String?
+  sizeBytes  Int?
+  notes      String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([entityType, entityId])
+}
+
+model Tag {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  color String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads       Lead[]      @relation("LeadTags")
+  clients     Client[]    @relation("ClientTags")
+  projects    Project[]   @relation("ProjectTags")
+  tasks       Task[]      @relation("TaskTags")
+  timeEntries TimeEntry[] @relation("TimeEntryTags")
+  campaigns   Campaign[]  @relation("CampaignTags")
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  actor      User?       @relation(fields: [actorId], references: [id])
+  action     AuditAction
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
