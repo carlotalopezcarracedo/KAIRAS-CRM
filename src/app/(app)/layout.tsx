@@ -4,6 +4,9 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 
+// Toda la app es datos vivos por sesión: nunca prerenderizar en build.
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
