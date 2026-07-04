@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
+import { recordInternalEvent } from "@/integrations/meta/conversions-api";
 import type {
   LeadCreateInput,
   LeadUpdateInput,
@@ -88,6 +89,7 @@ export async function createLead(actorId: string, input: LeadCreateInput) {
     entityId: lead.id,
     after: { name: lead.name, status: lead.status, source: lead.source },
   });
+  await recordInternalEvent({ event: "lead_created", leadId: lead.id });
   return lead;
 }
 
@@ -146,6 +148,19 @@ export async function changeLeadStatus(
     before: { status: before.status },
     after: { status, lostReason: lostReason ?? null },
   });
+
+  // Eventos de conversión hacia Meta (solo se registran; el envío es aparte)
+  if (before.status !== status) {
+    if (status === "contacted") {
+      await recordInternalEvent({ event: "lead_contacted", leadId: id });
+    } else if (status === "meeting_scheduled") {
+      await recordInternalEvent({ event: "meeting_scheduled", leadId: id });
+    } else if (status === "diagnosis_done") {
+      await recordInternalEvent({ event: "diagnosis_done", leadId: id });
+    } else if (status === "proposal_sent") {
+      await recordInternalEvent({ event: "proposal_sent", leadId: id });
+    }
+  }
   return lead;
 }
 

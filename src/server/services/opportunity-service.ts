@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
+import { recordInternalEvent } from "@/integrations/meta/conversions-api";
 import { OPEN_STAGES } from "@/server/validators/opportunity";
 import type {
   OpportunityCreateInput,
@@ -179,6 +180,18 @@ export async function changeOpportunityStage(
       acceptedValue: data.acceptedValue?.toString() ?? null,
     },
   });
+
+  if (input.stage === "won") {
+    const value =
+      input.acceptedValue ??
+      (before.acceptedValue ? Number(before.acceptedValue) : null) ??
+      (before.estimatedValue ? Number(before.estimatedValue) : null);
+    await recordInternalEvent({
+      event: "deal_won",
+      leadId: before.leadId,
+      value,
+    });
+  }
   return opportunity;
 }
 

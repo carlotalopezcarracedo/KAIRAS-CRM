@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
+import { recordInternalEvent } from "@/integrations/meta/conversions-api";
 import type {
   InvoiceDraftInput,
   InvoiceFromHoursInput,
@@ -341,5 +342,20 @@ export async function setRecordStatus(
     before: { status: before.status },
     after: { status },
   });
+
+  if (status === "paid" && before.status !== "paid") {
+    // Busca el lead de origen a través del cliente para atribución
+    const lead = record.clientId
+      ? await prisma.lead.findFirst({
+          where: { clientId: record.clientId, deletedAt: null },
+          select: { id: true },
+        })
+      : null;
+    await recordInternalEvent({
+      event: "invoice_paid",
+      leadId: lead?.id ?? null,
+      value: record.amountTotal ? Number(record.amountTotal) : null,
+    });
+  }
   return record;
 }

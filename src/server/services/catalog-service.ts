@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
+import { recordInternalEvent } from "@/integrations/meta/conversions-api";
 import type { ServiceInput, RecurringInput } from "@/server/validators/catalog";
 
 const notDeleted = { deletedAt: null } as const;
@@ -141,6 +142,18 @@ export async function createRecurring(actorId: string, input: RecurringInput) {
     entityId: recurring.id,
     after: { clientId: input.clientId, amount: String(input.amount) },
   });
+
+  if (input.status === "active") {
+    const lead = await prisma.lead.findFirst({
+      where: { clientId: input.clientId, deletedAt: null },
+      select: { id: true },
+    });
+    await recordInternalEvent({
+      event: "recurring_client_started",
+      leadId: lead?.id ?? null,
+      value: input.amount,
+    });
+  }
   return recurring;
 }
 
