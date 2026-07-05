@@ -367,20 +367,34 @@ export async function softDeleteEntry(userId: string, id: string) {
 
 export type TimeRange = { from: Date; to: Date };
 
-export async function listEntries(
+export type TimeFilters = {
+  clientId?: string;
+  projectId?: string;
+  billable?: boolean;
+};
+
+function filtersToWhere(
   userId: string,
   range: TimeRange,
-  filters: { clientId?: string; projectId?: string } = {},
-) {
-  const where: Prisma.TimeEntryWhereInput = {
+  filters: TimeFilters,
+): Prisma.TimeEntryWhereInput {
+  return {
     userId,
     ...notDeleted,
     startedAt: { gte: range.from, lte: range.to },
     ...(filters.clientId ? { clientId: filters.clientId } : {}),
     ...(filters.projectId ? { projectId: filters.projectId } : {}),
+    ...(filters.billable !== undefined ? { billable: filters.billable } : {}),
   };
+}
+
+export async function listEntries(
+  userId: string,
+  range: TimeRange,
+  filters: TimeFilters = {},
+) {
   return prisma.timeEntry.findMany({
-    where,
+    where: filtersToWhere(userId, range, filters),
     orderBy: { startedAt: "desc" },
     take: 500,
     include: {
@@ -392,13 +406,13 @@ export async function listEntries(
   });
 }
 
-export async function getTimeSummary(userId: string, range: TimeRange) {
+export async function getTimeSummary(
+  userId: string,
+  range: TimeRange,
+  filters: TimeFilters = {},
+) {
   const entries = await prisma.timeEntry.findMany({
-    where: {
-      userId,
-      ...notDeleted,
-      startedAt: { gte: range.from, lte: range.to },
-    },
+    where: filtersToWhere(userId, range, filters),
     select: {
       durationSeconds: true,
       billable: true,

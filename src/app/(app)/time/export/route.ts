@@ -35,7 +35,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Rango de fechas no válido" }, { status: 400 });
   }
 
-  const entries = await listEntries(user.id, { from, to });
+  const entries = await listEntries(
+    user.id,
+    { from, to },
+    {
+      clientId: params.get("clientId") || undefined,
+      projectId: params.get("projectId") || undefined,
+      billable:
+        params.get("billable") === "1"
+          ? true
+          : params.get("billable") === "0"
+            ? false
+            : undefined,
+    },
+  );
 
   const header = [
     "Fecha",

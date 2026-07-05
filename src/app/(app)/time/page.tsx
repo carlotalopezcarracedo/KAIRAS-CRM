@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -14,16 +13,28 @@ import {
   listEntries,
   getTimeSummary,
   getActiveTimer,
+  type TimeFilters as TimeFiltersType,
 } from "@/server/services/time-service";
+import { HoursBars, DistributionDonut, type DayHours } from "@/components/charts/kairas-charts";
 import { ManualEntryDialog } from "./manual-entry-dialog";
 import { StartTimerButton } from "./start-timer-button";
+import { TimeFilters } from "./time-filters";
 import type { EntrySelectData } from "./entry-form";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Tiempo" };
 
-type Range = "day" | "week" | "month";
+type Range = "day" | "week" | "month" | "prev" | "custom";
 
-function getRange(range: Range): { from: Date; to: Date; label: string } {
+function isTimerTooLong(startedAt: Date): boolean {
+  return Date.now() - startedAt.getTime() > 8 * 3600 * 1000;
+}
+
+function getRange(
+  range: Range,
+  fromParam?: string,
+  toParam?: string,
+): { from: Date; to: Date; label: string } {
   const now = new Date();
   if (range === "day") {
     const from = new Date(now);
@@ -37,7 +48,19 @@ function getRange(range: Range): { from: Date; to: Date; label: string } {
     const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     return { from, to, label: "Este mes" };
   }
-  // semana (lunes a domingo)
+  if (range === "prev") {
+    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    return { from, to, label: "Mes anterior" };
+  }
+  if (range === "custom" && fromParam && toParam) {
+    const from = new Date(fromParam + "T00:00:00");
+    const to = new Date(toParam + "T23:59:59");
+    if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime()) && to >= from) {
+      return { from, to, label: "Rango personalizado" };
+    }
+  }
+  // semana (lunes a domingo) — también fallback de custom incompleto
   const day = now.getDay() === 0 ? 6 : now.getDay() - 1;
   const from = new Date(now);
   from.setDate(now.getDate() - day);
@@ -48,14 +71,15 @@ function getRange(range: Range): { from: Date; to: Date; label: string } {
   return { from, to, label: "Esta semana" };
 }
 
-function isTimerTooLong(startedAt: Date): boolean {
-  return Date.now() - startedAt.getTime() > 8 * 3600 * 1000;
-}
-
 const dayFormatter = new Intl.DateTimeFormat("es-ES", {
   weekday: "long",
   day: "numeric",
   month: "short",
+  timeZone: "Europe/Madrid",
+});
+const shortDay = new Intl.DateTimeFormat("es-ES", {
+  weekday: "short",
+  day: "numeric",
   timeZone: "Europe/Madrid",
 });
 const timeFormatter = new Intl.DateTimeFormat("es-ES", {
@@ -71,13 +95,28 @@ export default async function TimePage({
 }) {
   const user = await requireUser();
   const raw = await searchParams;
-  const range: Range = raw.range === "day" || raw.range === "month" ? raw.range : "week";
-  const { from, to, label } = getRange(range);
+  const range: Range = ["day", "week", "month", "prev", "custom"].includes(
+    String(raw.range),
+  )
+    ? (raw.range as Range)
+    : "week";
+  const { from, to, label } = getRange(
+    range,
+    typeof raw.from === "string" ? raw.from : undefined,
+    typeof raw.to === "string" ? raw.to : undefined,
+  );
+
+  const filters: TimeFiltersType = {
+    clientId: typeof raw.clientId === "string" && raw.clientId ? raw.clientId : undefined,
+    projectId:
+      typeof raw.projectId === "string" && raw.projectId ? raw.projectId : undefined,
+    billable: raw.billable === "1" ? true : raw.billable === "0" ? false : undefined,
+  };
 
   const [entries, summary, activeTimer, clients, projects, services, tasks] =
     await Promise.all([
-      listEntries(user.id, { from, to }),
-      getTimeSummary(user.id, { from, to }),
+      listEntries(user.id, { from, to }, filters),
+      getTimeSummary(user.id, { from, to }, filters),
       getActiveTimer(user.id),
       prisma.client.findMany({
         where: { deletedAt: null },
@@ -103,11 +142,32 @@ export default async function TimePage({
     ]);
 
   const selects: EntrySelectData = { clients, projects, services, tasks };
-
-  // Cronómetro olvidado (más de 8h)
   const timerTooLong = activeTimer && isTimerTooLong(activeTimer.startedAt);
 
-  // Agrupar entradas por día (en horario de Madrid, no UTC)
+  // Serie de días completa para la gráfica (rellena huecos con 0)
+  const chartDays: DayHours[] = [];
+  const totalDays = Math.min(
+    62,
+    Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1,
+  );
+  const cursor = new Date(from);
+  for (let i = 0; i < totalDays; i++) {
+    const key = dateKey(cursor);
+    const day = summary.byDay.get(key);
+    chartDays.push({
+      label: shortDay.format(cursor).replace(",", ""),
+      facturable: day?.billableSeconds ?? 0,
+      interno: (day?.seconds ?? 0) - (day?.billableSeconds ?? 0),
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const donutData = summary.byWorkType.slice(0, 8).map((row) => ({
+    name: WORK_TYPE[row.workType as keyof typeof WORK_TYPE].label,
+    value: row.seconds,
+  }));
+
+  // Agrupar entradas por día
   const byDay = new Map<string, typeof entries>();
   for (const entry of entries) {
     const key = dateKey(entry.startedAt);
@@ -116,7 +176,14 @@ export default async function TimePage({
     byDay.set(key, list);
   }
 
-  const exportUrl = `/time/export?from=${from.toISOString()}&to=${to.toISOString()}`;
+  const exportParams = new URLSearchParams({
+    from: from.toISOString(),
+    to: to.toISOString(),
+  });
+  if (filters.clientId) exportParams.set("clientId", filters.clientId);
+  if (filters.projectId) exportParams.set("projectId", filters.projectId);
+  if (filters.billable !== undefined)
+    exportParams.set("billable", filters.billable ? "1" : "0");
 
   return (
     <div>
@@ -126,7 +193,7 @@ export default async function TimePage({
         actions={
           <>
             <a
-              href={exportUrl}
+              href={`/time/export?${exportParams.toString()}`}
               className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-mist transition-colors hover:text-foam"
             >
               <Download className="h-3.5 w-3.5" />
@@ -145,32 +212,10 @@ export default async function TimePage({
         </div>
       ) : null}
 
-      {/* Rango */}
-      <div className="mb-5 flex gap-1.5">
-        {(
-          [
-            ["day", "Hoy"],
-            ["week", "Semana"],
-            ["month", "Mes"],
-          ] as const
-        ).map(([key, lbl]) => (
-          <Link
-            key={key}
-            href={`/time?range=${key}`}
-            className={cn(
-              "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
-              range === key
-                ? "border-violet-line bg-violet-soft text-lavender"
-                : "border-line bg-surface text-faint hover:text-foam",
-            )}
-          >
-            {lbl}
-          </Link>
-        ))}
-      </div>
+      <TimeFilters clients={clients} projects={projects} />
 
       {/* KPIs */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Total" value={formatDuration(summary.totalSeconds)} />
         <StatCard
           label="Facturable"
@@ -192,13 +237,49 @@ export default async function TimePage({
         />
       </div>
 
+      {/* Analítica */}
+      {summary.totalSeconds > 0 ? (
+        <div className="mb-6 grid gap-5 lg:grid-cols-3">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Horas por día</CardTitle>
+              <span className="text-xs text-faint">
+                <span className="mr-3 inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-sm bg-violet" />
+                  facturable
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-sm bg-raise" />
+                  interno
+                </span>
+              </span>
+            </CardHeader>
+            <CardBody>
+              <HoursBars data={chartDays} />
+            </CardBody>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Por tipo de trabajo</CardTitle>
+            </CardHeader>
+            <CardBody>
+              {donutData.length > 0 ? (
+                <DistributionDonut data={donutData} />
+              ) : (
+                <p className="text-sm text-faint">Sin datos.</p>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
+
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Entradas */}
         <div className="space-y-5 lg:col-span-2">
           {entries.length === 0 ? (
             <EmptyState
-              title="Sin tiempo registrado en este periodo"
-              hint="Arranca el cronómetro o registra una entrada manual."
+              title="Sin tiempo registrado con estos filtros"
+              hint="Arranca el cronómetro, registra una entrada manual o ajusta los filtros."
             />
           ) : (
             [...byDay.entries()].map(([day, dayEntries]) => {
@@ -279,16 +360,26 @@ export default async function TimePage({
                 <p className="text-sm text-faint">Sin datos.</p>
               ) : (
                 summary.byClient.map((row) => (
-                  <div key={row.id} className="flex items-center justify-between gap-3">
-                    <span className="truncate text-sm text-mist">{row.name}</span>
-                    <span className="shrink-0 text-sm font-semibold text-foam">
-                      {formatDuration(row.seconds)}
-                      {row.amount > 0 ? (
-                        <span className="ml-1.5 text-xs text-lavender">
-                          {formatMoney(row.amount)}
-                        </span>
-                      ) : null}
-                    </span>
+                  <div key={row.id}>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate text-mist">{row.name}</span>
+                      <span className="shrink-0 font-semibold text-foam">
+                        {formatDuration(row.seconds)}
+                        {row.amount > 0 ? (
+                          <span className="ml-1.5 text-xs text-lavender">
+                            {formatMoney(row.amount)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-raise">
+                      <div
+                        className="h-full rounded-full bg-violet/60"
+                        style={{
+                          width: `${Math.max(3, (row.seconds / Math.max(1, summary.byClient[0].seconds)) * 100)}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 ))
               )}
@@ -297,41 +388,21 @@ export default async function TimePage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Por proyecto</CardTitle>
+              <CardTitle>Ranking de proyectos</CardTitle>
             </CardHeader>
             <CardBody className="space-y-2.5">
               {summary.byProject.length === 0 ? (
                 <p className="text-sm text-faint">Sin datos.</p>
               ) : (
-                summary.byProject.map((row) => (
-                  <div key={row.id} className="flex items-center justify-between gap-3">
-                    <span className="truncate text-sm text-mist">{row.name}</span>
+                summary.byProject.map((row, index) => (
+                  <div key={row.id} className="flex items-center gap-2.5">
+                    <span className="w-4 shrink-0 text-right font-mono text-xs text-faint">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-mist">
+                      {row.name}
+                    </span>
                     <span className="shrink-0 text-sm font-semibold text-foam">
-                      {formatDuration(row.seconds)}
-                    </span>
-                  </div>
-                ))
-              )}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Por tipo de trabajo</CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-2.5">
-              {summary.byWorkType.length === 0 ? (
-                <p className="text-sm text-faint">Sin datos.</p>
-              ) : (
-                summary.byWorkType.slice(0, 8).map((row) => (
-                  <div
-                    key={row.workType}
-                    className="flex items-center justify-between gap-3"
-                  >
-                    <span className="text-sm text-mist">
-                      {WORK_TYPE[row.workType as keyof typeof WORK_TYPE].label}
-                    </span>
-                    <span className="text-sm font-semibold text-foam">
                       {formatDuration(row.seconds)}
                     </span>
                   </div>
