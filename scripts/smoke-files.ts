@@ -108,26 +108,35 @@ async function main() {
       console.log("✓ borrado: metadata archivada y binario eliminado");
     }
 
-    // 10. Audit log
+    // 10. Audit log (solo de los adjuntos de este test)
+    const smokeAttachmentIds = (
+      await prisma.attachment.findMany({
+        where: { entityId: client.id },
+        select: { id: true },
+      })
+    ).map((a) => a.id);
     const audits = await prisma.auditLog.count({
-      where: { entityType: "Attachment" },
+      where: { entityType: "Attachment", entityId: { in: smokeAttachmentIds } },
     });
     if (audits < 3) throw new Error("FALLO: faltan entradas de audit");
     console.log("✓ audit log de subida/enlace/borrado");
 
     console.log("\nTODO OK — módulo de archivos verificado");
   } finally {
-    // Limpieza
+    // Limpieza ESTRICTA: solo lo creado por este test (nunca tocar datos reales)
     const leftovers = await prisma.attachment.findMany({
       where: { entityId: client.id },
     });
     for (const a of leftovers) {
       if (a.storageKey) await getStorage().delete(a.storageKey).catch(() => {});
     }
-    await prisma.attachment.deleteMany({ where: { entityId: client.id } });
     await prisma.auditLog.deleteMany({
-      where: { entityType: "Attachment" },
+      where: {
+        entityType: "Attachment",
+        entityId: { in: leftovers.map((a) => a.id) },
+      },
     });
+    await prisma.attachment.deleteMany({ where: { entityId: client.id } });
     await prisma.client.delete({ where: { id: client.id } });
     console.log("✓ datos SMOKE eliminados");
   }

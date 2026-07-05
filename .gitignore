@@ -48,3 +48,6 @@ next-env.d.ts
 
 # archivos subidos en desarrollo local
 /.uploads/
+
+# backups locales de datos
+/backups/
