@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseMadridLocal } from "@/lib/dates";
 
 /** Convierte "" en undefined (los formularios envían strings vacíos). */
 const optionalText = z
@@ -19,7 +20,7 @@ const optionalEmail = z
 const optionalDate = z
   .string()
   .trim()
-  .transform((v) => (v === "" ? undefined : new Date(v)))
+  .transform((v) => (v === "" ? undefined : parseMadridLocal(v)))
   .optional()
   .refine((v) => v === undefined || !Number.isNaN(v.getTime()), {
     message: "Fecha no válida",

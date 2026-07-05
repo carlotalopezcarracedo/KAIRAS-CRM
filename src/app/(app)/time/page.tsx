@@ -7,6 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { WORK_TYPE, TIME_ENTRY_STATUS } from "@/lib/labels";
 import { formatMoney, formatDuration, cn, dateKey } from "@/lib/utils";
+import {
+  startOfDayMadrid,
+  endOfDayMadrid,
+  startOfWeekMadrid,
+  startOfMonthMadrid,
+  parseMadridLocal,
+  addDays,
+} from "@/lib/dates";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -35,39 +43,34 @@ function getRange(
   fromParam?: string,
   toParam?: string,
 ): { from: Date; to: Date; label: string } {
-  const now = new Date();
+  // Todos los límites en hora de Madrid (el servidor puede correr en UTC)
   if (range === "day") {
-    const from = new Date(now);
-    from.setHours(0, 0, 0, 0);
-    const to = new Date(now);
-    to.setHours(23, 59, 59, 999);
-    return { from, to, label: "Hoy" };
+    return { from: startOfDayMadrid(), to: endOfDayMadrid(), label: "Hoy" };
   }
   if (range === "month") {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-    return { from, to, label: "Este mes" };
+    return {
+      from: startOfMonthMadrid(0),
+      to: new Date(startOfMonthMadrid(1).getTime() - 1),
+      label: "Este mes",
+    };
   }
   if (range === "prev") {
-    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-    return { from, to, label: "Mes anterior" };
+    return {
+      from: startOfMonthMadrid(-1),
+      to: new Date(startOfMonthMadrid(0).getTime() - 1),
+      label: "Mes anterior",
+    };
   }
   if (range === "custom" && fromParam && toParam) {
-    const from = new Date(fromParam + "T00:00:00");
-    const to = new Date(toParam + "T23:59:59");
+    const from = parseMadridLocal(fromParam);
+    const to = parseMadridLocal(toParam + "T23:59:59");
     if (!Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime()) && to >= from) {
       return { from, to, label: "Rango personalizado" };
     }
   }
   // semana (lunes a domingo) — también fallback de custom incompleto
-  const day = now.getDay() === 0 ? 6 : now.getDay() - 1;
-  const from = new Date(now);
-  from.setDate(now.getDate() - day);
-  from.setHours(0, 0, 0, 0);
-  const to = new Date(from);
-  to.setDate(from.getDate() + 6);
-  to.setHours(23, 59, 59, 999);
+  const from = startOfWeekMadrid();
+  const to = new Date(addDays(from, 7).getTime() - 1);
   return { from, to, label: "Esta semana" };
 }
 
@@ -150,8 +153,8 @@ export default async function TimePage({
     62,
     Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1,
   );
-  const cursor = new Date(from);
   for (let i = 0; i < totalDays; i++) {
+    const cursor = addDays(from, i);
     const key = dateKey(cursor);
     const day = summary.byDay.get(key);
     chartDays.push({
@@ -159,7 +162,6 @@ export default async function TimePage({
       facturable: day?.billableSeconds ?? 0,
       interno: (day?.seconds ?? 0) - (day?.billableSeconds ?? 0),
     });
-    cursor.setDate(cursor.getDate() + 1);
   }
 
   const donutData = summary.byWorkType.slice(0, 8).map((row) => ({

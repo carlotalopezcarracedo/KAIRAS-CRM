@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toDateOnlyInput } from "@/lib/dates";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { prisma } from "@/server/db/prisma";
@@ -6,12 +7,6 @@ import { ProjectForm, type ProjectFormDefaults } from "../../project-form";
 import { updateProjectAction } from "../../actions";
 
 export const metadata: Metadata = { title: "Editar proyecto" };
-
-function toDateInput(date: Date | null): string {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
 
 export default async function EditProjectPage({
   params,
@@ -41,8 +36,8 @@ export default async function EditProjectPage({
     status: project.status,
     priority: project.priority,
     billingMode: project.billingMode,
-    startAt: toDateInput(project.startAt),
-    deadline: toDateInput(project.deadline),
+    startAt: toDateOnlyInput(project.startAt),
+    deadline: toDateOnlyInput(project.deadline),
     budget: project.budget?.toString() ?? "",
     estimatedMargin: project.estimatedMargin?.toString() ?? "",
     description: project.description ?? "",

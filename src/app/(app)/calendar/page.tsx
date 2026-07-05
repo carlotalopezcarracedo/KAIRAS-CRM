@@ -4,6 +4,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn, formatDuration, dateKey } from "@/lib/utils";
+import {
+  parseMadridLocal,
+  startOfDayMadrid,
+  endOfDayMadrid,
+  startOfWeekMadrid,
+  addDays,
+} from "@/lib/dates";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import {
@@ -36,12 +43,13 @@ const DEFAULT_LAYERS: CalendarLayer[] = [
   "opportunities",
 ];
 
+// Ancla: mediodía de Madrid del día pedido (estable frente a DST/UTC)
 function parseDate(value: string | undefined): Date {
   if (value) {
-    const d = new Date(value + "T12:00:00");
+    const d = parseMadridLocal(value + "T12:00");
     if (!Number.isNaN(d.getTime())) return d;
   }
-  return new Date();
+  return parseMadridLocal(dateKey(new Date()) + "T12:00");
 }
 
 // Clave de día en Europe/Madrid: así celdas e items agrupan igual aunque
@@ -50,12 +58,9 @@ function toParam(d: Date): string {
   return dateKey(d);
 }
 
-function startOfWeek(d: Date): Date {
-  const result = new Date(d);
-  const day = result.getDay() === 0 ? 6 : result.getDay() - 1;
-  result.setDate(result.getDate() - day);
-  result.setHours(0, 0, 0, 0);
-  return result;
+/** Día del mes (número) según el calendario de Madrid. */
+function dayNumber(d: Date): number {
+  return Number(dateKey(d).slice(8, 10));
 }
 
 function buildUrl(view: View, date: Date, layers: CalendarLayer[]): string {
@@ -116,25 +121,19 @@ export default async function CalendarPage({
         ) as CalendarLayer[])
     : DEFAULT_LAYERS;
 
-  // Rango según vista
+  // Rango según vista (límites en hora de Madrid)
   let from: Date;
   let to: Date;
   if (view === "day") {
-    from = new Date(anchor);
-    from.setHours(0, 0, 0, 0);
-    to = new Date(anchor);
-    to.setHours(23, 59, 59, 999);
+    from = startOfDayMadrid(anchor);
+    to = endOfDayMadrid(anchor);
   } else if (view === "week") {
-    from = startOfWeek(anchor);
-    to = new Date(from);
-    to.setDate(from.getDate() + 6);
-    to.setHours(23, 59, 59, 999);
+    from = startOfWeekMadrid(anchor);
+    to = new Date(addDays(from, 7).getTime() - 1);
   } else {
-    const firstOfMonth = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-    from = startOfWeek(firstOfMonth);
-    to = new Date(from);
-    to.setDate(from.getDate() + 41); // 6 semanas
-    to.setHours(23, 59, 59, 999);
+    const firstOfMonth = parseMadridLocal(dateKey(anchor).slice(0, 7) + "-01T12:00");
+    from = startOfWeekMadrid(firstOfMonth);
+    to = new Date(addDays(from, 42).getTime() - 1); // 6 semanas
   }
 
   const [items, leads, clients, projects] = await Promise.all([
@@ -313,8 +312,7 @@ export default async function CalendarPage({
             </div>
             <div className="grid grid-cols-7 gap-px overflow-hidden rounded-card border border-line bg-line">
               {Array.from({ length: 42 }).map((_, i) => {
-                const cellDate = new Date(from);
-                cellDate.setDate(from.getDate() + i);
+                const cellDate = addDays(from, i);
                 const key = toParam(cellDate);
                 const dayItems = byDay.get(key) ?? [];
                 const isToday = key === today;
@@ -336,7 +334,7 @@ export default async function CalendarPage({
                           : "text-faint hover:text-foam",
                       )}
                     >
-                      {cellDate.getDate()}
+                      {dayNumber(cellDate)}
                     </Link>
                     <div className="space-y-0.5">
                       {dayItems.slice(0, 3).map((item) => (
@@ -363,8 +361,7 @@ export default async function CalendarPage({
       {view === "week" ? (
         <div className="grid gap-3 lg:grid-cols-7">
           {Array.from({ length: 7 }).map((_, i) => {
-            const cellDate = new Date(from);
-            cellDate.setDate(from.getDate() + i);
+            const cellDate = addDays(from, i);
             const key = toParam(cellDate);
             const dayItems = byDay.get(key) ?? [];
             const isToday = key === today;
@@ -389,7 +386,7 @@ export default async function CalendarPage({
                       isToday ? "text-lavender" : "text-faint",
                     )}
                   >
-                    {weekDays[i]} {cellDate.getDate()}
+                    {weekDays[i]} {dayNumber(cellDate)}
                   </span>
                   {daySeconds > 0 ? (
                     <span className="font-mono text-[10px] text-ok">

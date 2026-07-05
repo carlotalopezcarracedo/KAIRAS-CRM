@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseMadridLocal } from "@/lib/dates";
 
 const optionalText = z
   .string()
@@ -56,7 +57,7 @@ const requiredDate = z
   .string()
   .trim()
   .min(1, "Obligatorio")
-  .transform((v) => new Date(v))
+  .transform((v) => parseMadridLocal(v))
   .refine((v) => !Number.isNaN(v.getTime()), { message: "Fecha no válida" });
 
 export const timeEntryCreateSchema = z

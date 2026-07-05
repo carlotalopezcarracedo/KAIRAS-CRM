@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toDateTimeLocalInput } from "@/lib/dates";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
@@ -14,12 +15,6 @@ import { EntryStatusControl } from "./entry-status-control";
 import { updateEntryAction, deleteEntryAction } from "../actions";
 
 export const metadata: Metadata = { title: "Entrada de tiempo" };
-
-function toLocalInput(date: Date | null): string {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export default async function TimeEntryPage({
   params,
@@ -69,8 +64,8 @@ export default async function TimeEntryPage({
     title: entry.title ?? "",
     description: entry.description ?? "",
     workType: entry.workType,
-    startedAt: toLocalInput(entry.startedAt),
-    endedAt: toLocalInput(entry.endedAt),
+    startedAt: toDateTimeLocalInput(entry.startedAt),
+    endedAt: toDateTimeLocalInput(entry.endedAt),
     clientId: entry.clientId ?? "",
     projectId: entry.projectId ?? "",
     taskId: entry.taskId ?? "",

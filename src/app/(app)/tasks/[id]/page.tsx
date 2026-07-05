@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toDateTimeLocalInput } from "@/lib/dates";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -14,12 +15,6 @@ import { deleteTaskAction } from "../actions";
 import { StartTimerButton } from "../../time/start-timer-button";
 
 export const metadata: Metadata = { title: "Tarea" };
-
-function toLocalInput(date: Date | null): string {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export default async function TaskDetailPage({
   params,
@@ -69,8 +64,8 @@ export default async function TaskDetailPage({
     type: task.type,
     status: task.status,
     priority: task.priority,
-    dueAt: toLocalInput(task.dueAt),
-    remindAt: toLocalInput(task.remindAt),
+    dueAt: toDateTimeLocalInput(task.dueAt),
+    remindAt: toDateTimeLocalInput(task.remindAt),
     estimatedHours: task.estimatedHours?.toString() ?? "",
     billable: task.billable,
     leadId: task.leadId ?? "",

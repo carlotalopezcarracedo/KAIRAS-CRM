@@ -1,5 +1,6 @@
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
+import { startOfDayMadrid, endOfDayMadrid } from "@/lib/dates";
 import {
   parseChecklist,
   type TaskCreateInput,
@@ -13,11 +14,8 @@ const OPEN_STATUSES: TaskStatus[] = ["todo", "in_progress", "waiting"];
 export type TaskView = "today" | "overdue" | "upcoming" | "all" | "done";
 
 export async function listTasks(view: TaskView, projectId?: string) {
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
+  const startOfToday = startOfDayMadrid();
+  const endOfToday = endOfDayMadrid();
 
   const where: Prisma.TaskWhereInput = { ...notDeleted };
   if (projectId) where.projectId = projectId;
@@ -196,11 +194,8 @@ export async function softDeleteTask(actorId: string, id: string) {
 }
 
 export async function getTaskCounts() {
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
+  const startOfToday = startOfDayMadrid();
+  const endOfToday = endOfDayMadrid();
 
   const [today, overdue, upcoming, all] = await Promise.all([
     prisma.task.count({

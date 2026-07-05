@@ -1,5 +1,12 @@
 import { prisma } from "@/server/db/prisma";
 import { getTimeSummary } from "@/server/services/time-service";
+import {
+  startOfDayMadrid,
+  endOfDayMadrid,
+  startOfWeekMadrid,
+  startOfMonthMadrid,
+  addDays,
+} from "@/lib/dates";
 
 const ACTIVE_LEAD_STATUSES = [
   "new",
@@ -54,23 +61,16 @@ function monthlyEquivalent(amount: number, periodicity: string): number {
 
 export async function getDashboardData(userId: string) {
   const now = new Date();
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 86_400_000);
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const startOfToday = startOfDayMadrid(now);
+  const endOfToday = endOfDayMadrid(now);
+  const sevenDaysAgo = addDays(now, -7);
+  const thirtyDaysAgo = addDays(now, -30);
+  const startOfMonth = startOfMonthMadrid(0, now);
+  const endOfMonth = new Date(startOfMonthMadrid(1, now).getTime() - 1);
 
-  // Semana actual (lunes-domingo)
-  const weekDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - weekDay);
-  startOfWeek.setHours(0, 0, 0, 0);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
+  // Semana actual (lunes-domingo, Madrid)
+  const startOfWeek = startOfWeekMadrid(now);
+  const endOfWeek = new Date(addDays(startOfWeek, 7).getTime() - 1);
 
   const [
     leadsNew7d,

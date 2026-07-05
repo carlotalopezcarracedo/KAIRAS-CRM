@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toDateTimeLocalInput } from "@/lib/dates";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { prisma } from "@/server/db/prisma";
@@ -6,12 +7,6 @@ import { LeadForm, type LeadFormDefaults } from "../../lead-form";
 import { updateLeadAction } from "../../actions";
 
 export const metadata: Metadata = { title: "Editar lead" };
-
-function toLocalInput(date: Date | null): string {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export default async function EditLeadPage({
   params,
@@ -52,7 +47,7 @@ export default async function EditLeadPage({
     objections: lead.objections ?? "",
     internalNotes: lead.internalNotes ?? "",
     nextAction: lead.nextAction ?? "",
-    nextActionAt: toLocalInput(lead.nextActionAt),
+    nextActionAt: toDateTimeLocalInput(lead.nextActionAt),
     utmSource: lead.utmSource ?? "",
     utmMedium: lead.utmMedium ?? "",
     utmCampaign: lead.utmCampaign ?? "",

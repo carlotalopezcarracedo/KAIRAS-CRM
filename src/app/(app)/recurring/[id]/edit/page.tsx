@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toDateOnlyInput } from "@/lib/dates";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { ConfirmDelete } from "@/components/confirm-delete";
@@ -7,11 +8,6 @@ import { RecurringForm, type RecurringFormDefaults } from "../../recurring-form"
 import { updateRecurringAction, deleteRecurringAction } from "../../actions";
 
 export const metadata: Metadata = { title: "Editar recurrente" };
-
-function toDateInput(date: Date | null): string {
-  if (!date) return "";
-  return date.toISOString().slice(0, 10);
-}
 
 export default async function EditRecurringPage({
   params,
@@ -41,10 +37,10 @@ export default async function EditRecurringPage({
     amount: recurring.amount.toString(),
     periodicity: recurring.periodicity,
     status: recurring.status,
-    startedAt: toDateInput(recurring.startedAt),
-    endsAt: toDateInput(recurring.endsAt),
+    startedAt: toDateOnlyInput(recurring.startedAt),
+    endsAt: toDateOnlyInput(recurring.endsAt),
     billingDay: String(recurring.billingDay),
-    nextInvoiceAt: toDateInput(recurring.nextInvoiceAt),
+    nextInvoiceAt: toDateOnlyInput(recurring.nextInvoiceAt),
     paymentMethod: recurring.paymentMethod ?? "",
     estimatedMargin: recurring.estimatedMargin?.toString() ?? "",
     notes: recurring.notes ?? "",

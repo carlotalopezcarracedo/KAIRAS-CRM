@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toDateTimeLocalInput } from "@/lib/dates";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -9,12 +10,6 @@ import { EventForm, type EventFormDefaults, type EventSelectData } from "../../e
 import { updateEventAction, deleteEventAction } from "../../actions";
 
 export const metadata: Metadata = { title: "Evento" };
-
-function toLocalInput(date: Date | null): string {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export default async function EventDetailPage({
   params,
@@ -47,8 +42,8 @@ export default async function EventDetailPage({
   const defaults: EventFormDefaults = {
     title: event.title,
     type: event.type,
-    startAt: toLocalInput(event.startAt),
-    endAt: toLocalInput(event.endAt),
+    startAt: toDateTimeLocalInput(event.startAt),
+    endAt: toDateTimeLocalInput(event.endAt),
     allDay: event.allDay,
     description: event.description ?? "",
     location: event.location ?? "",

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseMadridLocal } from "@/lib/dates";
 
 const optionalText = z
   .string()
@@ -26,13 +27,13 @@ const requiredDate = z
   .string()
   .trim()
   .min(1, "Obligatorio")
-  .transform((v) => new Date(v))
+  .transform((v) => parseMadridLocal(v))
   .refine((v) => !Number.isNaN(v.getTime()), { message: "Fecha no válida" });
 
 const optionalDate = z
   .string()
   .trim()
-  .transform((v) => (v === "" ? undefined : new Date(v)))
+  .transform((v) => (v === "" ? undefined : parseMadridLocal(v)))
   .optional()
   .refine((v) => v === undefined || !Number.isNaN(v.getTime()), {
     message: "Fecha no válida",

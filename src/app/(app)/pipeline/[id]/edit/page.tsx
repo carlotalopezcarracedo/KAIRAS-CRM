@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { toDateTimeLocalInput, toDateOnlyInput } from "@/lib/dates";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { prisma } from "@/server/db/prisma";
@@ -6,18 +7,6 @@ import { OpportunityForm, type OpportunityFormDefaults } from "../../opportunity
 import { updateOpportunityAction } from "../../actions";
 
 export const metadata: Metadata = { title: "Editar oportunidad" };
-
-function toLocalInput(date: Date | null): string {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function toDateInput(date: Date | null): string {
-  if (!date) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
 
 export default async function EditOpportunityPage({
   params,
@@ -54,13 +43,13 @@ export default async function EditOpportunityPage({
     stage: opp.stage,
     estimatedValue: opp.estimatedValue?.toString() ?? "",
     probability: String(opp.probability),
-    expectedCloseAt: toDateInput(opp.expectedCloseAt),
+    expectedCloseAt: toDateOnlyInput(opp.expectedCloseAt),
     priority: opp.priority,
     urgencyLevel: opp.urgencyLevel?.toString() ?? "",
     kairasFit: opp.kairasFit?.toString() ?? "",
     costOfInaction: opp.costOfInaction ?? "",
     nextAction: opp.nextAction ?? "",
-    nextActionAt: toLocalInput(opp.nextActionAt),
+    nextActionAt: toDateTimeLocalInput(opp.nextActionAt),
     observations: opp.observations ?? "",
   };
 

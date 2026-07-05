@@ -12,6 +12,7 @@ import {
   PRIORITY,
 } from "@/lib/labels";
 import { TemperatureBadge } from "@/components/crm/temperature-badge";
+import { addDays } from "@/lib/dates";
 import {
   formatMoney,
   formatDateTime,
@@ -48,15 +49,15 @@ export default async function DashboardPage() {
 
   // Serie de la semana (L-D) para la gráfica
   const weekChart: DayHours[] = [];
-  const cursor = new Date(data.week.from);
   for (let i = 0; i < 7; i++) {
-    const day = data.week.byDay.get(dateKey(cursor));
+    const cursor = addDays(data.week.from, i);
+    const key = dateKey(cursor);
+    const day = data.week.byDay.get(key);
     weekChart.push({
-      label: `${WEEKDAY_LABELS[i]} ${cursor.getDate()}`,
+      label: `${WEEKDAY_LABELS[i]} ${Number(key.slice(8, 10))}`,
       facturable: day?.billableSeconds ?? 0,
       interno: (day?.seconds ?? 0) - (day?.billableSeconds ?? 0),
     });
-    cursor.setDate(cursor.getDate() + 1);
   }
 
   const alertItems = [
