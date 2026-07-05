@@ -25,6 +25,7 @@ import {
 } from "@/lib/labels";
 import { formatDate, formatDateTime, formatMoney, relativeDays } from "@/lib/utils";
 import { getLead } from "@/server/services/lead-service";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { StatusSelect } from "./status-select";
 import { InteractionDialog } from "./interaction-dialog";
 import { NoteForm } from "./note-form";
@@ -309,6 +310,13 @@ export default async function LeadDetailPage({
               )}
             </CardBody>
           </Card>
+
+          {/* Archivos */}
+          <AttachmentsPanel
+            entityType="lead"
+            entityId={lead.id}
+            revalidatePath={`/leads/${lead.id}`}
+          />
 
           {/* Notas */}
           <Card>

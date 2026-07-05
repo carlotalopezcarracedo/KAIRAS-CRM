@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { EntityNoteForm } from "@/components/entity-note-form";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import {
   CLIENT_STATUS,
   PROJECT_STATUS,
@@ -313,6 +314,13 @@ export default async function ClientDetailPage({
               </CardBody>
             </Card>
           ) : null}
+
+          {/* Archivos */}
+          <AttachmentsPanel
+            entityType="client"
+            entityId={client.id}
+            revalidatePath={`/clients/${client.id}`}
+          />
 
           {/* Notas */}
           <Card>

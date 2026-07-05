@@ -9,7 +9,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // runtime: URL pooled (PgBouncer)
+  directUrl = env("DIRECT_DATABASE_URL") // migraciones: conexión directa
 }
 
 // ---------------------------------------------------------------------------
@@ -400,6 +401,7 @@ model User {
   timeEntries   TimeEntry[]
   timerSessions TimerSession[]
   auditLogs     AuditLog[]
+  attachments   Attachment[]
 }
 
 model Company {
@@ -1192,14 +1194,18 @@ model OdooSyncJob {
 
 model Attachment {
   id         String  @id @default(cuid())
-  entityType String // lead | client | project | proposal | invoice | campaign
+  entityType String // lead | client | opportunity | project | task | invoice_draft | proposal | campaign
   entityId   String
-  name       String
-  url        String
-  kind       String? // proposal_pdf | contract | briefing | screenshot | resource | invoice | other
+  name       String // nombre visible
+  url        String? // enlace externo (opcional, si no hay archivo subido)
+  storageKey String? // clave en el storage (local o Supabase); nunca URL pública
+  kind       String  @default("other") // proposal | contract | briefing | external_invoice | screenshot | deliverable | brand_asset | client_doc | report | other
   mimeType   String?
   sizeBytes  Int?
   notes      String?
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

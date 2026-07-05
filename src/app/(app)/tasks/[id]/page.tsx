@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDelete } from "@/components/confirm-delete";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { formatDuration } from "@/lib/utils";
 import { prisma } from "@/server/db/prisma";
 import { getTask } from "@/server/services/task-service";
@@ -145,6 +146,12 @@ export default async function TaskDetailPage({
               </CardBody>
             </Card>
           ) : null}
+
+          <AttachmentsPanel
+            entityType="task"
+            entityId={task.id}
+            revalidatePath={`/tasks/${task.id}`}
+          />
 
           <div className="flex justify-end">
             <ConfirmDelete

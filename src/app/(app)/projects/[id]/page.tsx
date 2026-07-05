@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { ConfirmDelete } from "@/components/confirm-delete";
 import { EntityNoteForm } from "@/components/entity-note-form";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { PROJECT_STATUS, PRIORITY, PROJECT_BILLING } from "@/lib/labels";
 import { formatMoney, formatDate, formatDateTime, formatDuration } from "@/lib/utils";
 import { getProjectFull } from "@/server/services/project-service";
@@ -222,6 +223,13 @@ export default async function ProjectDetailPage({
               </CardBody>
             </Card>
           )}
+
+          {/* Archivos */}
+          <AttachmentsPanel
+            entityType="project"
+            entityId={project.id}
+            revalidatePath={`/projects/${project.id}`}
+          />
 
           {/* Notas */}
           <Card>

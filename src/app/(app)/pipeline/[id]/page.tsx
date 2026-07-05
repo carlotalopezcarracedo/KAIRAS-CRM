@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDelete } from "@/components/confirm-delete";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import {
   OPPORTUNITY_STAGE,
   PRIORITY,
@@ -217,6 +218,12 @@ export default async function OpportunityDetailPage({
               </CardBody>
             </Card>
           ) : null}
+
+          <AttachmentsPanel
+            entityType="opportunity"
+            entityId={opp.id}
+            revalidatePath={`/pipeline/${opp.id}`}
+          />
 
           <Card>
             <CardHeader>
