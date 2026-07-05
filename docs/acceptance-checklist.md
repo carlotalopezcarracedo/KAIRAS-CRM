@@ -22,7 +22,8 @@
 | Clientes | ✅ | Ficha 360; totales por agregados (no truncados) |
 | Proyectos | ✅ | Rentabilidad = presupuesto vs horas × tarifa efectiva |
 | Tareas | ✅ | `remindAt` y `recurrence` se guardan pero NO disparan recordatorios (no hay motor de notificaciones) |
-| Control horario | ✅ | Timer persistente en BD, bloqueo de facturadas, aviso +8h |
+| Control horario | ✅ | Timer persistente, bloqueo de facturadas, aviso +8h, gráficas por día/tipo con filtros (rango/cliente/proyecto/facturable) |
+| Archivos adjuntos | ✅ | Subida/enlace/descarga/borrado en lead, cliente, oportunidad, proyecto y tarea; bucket privado + URLs firmadas en producción; driver local en dev |
 | Tarifas | ✅ | Vigencias con `validFrom/validTo`; sin historial visual de cambios |
 | Calendario | ✅ | 6 capas; agrupación por día en Europe/Madrid (corregido para Vercel/UTC) |
 | Informes | ✅ | Ranking de clientes se alimenta de snapshots de factura cobrados |
@@ -55,7 +56,11 @@
 # Requiere la BD local corriendo (npm run db:dev)
 npm run lint            # 0 errores
 npm run build           # compila sin tocar la BD (force-dynamic)
-npm run smoke           # 2 smoke tests:
+npm run data:export     # backup JSON completo (backups/)
+npm run smoke           # 3 smoke tests:
+#   smoke-files: validación tipo/tamaño → subida → clave opaca → lectura
+#     íntegra → enlace externo → listado → entidad inexistente → borrado
+#     (binario fuera + metadata archivada) → audit
 #   smoke-lead-flow: validación → crear → filtrar → interacción → estado
 #     → audit → soft delete
 #   smoke-operations: lead → oportunidad ganada → cliente → proyecto →

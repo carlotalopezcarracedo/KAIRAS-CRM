@@ -58,6 +58,35 @@ sesión, fuga de credenciales de integraciones y pérdida de datos.
 - Los logs de error del servidor (`console.error`) no incluyen contraseñas
   ni tokens; el audit log guarda estados antes/después, no secretos.
 
+### Archivos adjuntos
+
+- **Quién ve los archivos**: solo la usuaria autenticada. La descarga pasa
+  siempre por `/files/[id]/download` (middleware + `requireUser()`).
+- **Dónde se almacenan**: nunca en PostgreSQL. Local: `.uploads/`
+  (gitignored, claves saneadas contra path traversal). Producción: bucket
+  **privado** de Supabase Storage.
+- **URLs**: no hay URLs públicas permanentes. Supabase entrega URLs
+  firmadas de **5 minutos**; el driver local sirve en streaming con
+  `Content-Disposition: attachment` (evita ejecutar SVG/HTML en el
+  navegador) y `Cache-Control: private, no-store`.
+- **Claves opacas**: el nombre en el storage es un UUID — no filtra el
+  nombre original del documento.
+- **Validación**: allowlist de extensiones (pdf/imagen/doc/hoja/zip),
+  coherencia extensión↔MIME y límite de tamaño (4 MB por defecto).
+- **Borrado**: elimina el binario del storage y archiva la metadata
+  (soft delete + audit log). Si se archiva la entidad asociada, sus
+  adjuntos dejan de mostrarse pero el binario se conserva hasta borrado
+  explícito.
+- **Service role key de Supabase**: solo en variables de entorno del
+  servidor; jamás en el cliente ni en la BD.
+
+#### Checklist de privacidad de archivos
+
+- [ ] Bucket `kairas-files` en **privado** (Public: OFF)
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` solo en Vercel/`.env` (nunca commiteada)
+- [ ] No subir archivos con credenciales dentro (contraseñas, .env, llaves)
+- [ ] Documentos de clientes: solo lo necesario (minimización)
+
 ### Audit log
 
 Registra crear/editar/borrar/cambios de estado/export/import/eventos Meta

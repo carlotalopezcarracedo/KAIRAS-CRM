@@ -57,12 +57,38 @@ backup binario válido (restaurar = volver a colocar el directorio).
 > copia semanal del directorio `.pglite` o un `pg_dump` a una carpeta
 > sincronizada (Drive/OneDrive).
 
-## Producción (recomendado: Neon — ver deployment.md)
+## Backup propio sin pg_dump (Windows-friendly)
 
-| Proveedor | Backups automáticos | Retención (free) | Restore |
+Los scripts del proyecto cubren backup y restauración sin instalar nada:
+
+```powershell
+npm run data:export                 # → backups/kairas-export-AAAA-MM-DD.json
+npm run data:import -- backups/kairas-export-AAAA-MM-DD.json   # restaurar
+```
+
+- El export incluye TODAS las tablas + contactos de cliente. No incluye
+  relaciones de etiquetas (sin UI todavía) ni los **binarios de archivos**.
+- El import es idempotente (mismos IDs, `skipDuplicates`) y aborta si la BD
+  destino ya tiene datos (usa `FORCE_IMPORT=1` para forzar).
+- Guarda el JSON **fuera** del ordenador (Drive/OneDrive/gestor).
+
+### Archivos adjuntos
+
+- Driver local: copia la carpeta `.uploads/` junto con el JSON.
+- Supabase Storage: los archivos viven en el bucket `kairas-files`;
+  descárgalos desde el dashboard (Storage → bucket → seleccionar → Download)
+  si quieres copia fría. El export JSON conserva la metadata y las claves.
+
+## Producción (elegido: Supabase — ver deployment.md)
+
+| Proveedor | Backups automáticos | Free tier | Restore |
 | --- | --- | --- | --- |
-| **Neon** (elegido) | point-in-time vía branching | ~24 h free / más en pago | Branches → Restore desde un instante; apuntar DATABASE_URL a la rama |
-| Supabase (alternativa) | diarios | 7 días (plan Pro) | dashboard → Database → Backups |
+| **Supabase** (elegido) | ⚠ solo en plan Pro (diarios, 7 días) | **sin backups automáticos** → obligatorio `data:export` semanal | Pro: dashboard → Backups. Free: reimportar JSON propio |
+| Neon (alternativa) | point-in-time vía branching | ~24 h de historial | Branches → Restore |
+
+> Con Supabase free, **tu único backup de BD es el que hagas tú**. Pon un
+> recordatorio semanal (o hazlo tras cada sesión importante de trabajo):
+> `npm run data:export` apuntando a producción tarda segundos.
 
 Además de lo que haga el proveedor, mantener **backups propios**:
 

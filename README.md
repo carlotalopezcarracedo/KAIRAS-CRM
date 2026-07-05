@@ -44,8 +44,9 @@ BD te la imprime `npm run db:dev` al arrancar; añade
 | `npm run db:seed` | usuaria + catálogo de servicios + settings |
 | `npm run db:studio` | inspector visual de la BD |
 | `npm run db:diff` | genera SQL de migración desde cambios del schema |
-| `npx tsx scripts/smoke-lead-flow.ts` | smoke test del flujo de leads |
-| `npx tsx scripts/smoke-operations.ts` | smoke test operativo completo (lead→factura) |
+| `npm run smoke` | 3 smoke tests: leads, flujo operativo completo y archivos |
+| `npm run data:export` | backup completo a JSON (`backups/`) — sin pg_dump |
+| `npm run data:import -- <archivo>` | restaurar/migrar el export a la BD activa |
 | `npm run lint` / `npm test` | linter / tests unitarios |
 
 ## Estado actual
@@ -72,8 +73,15 @@ Módulos **funcionales** (datos reales, validación Zod, audit log, responsive):
   (eventos automáticos en cola, envío solo con credenciales y consentimiento)
 - ✅ Ajustes: datos KAIRAS, preferencias, seguridad, tarifas
 
+- ✅ Archivos adjuntos: subida segura (bucket privado + URLs firmadas en
+  producción con Supabase Storage), categorías, enlaces externos, en lead/
+  cliente/oportunidad/proyecto/tarea
+- ✅ Analítica de tiempo: gráficas por día y tipo de trabajo con filtros
+  (rango, cliente, proyecto, facturable); dashboard con alertas y semana
+
 Pendiente (stubs declarados): Propuestas (módulo dedicado) y Campañas.
-Paso a producción documentado en [docs/deployment.md](./docs/deployment.md).
+**Producción elegida: Supabase (BD + Storage) + Vercel** — guía completa en
+[docs/deployment.md](./docs/deployment.md).
 
 ## Estructura
 
