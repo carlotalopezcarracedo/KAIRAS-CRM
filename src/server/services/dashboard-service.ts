@@ -1,4 +1,5 @@
 import { prisma } from "@/server/db/prisma";
+import { getTimeSummary } from "@/server/services/time-service";
 
 const ACTIVE_LEAD_STATUSES = [
   "new",
@@ -51,7 +52,7 @@ function monthlyEquivalent(amount: number, periodicity: string): number {
   }
 }
 
-export async function getDashboardData() {
+export async function getDashboardData(userId: string) {
   const now = new Date();
   const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
@@ -61,6 +62,15 @@ export async function getDashboardData() {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+  // Semana actual (lunes-domingo)
+  const weekDay = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - weekDay);
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
 
   const [
     leadsNew7d,
@@ -76,6 +86,10 @@ export async function getDashboardData() {
     invoiceDraftsPending,
     invoicesPendingPayment,
     leadsBySource30d,
+    weekTime,
+    overdueInvoicesCount,
+    oppsWithoutNextAction,
+    recurringDueCount,
   ] = await Promise.all([
     prisma.lead.count({
       where: { deletedAt: null, createdAt: { gte: sevenDaysAgo } },
@@ -176,6 +190,29 @@ export async function getDashboardData() {
       _count: { _all: true },
       orderBy: { _count: { source: "desc" } },
     }),
+    getTimeSummary(userId, { from: startOfWeek, to: endOfWeek }),
+    prisma.invoiceRecord.count({
+      where: {
+        deletedAt: null,
+        OR: [
+          { status: "overdue" },
+          {
+            status: { in: ["created_in_odoo", "sent"] },
+            dueAt: { lt: startOfToday },
+          },
+        ],
+      },
+    }),
+    prisma.opportunity.count({
+      where: {
+        deletedAt: null,
+        stage: { in: [...OPEN_OPPORTUNITY_STAGES] },
+        nextAction: null,
+      },
+    }),
+    prisma.recurringService.count({
+      where: { deletedAt: null, status: "active", nextInvoiceAt: { lte: now } },
+    }),
   ]);
 
   // Pipeline
@@ -233,5 +270,17 @@ export async function getDashboardData() {
       source: row.source,
       count: row._count._all,
     })),
+    week: {
+      from: startOfWeek,
+      totalSeconds: weekTime.totalSeconds,
+      billableSeconds: weekTime.billableSeconds,
+      billableAmount: weekTime.billableAmount,
+      byDay: weekTime.byDay,
+    },
+    alerts: {
+      overdueInvoicesCount,
+      oppsWithoutNextAction,
+      recurringDueCount,
+    },
   };
 }

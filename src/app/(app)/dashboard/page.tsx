@@ -12,9 +12,16 @@ import {
   OPPORTUNITY_STAGE,
   PRIORITY,
 } from "@/lib/labels";
-import { formatMoney, formatDateTime, relativeDays } from "@/lib/utils";
+import {
+  formatMoney,
+  formatDateTime,
+  formatDuration,
+  relativeDays,
+  dateKey,
+} from "@/lib/utils";
 import { getDashboardData } from "@/server/services/dashboard-service";
-import { auth } from "@/server/auth";
+import { HoursBars, type DayHours } from "@/components/charts/kairas-charts";
+import { requireUser, auth } from "@/server/auth";
 
 export const metadata: Metadata = { title: "Hoy" };
 
@@ -29,9 +36,58 @@ const STAGE_ORDER = [
   "accepted",
 ] as const;
 
+const WEEKDAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
+
 export default async function DashboardPage() {
-  const [data, session] = await Promise.all([getDashboardData(), auth()]);
+  const user = await requireUser();
+  const [data, session] = await Promise.all([
+    getDashboardData(user.id),
+    auth(),
+  ]);
   const firstName = session?.user?.name?.split(" ")[0] ?? "";
+
+  // Serie de la semana (L-D) para la gráfica
+  const weekChart: DayHours[] = [];
+  const cursor = new Date(data.week.from);
+  for (let i = 0; i < 7; i++) {
+    const day = data.week.byDay.get(dateKey(cursor));
+    weekChart.push({
+      label: `${WEEKDAY_LABELS[i]} ${cursor.getDate()}`,
+      facturable: day?.billableSeconds ?? 0,
+      interno: (day?.seconds ?? 0) - (day?.billableSeconds ?? 0),
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const alertItems = [
+    data.followUpsOverdueCount > 0
+      ? {
+          href: "/leads",
+          text: `${data.followUpsOverdueCount} seguimientos comerciales vencidos`,
+        }
+      : null,
+    data.overdueTasks.length > 0
+      ? { href: "/tasks?view=overdue", text: `${data.overdueTasks.length} tareas vencidas` }
+      : null,
+    data.alerts.overdueInvoicesCount > 0
+      ? {
+          href: "/finance",
+          text: `${data.alerts.overdueInvoicesCount} facturas vencidas sin cobrar`,
+        }
+      : null,
+    data.alerts.recurringDueCount > 0
+      ? {
+          href: "/recurring",
+          text: `${data.alerts.recurringDueCount} ciclos recurrentes por facturar`,
+        }
+      : null,
+    data.alerts.oppsWithoutNextAction > 0
+      ? {
+          href: "/pipeline",
+          text: `${data.alerts.oppsWithoutNextAction} oportunidades sin siguiente acción`,
+        }
+      : null,
+  ].filter((a): a is { href: string; text: string } => a !== null);
 
   const today = new Intl.DateTimeFormat("es-ES", {
     weekday: "long",
@@ -58,6 +114,24 @@ export default async function DashboardPage() {
           </ButtonLink>
         }
       />
+
+      {/* Alertas */}
+      {alertItems.length > 0 ? (
+        <div className="mb-5 rounded-card border border-warn/25 bg-warn-soft/50 px-4 py-3">
+          <p className="k-label mb-1.5 text-warn">Requiere atención</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
+            {alertItems.map((alert) => (
+              <Link
+                key={alert.text}
+                href={alert.href}
+                className="text-sm font-medium text-foam hover:text-warn"
+              >
+                {alert.text} →
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* KPIs principales */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -254,8 +328,34 @@ export default async function DashboardPage() {
           </CardBody>
         </Card>
 
-        {/* Lateral: pipeline + fuentes */}
+        {/* Lateral: semana + pipeline + fuentes */}
         <div className="space-y-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>Esta semana</CardTitle>
+              <span className="text-xs font-semibold text-lavender">
+                {formatDuration(data.week.totalSeconds)}
+              </span>
+            </CardHeader>
+            <CardBody>
+              {data.week.totalSeconds > 0 ? (
+                <>
+                  <HoursBars data={weekChart} height={130} />
+                  <p className="mt-2 text-xs text-faint">
+                    {formatDuration(data.week.billableSeconds)} facturables
+                    {data.week.billableAmount > 0
+                      ? ` · ${formatMoney(data.week.billableAmount)} estimados`
+                      : ""}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-faint">
+                  Sin horas esta semana. El cronómetro está arriba, a un clic.
+                </p>
+              )}
+            </CardBody>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Pipeline por etapa</CardTitle>

@@ -3,10 +3,15 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
-import { LEAD_SOURCE } from "@/lib/labels";
+import { LEAD_SOURCE, OPPORTUNITY_STAGE } from "@/lib/labels";
 import { formatMoney, formatDuration, formatDate, cn } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import { getReports } from "@/server/services/report-service";
+import {
+  HoursBars,
+  MoneyBars,
+  type DayHours,
+} from "@/components/charts/kairas-charts";
 
 export const metadata: Metadata = { title: "Informes" };
 
@@ -14,9 +19,19 @@ export default async function ReportsPage() {
   const user = await requireUser();
   const r = await getReports(user.id);
 
-  const maxWeekSeconds = Math.max(1, ...r.weeklyHours.map((w) => w.seconds));
   const maxSource = Math.max(1, ...r.leadsBySource.map((s) => s.count));
   const maxClientRevenue = Math.max(1, ...r.clientRevenue.map((c) => c.total));
+
+  const weeklyChart: DayHours[] = r.weeklyHours.map((week) => ({
+    label: week.label,
+    facturable: week.billableSeconds,
+    interno: week.seconds - week.billableSeconds,
+  }));
+
+  const stageChart = r.pipeline.byStage.map((row) => ({
+    name: `${OPPORTUNITY_STAGE[row.stage as keyof typeof OPPORTUNITY_STAGE].label} ×${row.count}`,
+    value: row.value,
+  }));
 
   return (
     <div>
@@ -93,49 +108,42 @@ export default async function ReportsPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Horas por semana · últimas 8</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <div className="flex items-end justify-between gap-2" style={{ height: 140 }}>
-              {r.weeklyHours.map((week) => (
-                <div
-                  key={week.label}
-                  className="flex flex-1 flex-col items-center justify-end gap-1 self-stretch"
-                  title={`${formatDuration(week.seconds)} (${formatDuration(week.billableSeconds)} facturables)`}
-                >
-                  <div className="flex w-full max-w-10 flex-col justify-end gap-px" style={{ height: 100 }}>
-                    <div
-                      className="w-full rounded-t bg-violet/70"
-                      style={{
-                        height: `${(week.billableSeconds / maxWeekSeconds) * 100}%`,
-                      }}
-                    />
-                    <div
-                      className="w-full bg-raise"
-                      style={{
-                        height: `${((week.seconds - week.billableSeconds) / maxWeekSeconds) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[10px] text-faint">{week.label}</span>
-                  <span className="font-mono text-[10px] text-mist">
-                    {week.seconds > 0 ? formatDuration(week.seconds) : "—"}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-faint">
+            <span className="text-xs text-faint">
               <span className="mr-3 inline-flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-sm bg-violet/70" />
+                <span className="inline-block h-2 w-2 rounded-sm bg-violet" />
                 facturable
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-2 w-2 rounded-sm bg-raise" />
-                no facturable
+                interno
               </span>
-            </p>
+            </span>
+          </CardHeader>
+          <CardBody>
+            <HoursBars data={weeklyChart} height={170} />
           </CardBody>
         </Card>
       </div>
+
+      {/* Pipeline por etapa */}
+      {stageChart.length > 0 ? (
+        <div className="mt-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pipeline por etapa · valor abierto</CardTitle>
+              <span className="text-xs text-faint">
+                ponderado total: {formatMoney(r.pipeline.weightedValue)}
+              </span>
+            </CardHeader>
+            <CardBody>
+              <MoneyBars
+                data={stageChart}
+                height={Math.max(120, stageChart.length * 44)}
+              />
+            </CardBody>
+          </Card>
+        </div>
+      ) : null}
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
         {/* Rentabilidad por proyecto */}

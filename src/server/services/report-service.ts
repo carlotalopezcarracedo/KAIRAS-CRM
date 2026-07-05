@@ -55,7 +55,12 @@ export async function getReports(userId: string) {
   ] = await Promise.all([
     prisma.opportunity.findMany({
       where: { ...notDeleted, stage: { in: [...OPEN_STAGES] } },
-      select: { estimatedValue: true, probability: true, expectedCloseAt: true },
+      select: {
+        estimatedValue: true,
+        probability: true,
+        expectedCloseAt: true,
+        stage: true,
+      },
     }),
     prisma.opportunity.aggregate({
       where: { ...notDeleted, stage: "won", updatedAt: { gte: startOfMonth } },
@@ -120,10 +125,16 @@ export async function getReports(userId: string) {
   // Pipeline
   let openValue = 0;
   let weightedValue = 0;
+  const byStage = new Map<string, { value: number; weighted: number; count: number }>();
   for (const o of openOpps) {
     const v = o.estimatedValue ? Number(o.estimatedValue) : 0;
     openValue += v;
     weightedValue += (v * (o.probability ?? 0)) / 100;
+    const entry = byStage.get(o.stage) ?? { value: 0, weighted: 0, count: 0 };
+    entry.value += v;
+    entry.weighted += (v * (o.probability ?? 0)) / 100;
+    entry.count += 1;
+    byStage.set(o.stage, entry);
   }
 
   const mrr = activeRecurring.reduce(
@@ -227,6 +238,10 @@ export async function getReports(userId: string) {
       openCount: openOpps.length,
       openValue,
       weightedValue,
+      byStage: OPEN_STAGES.filter((s) => byStage.has(s)).map((stage) => ({
+        stage,
+        ...byStage.get(stage)!,
+      })),
     },
     sales: {
       wonMonthCount: wonMonth._count,
