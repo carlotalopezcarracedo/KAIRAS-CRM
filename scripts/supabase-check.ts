@@ -41,8 +41,11 @@ function checkVar(
     failures++;
     return null;
   }
-  const prefix = value.slice(0, Math.min(14, value.length));
-  ok(`${name}: presente (${value.length} chars, empieza "${prefix.replace(/:[^:@]*@/, ":***@")}…")`);
+  // Nunca imprimir fragmentos de secretos: solo esquema/longitud
+  const shape = name.includes("URL")
+    ? value.replace(/:\/\/[^@]*@/, "://***@").slice(0, 60) + "…"
+    : `${value.length} chars, formato válido`;
+  ok(`${name}: presente (${shape})`);
   return value;
 }
 
