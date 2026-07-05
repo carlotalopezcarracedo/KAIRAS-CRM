@@ -46,10 +46,15 @@ Supabase da tres formas de conexión. Usamos **dos** (la conexión directa
 domésticas — no la uses):
 
 - **Transaction pooler** (puerto **6543**) → `DATABASE_URL` (runtime).
-  Añade `?pgbouncer=true&connection_limit=1` (PgBouncer en modo transacción
-  no soporta prepared statements; el flag lo desactiva en Prisma).
+  Añade `?sslmode=require&pgbouncer=true&connection_limit=1` (PgBouncer en
+  modo transacción no soporta prepared statements; el flag lo desactiva en
+  Prisma).
 - **Session pooler** (puerto **5432**, host `...pooler.supabase.com`) →
-  `DIRECT_DATABASE_URL` (migraciones). Funciona por IPv4.
+  `DIRECT_DATABASE_URL` (migraciones), con `?sslmode=require`. Funciona por
+  IPv4.
+
+> Si la contraseña de la BD tiene caracteres especiales (`@ : / # ? &`),
+> hay que URL-encodearlos dentro de la connection string (`@` → `%40`, etc.).
 
 El schema ya está preparado: `url` usa la pooled y `directUrl` la de
 sesión — `prisma migrate deploy` usará automáticamente la correcta.
@@ -68,8 +73,8 @@ sesión — `prisma migrate deploy` usará automáticamente la correcta.
 ### Producción (Vercel → Settings → Environment Variables)
 
 ```env
-DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
-DIRECT_DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true&connection_limit=1
+DIRECT_DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require
 AUTH_SECRET=            # NUEVO: npx auth secret (no reutilizar el de dev)
 AUTH_URL=https://TU-DOMINIO.vercel.app
 APP_URL=https://TU-DOMINIO.vercel.app
