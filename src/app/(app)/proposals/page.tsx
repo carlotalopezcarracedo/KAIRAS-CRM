@@ -7,8 +7,9 @@ export default function Page() {
   return (
     <ModuleStub
       title="Propuestas"
-      phase="Fase 5"
-      description="Draft, enviada, aceptada o rechazada; crear proyecto y solicitud de factura al aceptar. Mientras tanto, registra propuestas como oportunidades en etapa Propuesta enviada."
+      phase="siguiente bloque"
+      description="Gestión de propuestas con estados (borrador, enviada, aceptada, rechazada), versiones, importes con IVA y acciones al aceptar: crear proyecto y solicitud de factura automáticamente."
+      meanwhile="registra la propuesta como oportunidad en etapa «Propuesta enviada» y adjunta el PDF en los archivos de la oportunidad."
     />
   );
 }

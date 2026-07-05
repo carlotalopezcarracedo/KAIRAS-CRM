@@ -29,30 +29,30 @@ export type AttachmentData = {
   isExternal: boolean;
 };
 
-function iconFor(attachment: AttachmentData) {
-  if (attachment.isExternal) return Link2;
+function fileIcon(attachment: AttachmentData) {
+  const className = "h-4 w-4 shrink-0 text-lavender";
+  if (attachment.isExternal) return <Link2 className={className} />;
   const mime = attachment.mimeType ?? "";
-  if (mime.startsWith("image/")) return ImageIcon;
-  if (mime === "application/pdf") return FileText;
+  if (mime.startsWith("image/")) return <ImageIcon className={className} />;
+  if (mime === "application/pdf") return <FileText className={className} />;
   if (mime.includes("spreadsheet") || mime.includes("csv") || mime.includes("excel"))
-    return Table2;
-  if (mime.includes("zip")) return Archive;
+    return <Table2 className={className} />;
+  if (mime.includes("zip")) return <Archive className={className} />;
   if (mime.includes("word") || mime.includes("document") || mime.startsWith("text/"))
-    return FileText;
-  return File;
+    return <FileText className={className} />;
+  return <File className={className} />;
 }
 
 export function AttachmentRow({ attachment }: { attachment: AttachmentData }) {
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
   const [deleted, setDeleted] = useState(false);
-  const Icon = iconFor(attachment);
 
   if (deleted) return null;
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-line bg-ink/40 px-3.5 py-2.5">
-      <Icon className="h-4 w-4 shrink-0 text-lavender" />
+      {fileIcon(attachment)}
       <div className="min-w-0 flex-1">
         <a
           href={`/files/${attachment.id}/download`}

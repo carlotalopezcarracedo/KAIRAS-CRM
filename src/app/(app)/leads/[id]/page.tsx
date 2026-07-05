@@ -9,8 +9,6 @@ import {
   MessageCircle,
   Pencil,
   ArrowLeft,
-  ArrowDownLeft,
-  ArrowUpRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -18,11 +16,11 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   LEAD_STATUS,
-  TEMPERATURE,
   LEAD_SOURCE,
-  INTERACTION_CHANNEL,
   OPPORTUNITY_STAGE,
 } from "@/lib/labels";
+import { TemperatureBadge } from "@/components/crm/temperature-badge";
+import { InteractionTimeline } from "@/components/crm/interaction-timeline";
 import { formatDate, formatDateTime, formatMoney, relativeDays } from "@/lib/utils";
 import { getLead } from "@/server/services/lead-service";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
@@ -78,9 +76,7 @@ export default async function LeadDetailPage({
             <Badge tone={LEAD_STATUS[lead.status].tone}>
               {LEAD_STATUS[lead.status].label}
             </Badge>
-            <Badge tone={TEMPERATURE[lead.temperature].tone}>
-              {TEMPERATURE[lead.temperature].label}
-            </Badge>
+            <TemperatureBadge temperature={lead.temperature} />
             <span className="text-xs text-faint">
               {LEAD_SOURCE[lead.source].label}
               {lead.campaign ? ` · ${lead.campaign.name}` : ""}
@@ -277,36 +273,7 @@ export default async function LeadDetailPage({
                   className="py-8"
                 />
               ) : (
-                <ol className="space-y-3">
-                  {lead.interactions.map((it) => (
-                    <li
-                      key={it.id}
-                      className="rounded-xl border border-line bg-ink/40 px-4 py-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          {it.direction === "inbound" ? (
-                            <ArrowDownLeft className="h-3.5 w-3.5 text-ok" />
-                          ) : (
-                            <ArrowUpRight className="h-3.5 w-3.5 text-lavender" />
-                          )}
-                          <Badge tone={INTERACTION_CHANNEL[it.channel].tone}>
-                            {INTERACTION_CHANNEL[it.channel].label}
-                          </Badge>
-                        </div>
-                        <span className="text-xs text-faint">
-                          {formatDateTime(it.occurredAt)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm font-medium text-foam">{it.summary}</p>
-                      {it.detail ? (
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-mist">
-                          {it.detail}
-                        </p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
+                <InteractionTimeline interactions={lead.interactions} />
               )}
             </CardBody>
           </Card>

@@ -7,11 +7,11 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import {
-  TEMPERATURE,
   LEAD_SOURCE,
   OPPORTUNITY_STAGE,
   PRIORITY,
 } from "@/lib/labels";
+import { TemperatureBadge } from "@/components/crm/temperature-badge";
 import {
   formatMoney,
   formatDateTime,
@@ -240,9 +240,7 @@ export default async function DashboardPage() {
                               </span>
                             </p>
                           </Link>
-                          <Badge tone={TEMPERATURE[lead.temperature].tone}>
-                            {TEMPERATURE[lead.temperature].label}
-                          </Badge>
+                          <TemperatureBadge temperature={lead.temperature} />
                           {lead.phone ? (
                             <a
                               href={`https://wa.me/${lead.phone.replace(/[^\d]/g, "")}`}

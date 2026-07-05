@@ -7,8 +7,9 @@ export default function Page() {
   return (
     <ModuleStub
       title="Campañas"
-      phase="Fase 6"
-      description="Fuente, canal, presupuesto, UTMs, leads y ventas generadas. Los leads ya guardan UTMs y fuente para cuando este módulo llegue."
+      phase="pendiente"
+      description="Campañas por canal con presupuesto, UTMs, leads generados, oportunidades y ventas atribuidas, coste por lead y ROAS estimado."
+      meanwhile="los leads ya guardan fuente y UTMs, y el informe «Leads por fuente» muestra qué canal funciona."
     />
   );
 }

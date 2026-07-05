@@ -17,8 +17,8 @@ import {
   INVOICE_STATUS,
   INVOICE_DRAFT_STATUS,
   LEAD_STATUS,
-  INTERACTION_CHANNEL,
 } from "@/lib/labels";
+import { InteractionTimeline } from "@/components/crm/interaction-timeline";
 import { formatMoney, formatDate, formatDateTime, formatDuration } from "@/lib/utils";
 import { getClientFull } from "@/server/services/client-service";
 import { deleteClientAction, addClientNoteAction } from "../actions";
@@ -338,26 +338,14 @@ export default async function ClientDetailPage({
             </CardBody>
           </Card>
 
-          {/* Interacciones */}
+          {/* Actividad reciente */}
           {client.interactions.length > 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>Interacciones</CardTitle>
+                <CardTitle>Actividad reciente</CardTitle>
               </CardHeader>
-              <CardBody className="space-y-2">
-                {client.interactions.map((it) => (
-                  <div key={it.id} className="rounded-xl border border-line bg-ink/40 px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <Badge tone={INTERACTION_CHANNEL[it.channel].tone}>
-                        {INTERACTION_CHANNEL[it.channel].label}
-                      </Badge>
-                      <span className="text-xs text-faint">
-                        {formatDateTime(it.occurredAt)}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm font-medium text-foam">{it.summary}</p>
-                  </div>
-                ))}
+              <CardBody>
+                <InteractionTimeline interactions={client.interactions} />
               </CardBody>
             </Card>
           ) : null}

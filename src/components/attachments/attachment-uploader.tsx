@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Paperclip, Link2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Input, Select } from "@/components/ui/field";
 import { KIND_LABELS } from "./attachment-kinds";
 import { addExternalLinkAction } from "./actions";
 import { cn } from "@/lib/utils";

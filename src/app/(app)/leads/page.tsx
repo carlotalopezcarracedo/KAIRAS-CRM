@@ -6,7 +6,8 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
-import { LEAD_STATUS, TEMPERATURE, LEAD_SOURCE } from "@/lib/labels";
+import { LEAD_STATUS, LEAD_SOURCE } from "@/lib/labels";
+import { TemperatureBadge } from "@/components/crm/temperature-badge";
 import { formatDate, relativeDays } from "@/lib/utils";
 import { listLeads } from "@/server/services/lead-service";
 import { leadFiltersSchema } from "@/server/validators/lead";
@@ -100,9 +101,7 @@ export default async function LeadsPage({
                       </Badge>
                     </TD>
                     <TD>
-                      <Badge tone={TEMPERATURE[lead.temperature].tone}>
-                        {TEMPERATURE[lead.temperature].label}
-                      </Badge>
+                      <TemperatureBadge temperature={lead.temperature} />
                     </TD>
                     <TD className="text-mist">{LEAD_SOURCE[lead.source].label}</TD>
                     <TD>
@@ -144,9 +143,7 @@ export default async function LeadsPage({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <p className="font-semibold text-foam">{lead.name}</p>
-                    <Badge tone={TEMPERATURE[lead.temperature].tone}>
-                      {TEMPERATURE[lead.temperature].label}
-                    </Badge>
+                    <TemperatureBadge temperature={lead.temperature} />
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge tone={LEAD_STATUS[lead.status].tone}>
