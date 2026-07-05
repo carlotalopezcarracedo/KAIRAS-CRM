@@ -14,6 +14,14 @@ function config() {
   return { url: url.replace(/\/$/, ""), key, bucket };
 }
 
+/**
+ * Cabeceras de auth: `apikey` + `Authorization`. Así funcionan tanto las
+ * claves nuevas (`sb_secret_...`) como el JWT legacy `service_role` (eyJ…).
+ */
+function authHeaders(key: string): Record<string, string> {
+  return { apikey: key, Authorization: `Bearer ${key}` };
+}
+
 export const supabaseStorageDriver: StorageDriver = {
   name: "supabase",
 
@@ -24,7 +32,7 @@ export const supabaseStorageDriver: StorageDriver = {
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          ...authHeaders(apiKey),
           "Content-Type": contentType || "application/octet-stream",
           "x-upsert": "false",
         },
@@ -44,7 +52,7 @@ export const supabaseStorageDriver: StorageDriver = {
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          ...authHeaders(apiKey),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ expiresIn: expiresInSeconds }),
@@ -68,7 +76,7 @@ export const supabaseStorageDriver: StorageDriver = {
     const { url, key: apiKey, bucket } = config();
     const response = await fetch(
       `${url}/storage/v1/object/${bucket}/${encodeURI(key)}`,
-      { method: "DELETE", headers: { Authorization: `Bearer ${apiKey}` } },
+      { method: "DELETE", headers: authHeaders(apiKey) },
     );
     // 404 = ya no existe: aceptable para borrado idempotente
     if (!response.ok && response.status !== 404) {
