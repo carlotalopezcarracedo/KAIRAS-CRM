@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "./nav-items";
@@ -12,10 +13,15 @@ export function Sidebar() {
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-surface/60 backdrop-blur lg:flex">
       <div className="px-6 pb-6 pt-7">
         <Link href="/dashboard" className="block">
-          <span className="text-lg font-extrabold tracking-[0.3em] text-foam">
-            KAIRAS
-          </span>
-          <span className="k-label mt-1 block">os</span>
+          <Image
+            src="/brand/kairas-logo-horizontal.png"
+            alt="KAIRAS"
+            width={140}
+            height={21}
+            priority
+            className="h-auto w-32"
+          />
+          <span className="k-label mt-2 block">os</span>
         </Link>
       </div>
 

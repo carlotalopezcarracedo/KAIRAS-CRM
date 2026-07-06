@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Plus, LogOut } from "lucide-react";
 import { auth, signOut } from "@/server/auth";
 import { getActiveTimer } from "@/server/services/time-service";
@@ -34,9 +35,14 @@ export async function Topbar() {
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-ink/85 px-4 backdrop-blur sm:px-6">
       <div className="flex items-center gap-2.5">
         <Link href="/dashboard" className="lg:hidden">
-          <span className="text-sm font-extrabold tracking-[0.3em] text-foam">
-            KAIRAS
-          </span>
+          <Image
+            src="/brand/kairas-logo-horizontal.png"
+            alt="KAIRAS"
+            width={107}
+            height={16}
+            priority
+            className="h-4 w-auto"
+          />
         </Link>
         {!isProduction ? (
           <span
