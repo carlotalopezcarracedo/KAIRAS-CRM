@@ -28,6 +28,7 @@ enum LeadStatus {
   proposal_sent
   follow_up
   negotiation
+  postponed // aplazado: quiere empezar más adelante
   won
   lost
   nurture

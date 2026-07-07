@@ -46,6 +46,7 @@ export const LEAD_STATUSES = [
   "proposal_sent",
   "follow_up",
   "negotiation",
+  "postponed",
   "won",
   "lost",
   "nurture",

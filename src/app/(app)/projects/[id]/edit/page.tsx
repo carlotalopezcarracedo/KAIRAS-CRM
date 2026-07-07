@@ -14,8 +14,12 @@ export default async function EditProjectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [project, clients, services] = await Promise.all([
+  const [project, projectRate, clients, services] = await Promise.all([
     prisma.project.findFirst({ where: { id, deletedAt: null } }),
+    prisma.hourlyRate.findFirst({
+      where: { scope: "project", projectId: id, active: true },
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.client.findMany({
       where: { deletedAt: null },
       orderBy: { name: "asc" },
@@ -39,6 +43,7 @@ export default async function EditProjectPage({
     startAt: toDateOnlyInput(project.startAt),
     deadline: toDateOnlyInput(project.deadline),
     budget: project.budget?.toString() ?? "",
+    hourlyRate: projectRate ? String(Number(projectRate.rate)) : "",
     estimatedMargin: project.estimatedMargin?.toString() ?? "",
     description: project.description ?? "",
     scope: project.scope ?? "",

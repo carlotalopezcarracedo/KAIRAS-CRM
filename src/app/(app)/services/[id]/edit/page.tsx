@@ -13,7 +13,13 @@ export default async function EditServicePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const service = await prisma.service.findFirst({ where: { id, deletedAt: null } });
+  const [service, serviceRate] = await Promise.all([
+    prisma.service.findFirst({ where: { id, deletedAt: null } }),
+    prisma.hourlyRate.findFirst({
+      where: { scope: "service", serviceId: id, active: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
   if (!service) notFound();
 
   const defaults: ServiceFormDefaults = {
@@ -25,6 +31,7 @@ export default async function EditServicePage({
     priceMax: service.priceMax?.toString() ?? "",
     vatRate: service.vatRate.toString(),
     billingUnit: service.billingUnit,
+    hourlyRate: serviceRate ? String(Number(serviceRate.rate)) : "",
     canBeRecurring: service.canBeRecurring,
     deliverables: service.deliverables ?? "",
     odooProductRef: service.odooProductRef ?? "",

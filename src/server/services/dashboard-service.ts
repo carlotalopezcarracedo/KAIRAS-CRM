@@ -19,6 +19,7 @@ const ACTIVE_LEAD_STATUSES = [
   "proposal_sent",
   "follow_up",
   "negotiation",
+  "postponed", // aplazados: reaparecen cuando llega su fecha de retomar
   "nurture",
 ] as const;
 

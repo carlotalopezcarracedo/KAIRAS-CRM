@@ -114,7 +114,7 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs adaptados al modo de cobro */}
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Horas"
@@ -122,24 +122,54 @@ export default async function ProjectDetailPage({
           hint={`${formatDuration(billableSeconds)} facturables`}
         />
         <StatCard
-          label="Importe por horas"
+          label={
+            project.billingMode === "hourly" ? "A facturar por horas" : "Importe por horas"
+          }
           value={formatMoney(estimatedAmount)}
-          hint={`tarifa efectiva ${effectiveRate.rate} €/h (${effectiveRate.source})`}
+          hint={`tarifa ${effectiveRate.rate} €/h (${
+            { project: "del proyecto", client: "del cliente", service: "del servicio", global: "global", none: "sin tarifa" }[effectiveRate.source]
+          })`}
+          accent={project.billingMode === "hourly" && estimatedAmount > 0}
         />
         <StatCard
-          label="Presupuesto"
+          label={
+            project.billingMode === "fixed"
+              ? "Precio cerrado"
+              : project.billingMode === "retainer"
+                ? "Cuota / presupuesto"
+                : "Presupuesto"
+          }
           value={formatMoney(project.budget?.toString())}
           hint={
-            project.budget
-              ? `coste-horas ${formatMoney(hoursCost)}`
-              : "sin presupuesto fijado"
+            project.billingMode === "retainer"
+              ? "la cuota mensual vive en Recurrentes"
+              : project.billingMode === "hourly"
+                ? "techo opcional en modo por horas"
+                : project.budget
+                  ? `coste-horas ${formatMoney(hoursCost)}`
+                  : "sin precio fijado"
           }
+          accent={project.billingMode === "fixed" && !!project.budget}
         />
         <StatCard
           label="Rentabilidad est."
-          value={profitability !== null ? `${profitability}%` : "—"}
-          hint="presupuesto vs horas × tarifa"
-          accent={profitability !== null && profitability < 30}
+          value={
+            project.billingMode === "hourly"
+              ? "por horas"
+              : profitability !== null
+                ? `${profitability}%`
+                : "—"
+          }
+          hint={
+            project.billingMode === "hourly"
+              ? "cada hora facturable es margen"
+              : "precio cerrado vs horas × tarifa"
+          }
+          accent={
+            project.billingMode !== "hourly" &&
+            profitability !== null &&
+            profitability < 30
+          }
         />
       </div>
 

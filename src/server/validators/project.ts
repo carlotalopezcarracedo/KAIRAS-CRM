@@ -50,6 +50,7 @@ export const projectCreateSchema = z.object({
   startAt: optionalDate,
   deadline: optionalDate,
   budget: optionalNumber,
+  hourlyRate: optionalNumber, // crea/actualiza la tarifa del proyecto
   estimatedMargin: optionalNumber.refine(
     (v) => v === undefined || (v >= 0 && v <= 100),
     { message: "Entre 0 y 100" },

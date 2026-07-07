@@ -24,6 +24,7 @@ export type ServiceFormDefaults = Partial<{
   priceMax: string;
   vatRate: string;
   billingUnit: string;
+  hourlyRate: string;
   canBeRecurring: boolean;
   deliverables: string;
   odooProductRef: string;
@@ -87,10 +88,26 @@ export function ServiceForm({
             ))}
           </Select>
         </Field>
+        <Field label="Tarifa (€/h)" error={errors.hourlyRate?.[0]}>
+          <Input
+            name="hourlyRate"
+            type="number"
+            min={0}
+            step="0.01"
+            defaultValue={defaults.hourlyRate}
+            placeholder="para trabajo por horas"
+          />
+        </Field>
         <Field label="Ref. producto Odoo" error={errors.odooProductRef?.[0]}>
           <Input name="odooProductRef" defaultValue={defaults.odooProductRef} />
         </Field>
       </div>
+      <p className="text-xs text-faint">
+        Cómo cobrar este servicio: <strong className="text-mist">por proyecto</strong> →
+        precio base · <strong className="text-mist">por mes</strong> → márcalo
+        recurrente y crea la cuota en cada cliente ·{" "}
+        <strong className="text-mist">por horas</strong> → unidad «Por hora» + tarifa €/h.
+      </p>
 
       <Field label="Entregables típicos" error={errors.deliverables?.[0]}>
         <Textarea name="deliverables" defaultValue={defaults.deliverables} className="min-h-16" />

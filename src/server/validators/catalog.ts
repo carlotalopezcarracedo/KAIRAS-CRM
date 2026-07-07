@@ -63,6 +63,7 @@ export const serviceSchema = z.object({
   priceMax: optionalNumber,
   vatRate: optionalNumber.transform((v) => v ?? 21),
   billingUnit: z.enum(["project", "hour", "month", "piece", "other"]).default("project"),
+  hourlyRate: optionalNumber, // crea/actualiza la tarifa del servicio
   canBeRecurring: z
     .string()
     .optional()

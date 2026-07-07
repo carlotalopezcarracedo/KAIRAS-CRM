@@ -20,6 +20,7 @@ export type ProjectFormDefaults = Partial<{
   startAt: string;
   deadline: string;
   budget: string;
+  hourlyRate: string;
   estimatedMargin: string;
   description: string;
   scope: string;
@@ -114,13 +115,24 @@ export function ProjectForm({
               ))}
             </Select>
           </Field>
-          <Field label="Presupuesto (€)" error={errors.budget?.[0]}>
+          <Field label="Precio cerrado / presupuesto (€)" error={errors.budget?.[0]}>
             <Input
               name="budget"
               type="number"
               min={0}
               step="0.01"
               defaultValue={defaults.budget}
+              placeholder="2100"
+            />
+          </Field>
+          <Field label="Tarifa de este proyecto (€/h)" error={errors.hourlyRate?.[0]}>
+            <Input
+              name="hourlyRate"
+              type="number"
+              min={0}
+              step="0.01"
+              defaultValue={defaults.hourlyRate}
+              placeholder="auto (cliente/global)"
             />
           </Field>
           <Field label="Margen estimado (%)" error={errors.estimatedMargin?.[0]}>
@@ -140,8 +152,11 @@ export function ProjectForm({
           </Field>
         </div>
         <p className="text-xs text-faint">
-          Si es «Por horas», la tarifa se resuelve desde Ajustes → Tarifas
-          (proyecto &gt; cliente &gt; servicio &gt; global).
+          Cómo cobrar: <strong className="text-mist">Precio cerrado</strong> → pon el
+          importe en presupuesto · <strong className="text-mist">Por horas</strong> → pon
+          la tarifa €/h (si la dejas vacía se usa la del cliente o la global) ·{" "}
+          <strong className="text-mist">Cuota recurrente</strong> → crea además el
+          recurrente en el cliente.
         </p>
       </section>
 

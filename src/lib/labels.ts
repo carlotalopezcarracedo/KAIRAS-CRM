@@ -16,6 +16,7 @@ export const LEAD_STATUS: LabelMap<
   | "proposal_sent"
   | "follow_up"
   | "negotiation"
+  | "postponed"
   | "won"
   | "lost"
   | "nurture"
@@ -33,6 +34,7 @@ export const LEAD_STATUS: LabelMap<
   proposal_sent: { label: "Propuesta enviada", tone: "violet" },
   follow_up: { label: "Seguimiento", tone: "warn" },
   negotiation: { label: "Negociación", tone: "warn" },
+  postponed: { label: "Aplazado", tone: "info" },
   won: { label: "Ganado", tone: "ok" },
   lost: { label: "Perdido", tone: "danger" },
   nurture: { label: "Nurture", tone: "neutral" },

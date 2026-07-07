@@ -31,6 +31,24 @@ export async function listServices(includeInactive = true) {
   });
 }
 
+/** Crea o actualiza la tarifa €/h propia del servicio. */
+async function upsertServiceRate(serviceId: string, rate: number | undefined) {
+  if (rate === undefined || rate <= 0) return;
+  const existing = await prisma.hourlyRate.findFirst({
+    where: { scope: "service", serviceId, active: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) {
+    if (Number(existing.rate) !== rate) {
+      await prisma.hourlyRate.update({ where: { id: existing.id }, data: { rate } });
+    }
+  } else {
+    await prisma.hourlyRate.create({
+      data: { scope: "service", serviceId, rate, notes: "Definida desde el servicio" },
+    });
+  }
+}
+
 export async function createService(actorId: string, input: ServiceInput) {
   const base = slugify(input.name) || "servicio";
   let slug = base;
@@ -39,7 +57,9 @@ export async function createService(actorId: string, input: ServiceInput) {
     slug = `${base}_${++attempt}`;
   }
 
-  const service = await prisma.service.create({ data: { ...input, slug } });
+  const { hourlyRate, ...data } = input;
+  const service = await prisma.service.create({ data: { ...data, slug } });
+  await upsertServiceRate(service.id, hourlyRate);
   await audit({
     actorId,
     action: "create",
@@ -57,7 +77,9 @@ export async function updateService(
 ) {
   const before = await prisma.service.findFirst({ where: { id, ...notDeleted } });
   if (!before) throw new Error("NOT_FOUND");
-  const service = await prisma.service.update({ where: { id }, data: input });
+  const { hourlyRate, ...data } = input;
+  const service = await prisma.service.update({ where: { id }, data });
+  await upsertServiceRate(id, hourlyRate);
   await audit({
     actorId,
     action: "update",

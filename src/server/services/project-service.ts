@@ -102,19 +102,39 @@ export async function getProjectFull(id: string) {
   };
 }
 
+/** Crea o actualiza la tarifa €/h propia del proyecto (Ajustes → Tarifas). */
+async function upsertProjectRate(projectId: string, rate: number | undefined) {
+  if (rate === undefined || rate <= 0) return;
+  const existing = await prisma.hourlyRate.findFirst({
+    where: { scope: "project", projectId, active: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (existing) {
+    if (Number(existing.rate) !== rate) {
+      await prisma.hourlyRate.update({ where: { id: existing.id }, data: { rate } });
+    }
+  } else {
+    await prisma.hourlyRate.create({
+      data: { scope: "project", projectId, rate, notes: "Definida desde el proyecto" },
+    });
+  }
+}
+
 export async function createProject(actorId: string, input: ProjectCreateInput) {
   const client = await prisma.client.findFirst({
     where: { id: input.clientId, deletedAt: null },
   });
   if (!client) throw new Error("CLIENT_NOT_FOUND");
 
+  const { hourlyRate, ...data } = input;
   const project = await prisma.project.create({
     data: {
-      ...input,
+      ...data,
       mainServiceId: input.mainServiceId || null,
       proposalId: input.proposalId || null,
     },
   });
+  await upsertProjectRate(project.id, hourlyRate);
   await audit({
     actorId,
     action: "create",
@@ -133,16 +153,18 @@ export async function updateProject(
   const before = await prisma.project.findFirst({ where: { id, ...notDeleted } });
   if (!before) throw new Error("NOT_FOUND");
 
+  const { hourlyRate, ...data } = input;
   const project = await prisma.project.update({
     where: { id },
     data: {
-      ...input,
+      ...data,
       mainServiceId:
         input.mainServiceId === undefined ? undefined : input.mainServiceId || null,
       proposalId:
         input.proposalId === undefined ? undefined : input.proposalId || null,
     },
   });
+  await upsertProjectRate(id, hourlyRate);
   await audit({
     actorId,
     action: "update",

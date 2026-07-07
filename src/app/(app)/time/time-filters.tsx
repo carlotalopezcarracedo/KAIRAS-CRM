@@ -17,9 +17,11 @@ const RANGES = [
 export function TimeFilters({
   clients,
   projects,
+  showRange = true,
 }: {
   clients: { id: string; name: string }[];
   projects: { id: string; name: string }[];
+  showRange?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -49,7 +51,7 @@ export function TimeFilters({
 
   return (
     <div className="mb-5 space-y-2.5">
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className={showRange ? "flex flex-wrap items-center gap-1.5" : "hidden"}>
         {RANGES.map(([key, label]) => (
           <Link
             key={key}
