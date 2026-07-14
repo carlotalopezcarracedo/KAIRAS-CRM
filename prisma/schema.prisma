@@ -1254,3 +1254,230 @@ model Settings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ============================================================
+// KAIRAS OS — INICIO
+// Módulo de conocimiento (aditivo, aislado). Tablas con prefijo os_.
+// No modifica ningún modelo/enum/campo existente. Sin FK hacia el CRM
+// (las referencias al CRM usan targetType/targetId por string).
+// Eliminación: borrar este bloque + drop de tablas os_* (ver rollback).
+// ============================================================
+
+enum OsEntryType {
+  principio
+  regla
+  prohibicion
+  definicion
+  posicionamiento
+  icp
+  oferta
+  precio
+  garantia
+  claim
+  mensaje
+  objecion
+  cta
+  guion
+  caso
+  pilar_contenido
+  serie_contenido
+  pieza_contenido
+  hipotesis
+  experimento
+  aprendizaje
+  decision
+  riesgo
+  playbook
+  recurso
+  regla_marca
+  token_visual
+  kpi
+  articulo_constitucion
+}
+
+enum OsStatus {
+  borrador
+  vigente
+  provisional
+  condicionado
+  validado
+  historico
+  obsoleto
+  archivado
+}
+
+enum OsAuthority {
+  constitucion
+  sistema_permanente
+  operativo
+  experimental
+  historico
+}
+
+enum OsBusinessLine {
+  L1_automatizacion
+  L2_web
+  L3_branding
+  transversal
+}
+
+enum OsMessageLayer {
+  corp
+  sect
+  prod
+  conv
+  prop
+  na
+}
+
+enum OsRelationType {
+  desarrolla
+  sustituye
+  depende_de
+  valida
+  refuta
+  prueba
+  responde
+  aplica
+  deriva_en
+  relacionado
+}
+
+model KnowledgeSource {
+  id        String  @id @default(cuid())
+  label     String
+  phase     String?
+  path      String?
+  kind      String?
+  createdAt DateTime @default(now())
+
+  entries KnowledgeEntry[]
+
+  @@map("os_knowledge_source")
+}
+
+model KnowledgeEntry {
+  id           String  @id @default(cuid())
+  externalKey  String? @unique
+  type         OsEntryType
+  area         String
+  title        String
+  body         String? @db.Text
+  summary      String?
+  status       OsStatus       @default(borrador)
+  authority    OsAuthority    @default(operativo)
+  businessLine OsBusinessLine @default(transversal)
+  messageLayer OsMessageLayer @default(na)
+  sector       String?
+  hypothesisRef String?
+  funnelStage  String?
+  awarenessLevel String?
+  temperature  String?
+  channel      String?
+  targetType   String?
+  targetId     String?
+  meta         Json?
+  embeddingRef String?
+  contentHash  String?
+  ownerId      String?
+  sourceId     String?
+  source       KnowledgeSource? @relation(fields: [sourceId], references: [id])
+  currentVersion Int   @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  tags          KnowledgeEntryTag[]
+  versions      KnowledgeVersion[]
+  favorites     KnowledgeFavorite[]
+  relationsFrom KnowledgeRelation[] @relation("OsRelFrom")
+  relationsTo   KnowledgeRelation[] @relation("OsRelTo")
+
+  @@index([type, status])
+  @@index([area])
+  @@index([authority])
+  @@index([sector])
+  @@index([targetType, targetId])
+  @@index([updatedAt])
+  @@map("os_knowledge_entry")
+}
+
+model KnowledgeTag {
+  id    String  @id @default(cuid())
+  slug  String  @unique
+  name  String
+  color String?
+
+  entries KnowledgeEntryTag[]
+
+  @@map("os_knowledge_tag")
+}
+
+model KnowledgeEntryTag {
+  entryId String
+  tagId   String
+  entry   KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag     KnowledgeTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, tagId])
+  @@index([tagId])
+  @@map("os_knowledge_entry_tag")
+}
+
+model KnowledgeRelation {
+  id     String @id @default(cuid())
+  fromId String
+  toId   String
+  type   OsRelationType
+  note   String?
+  from   KnowledgeEntry @relation("OsRelFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to     KnowledgeEntry @relation("OsRelTo", fields: [toId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([fromId, toId, type])
+  @@index([toId])
+  @@map("os_knowledge_relation")
+}
+
+model KnowledgeVersion {
+  id                String   @id @default(cuid())
+  entryId           String
+  version           Int
+  titleSnapshot     String
+  bodySnapshot      String?  @db.Text
+  statusSnapshot    OsStatus
+  changeReason      String?
+  authorId          String?
+  supersedesEntryId String?
+  createdAt         DateTime @default(now())
+  entry             KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, version])
+  @@map("os_knowledge_version")
+}
+
+model KnowledgeFavorite {
+  id        String   @id @default(cuid())
+  entryId   String
+  userId    String
+  createdAt DateTime @default(now())
+  entry     KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, userId])
+  @@map("os_knowledge_favorite")
+}
+
+model KnowledgePermission {
+  id          String   @id @default(cuid())
+  subjectType String
+  subjectId   String
+  level       String
+  sensitivity String
+  createdAt   DateTime @default(now())
+
+  @@map("os_knowledge_permission")
+}
+
+// ============================================================
+// KAIRAS OS — FIN
+// ============================================================
