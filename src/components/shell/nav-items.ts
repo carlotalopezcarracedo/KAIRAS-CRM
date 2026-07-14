@@ -16,6 +16,7 @@ import {
   Settings,
   BarChart3,
   BookOpen,
+  Brain,
   type LucideIcon,
 } from "lucide-react";
 
@@ -59,6 +60,10 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/settings", label: "Ajustes", icon: Settings },
       { href: "/guide", label: "Guía de uso", icon: BookOpen },
     ],
+  },
+  {
+    label: "Conocimiento",
+    items: [{ href: "/os", label: "KAIRAS OS", icon: Brain }],
   },
 ];
 
