@@ -42,8 +42,10 @@ experimental > histórico.
 ## Importación de conocimiento
 
 ```bash
-npx tsx prisma/seed-os.ts   # idempotente (upsert por externalKey)
+npx tsx prisma/seed-os.ts          # Fase A: núcleo (64 entradas)
+npx tsx prisma/seed-os-fase-b.ts   # Fase B: comercial + recursos (26 entradas)
 ```
+Ambos idempotentes (upsert por `externalKey`).
 
 Transforma los sistemas aprobados (Constitución, marca, oferta, casos reales,
 contenidos, validación) en unidades navegables. **No copia documentos enteros ni
@@ -54,9 +56,27 @@ autoridad superior y la versión previa queda como histórica.
 
 Incluye: shell/navegación/breadcrumbs, búsqueda textual, filtros, tags,
 favoritos, relaciones, fuente/estado/vigencia/autoridad, detalle, historial de
-versiones y edición controlada. **No** incluye IA, embeddings, búsqueda
+versiones y **edición nativa**. **No** incluye IA, embeddings, búsqueda
 semántica, permisos granulares, workflows ni sincronización externa (la
 arquitectura los prepara, pero no forman parte de V1).
+
+### Edición nativa (formulario, sin editor visual avanzado)
+
+- Crear (`/os/nuevo`) y editar (`/os/[area]/[id]/editar`) con validación Zod,
+  errores por campo, confirmación (toast) y aviso al salir con cambios.
+- Cambiar estado, autoridad y **vigencia** (`validUntil`, «vigente hasta»),
+  editar etiquetas (se crean solas), añadir/quitar relaciones y favoritos.
+- Cada guardado crea una **versión** con autor, fecha y motivo opcional.
+- **Archivar** (estado `archivado`) en lugar de borrar: en V1 **no hay borrado
+  destructivo desde la interfaz**. El borrado suave existe solo a nivel de
+  servicio (reversible, para pruebas/administración), no expuesto en la UI.
+
+### Contenido (90 entradas)
+
+11 áreas navegables. Comercial (embudo y playbooks de venta) y Recursos
+(plantillas, guiones, checklists, cuestionarios) se importan con
+`prisma/seed-os-fase-b.ts`. Las áreas sin contenido muestran un estado vacío
+útil con acceso directo a crear la primera entrada.
 
 ## Rollback
 
