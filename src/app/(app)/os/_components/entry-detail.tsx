@@ -1,10 +1,13 @@
-import Link from "next/link";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
 import { StatusBadge, AuthorityBadge } from "@/components/os/os-badges";
 import { CopyButton } from "@/components/os/copy-button";
 import { FavoriteButton } from "./favorite-button";
-import { OS_TYPE_LABEL, OS_RELATION_LABEL, getArea } from "../_config";
+import { ArchiveButton } from "./archive-button";
+import { RelationEditor, type EntryOption } from "./relation-editor";
+import { OS_TYPE_LABEL, OS_BUSINESS_LINE, OS_MESSAGE_LAYER, getArea } from "../_config";
 import { formatDate } from "@/lib/utils";
 import type { EntryDetail as EntryDetailData } from "@/server/services/os/knowledge-service";
 
@@ -45,14 +48,30 @@ function MetaBlock({ meta }: { meta: unknown }) {
 export function EntryDetail({
   entry,
   isFavorite,
+  options,
+  authorNames = {},
 }: {
   entry: EntryDetailData;
   isFavorite: boolean;
+  options: EntryOption[];
+  authorNames?: Record<string, string>;
 }) {
   const area = getArea(entry.area);
   const relations = [
-    ...entry.relationsFrom.map((r) => ({ id: r.id, type: r.type, other: r.to, dir: "from" as const })),
-    ...entry.relationsTo.map((r) => ({ id: r.id, type: r.type, other: r.from, dir: "to" as const })),
+    ...entry.relationsFrom.map((r) => ({
+      id: r.id,
+      type: r.type as string,
+      otherId: r.to.id,
+      otherArea: r.to.area,
+      otherTitle: r.to.title,
+    })),
+    ...entry.relationsTo.map((r) => ({
+      id: r.id,
+      type: r.type as string,
+      otherId: r.from.id,
+      otherArea: r.from.area,
+      otherTitle: r.from.title,
+    })),
   ];
 
   return (
@@ -70,6 +89,10 @@ export function EntryDetail({
         <div className="flex flex-wrap items-center gap-2">
           <FavoriteButton entryId={entry.id} initial={isFavorite} />
           {entry.body ? <CopyButton text={entry.body} label="Copiar texto" /> : null}
+          <ButtonLink href={`/os/${entry.area}/${entry.id}/editar`} variant="secondary" size="sm">
+            <Pencil className="h-3.5 w-3.5" /> Editar
+          </ButtonLink>
+          <ArchiveButton entryId={entry.id} area={entry.area} archived={entry.status === "archivado"} />
         </div>
       </div>
 
@@ -83,35 +106,22 @@ export function EntryDetail({
 
       <MetaBlock meta={entry.meta} />
 
-      {relations.length > 0 ? (
-        <Card>
-          <CardBody>
-            <p className="k-label mb-3">Relacionado</p>
-            <ul className="space-y-2">
-              {relations.map((r) => (
-                <li key={r.id} className="flex items-center gap-2 text-sm">
-                  <span className="text-faint">{OS_RELATION_LABEL[r.type] ?? r.type}</span>
-                  <Link
-                    href={`/os/${r.other.area}/${r.other.id}`}
-                    className="text-lavender hover:underline"
-                  >
-                    {r.other.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </CardBody>
-        </Card>
-      ) : null}
+      <Card>
+        <CardBody>
+          <p className="k-label mb-3">Relacionado</p>
+          <RelationEditor entryId={entry.id} relations={relations} options={options} />
+        </CardBody>
+      </Card>
 
       <Card>
         <CardBody>
           <p className="k-label mb-3">Trazabilidad</p>
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
             <Meta label="Área" value={area?.label ?? entry.area} />
-            <Meta label="Línea de negocio" value={entry.businessLine} />
-            <Meta label="Capa de mensaje" value={entry.messageLayer} />
+            <Meta label="Línea de negocio" value={OS_BUSINESS_LINE[entry.businessLine]} />
+            <Meta label="Capa de mensaje" value={OS_MESSAGE_LAYER[entry.messageLayer]} />
             <Meta label="Sector" value={entry.sector ?? "—"} />
+            <Meta label="Vigencia" value={entry.validUntil ? `Vigente hasta ${formatDate(entry.validUntil)}` : "Sin caducidad"} />
             <Meta label="Fuente" value={entry.source?.label ?? "—"} />
             <Meta label="Versión" value={`v${entry.currentVersion}`} />
             <Meta label="Actualizado" value={formatDate(entry.updatedAt)} />
@@ -130,10 +140,13 @@ export function EntryDetail({
             <p className="k-label mb-3">Historial de versiones</p>
             <ul className="space-y-1.5 text-sm">
               {entry.versions.map((v) => (
-                <li key={v.id} className="flex items-center gap-3 text-mist">
+                <li key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-mist">
                   <span className="font-semibold text-foam">v{v.version}</span>
                   <span className="text-faint">{v.changeReason ?? "—"}</span>
-                  <span className="ml-auto text-xs text-faint">{formatDate(v.createdAt)}</span>
+                  <span className="ml-auto text-xs text-faint">
+                    {v.authorId && authorNames[v.authorId] ? `${authorNames[v.authorId]} · ` : ""}
+                    {formatDate(v.createdAt)}
+                  </span>
                 </li>
               ))}
             </ul>

@@ -72,6 +72,7 @@ export async function createEntry(input: EntryCreateInput, actorId?: string) {
       businessLine: input.businessLine,
       messageLayer: input.messageLayer,
       sector: input.sector ?? null,
+      validUntil: input.validUntil ?? null,
       hypothesisRef: input.hypothesisRef ?? null,
       funnelStage: input.funnelStage ?? null,
       awarenessLevel: input.awarenessLevel ?? null,
@@ -85,11 +86,11 @@ export async function createEntry(input: EntryCreateInput, actorId?: string) {
       ownerId: actorId ?? null,
     },
   });
-  await snapshot(entry.id, "Creación");
+  await snapshot(entry.id, "Creación", actorId);
   return entry;
 }
 
-export async function updateEntry(input: EntryUpdateInput) {
+export async function updateEntry(input: EntryUpdateInput, actorId?: string) {
   const { id, changeReason, ...rest } = input;
   const data: Prisma.KnowledgeEntryUpdateInput = {};
   for (const [k, v] of Object.entries(rest)) {
@@ -101,7 +102,17 @@ export async function updateEntry(input: EntryUpdateInput) {
     where: { id },
     data: { ...data, currentVersion: { increment: 1 } },
   });
-  await snapshot(updated.id, changeReason ?? "Actualización");
+  await snapshot(updated.id, changeReason ?? "Actualización", actorId);
+  return updated;
+}
+
+/** Archiva una entrada (estado archivado) sin borrarla. Reversible. */
+export async function archiveEntry(id: string, actorId?: string, reason?: string) {
+  const updated = await prisma.knowledgeEntry.update({
+    where: { id },
+    data: { status: "archivado", currentVersion: { increment: 1 } },
+  });
+  await snapshot(updated.id, reason ?? "Archivada", actorId);
   return updated;
 }
 
@@ -173,6 +184,73 @@ export async function isFavorite(entryId: string, userId: string) {
 // -- Tags --------------------------------------------------------------------
 export async function listTags() {
   return prisma.knowledgeTag.findMany({ orderBy: { name: "asc" } });
+}
+
+function slugify(s: string) {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+/** Sincroniza las etiquetas de una entrada a partir de nombres libres. Crea las que falten. */
+export async function setEntryTags(entryId: string, names: string[]) {
+  const clean = Array.from(
+    new Map(
+      names
+        .map((n) => n.trim())
+        .filter(Boolean)
+        .map((n) => [slugify(n), n] as const)
+        .filter(([slug]) => slug.length > 0),
+    ).entries(),
+  ); // [slug, name][] sin duplicados
+
+  const tagIds: string[] = [];
+  for (const [slug, name] of clean) {
+    const tag = await prisma.knowledgeTag.upsert({
+      where: { slug },
+      update: {},
+      create: { slug, name },
+    });
+    tagIds.push(tag.id);
+  }
+  await prisma.knowledgeEntryTag.deleteMany({ where: { entryId } });
+  if (tagIds.length) {
+    await prisma.knowledgeEntryTag.createMany({
+      data: tagIds.map((tagId) => ({ entryId, tagId })),
+      skipDuplicates: true,
+    });
+  }
+  return tagIds.length;
+}
+
+/**
+ * Resuelve nombres de autor (userId -> nombre) con una LECTURA de User.
+ * No añade relaciones ni modifica el esquema; solo consulta para mostrar autoría.
+ */
+export async function getUserNames(ids: (string | null | undefined)[]) {
+  const uniq = [...new Set(ids.filter((v): v is string => !!v))];
+  if (uniq.length === 0) return {} as Record<string, string>;
+  const users = await prisma.user.findMany({
+    where: { id: { in: uniq } },
+    select: { id: true, name: true, email: true },
+  });
+  const map: Record<string, string> = {};
+  for (const u of users) map[u.id] = u.name || u.email || u.id;
+  return map;
+}
+
+// -- Opciones para el selector de relaciones ---------------------------------
+export async function listEntryOptions(excludeId?: string) {
+  return prisma.knowledgeEntry.findMany({
+    where: { deletedAt: null, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    select: { id: true, title: true, area: true, type: true },
+    orderBy: [{ area: "asc" }, { title: "asc" }],
+  });
 }
 
 // -- Búsqueda global ---------------------------------------------------------

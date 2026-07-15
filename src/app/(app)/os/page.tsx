@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/os/os-badges";
@@ -22,6 +23,11 @@ export default async function OsDashboardPage() {
       <PageHeader
         title="KAIRAS OS"
         subtitle="El cerebro de la empresa: identidad, estrategia, oferta, contenidos, validación y playbooks."
+        actions={
+          <ButtonLink href="/os/nuevo" size="sm">
+            <Plus className="h-3.5 w-3.5" /> Nueva entrada
+          </ButtonLink>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -40,8 +46,13 @@ export default async function OsDashboardPage() {
               Todavía no hay conocimiento importado. Ejecuta la importación inicial
               (<code className="text-lavender">npx tsx prisma/seed-os.ts</code>) para cargar la
               Constitución, marca, comunicación, oferta, casos, contenidos y validación
-              vigentes. Los archivos originales no se tocan.
+              vigentes, o crea la primera entrada a mano. Los archivos originales no se tocan.
             </p>
+            <div className="mt-4">
+              <ButtonLink href="/os/nuevo" size="sm">
+                <Plus className="h-3.5 w-3.5" /> Nueva entrada
+              </ButtonLink>
+            </div>
           </CardBody>
         </Card>
       ) : null}

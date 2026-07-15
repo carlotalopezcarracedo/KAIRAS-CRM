@@ -7,6 +7,17 @@ const opt = z
   .transform((v) => (v === "" ? undefined : v))
   .optional();
 
+// Fecha opcional ("" => null para poder limpiar la vigencia; fecha inválida => null).
+const optDate = z
+  .string()
+  .trim()
+  .transform((v) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  })
+  .optional();
+
 export const OS_ENTRY_TYPES = [
   "principio", "regla", "prohibicion", "definicion", "posicionamiento", "icp",
   "oferta", "precio", "garantia", "claim", "mensaje", "objecion", "cta", "guion",
@@ -46,6 +57,7 @@ export const entryCreateSchema = z.object({
   businessLine: z.enum(OS_BUSINESS_LINES).default("transversal"),
   messageLayer: z.enum(OS_MESSAGE_LAYERS).default("na"),
   sector: opt,
+  validUntil: optDate,
   hypothesisRef: opt,
   funnelStage: opt,
   awarenessLevel: opt,

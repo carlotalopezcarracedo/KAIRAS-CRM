@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button";
 import { StatusBadge } from "@/components/os/os-badges";
 import { OS_TYPE_LABEL } from "../_config";
 import { formatDate } from "@/lib/utils";
@@ -11,14 +13,28 @@ export function EntryList({
   areaSlug,
   emptyTitle,
   emptyHint,
+  createHref,
 }: {
   entries: EntryListItem[];
   areaSlug: string;
   emptyTitle: string;
   emptyHint?: string;
+  createHref?: string;
 }) {
   if (entries.length === 0) {
-    return <EmptyState title={emptyTitle} hint={emptyHint} />;
+    return (
+      <EmptyState
+        title={emptyTitle}
+        hint={emptyHint}
+        action={
+          createHref ? (
+            <ButtonLink href={createHref} size="sm">
+              <Plus className="h-3.5 w-3.5" /> Crear la primera entrada
+            </ButtonLink>
+          ) : undefined
+        }
+      />
+    );
   }
   return (
     <ul className="space-y-2">

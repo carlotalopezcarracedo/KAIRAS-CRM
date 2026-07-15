@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { ButtonLink } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/os/breadcrumbs";
 import { FilterChips } from "@/components/os/filter-chips";
 import { EntryList } from "../_components/entry-list";
@@ -57,6 +59,11 @@ export default async function OsAreaPage({
       <PageHeader
         title={cfg.label}
         subtitle={`${entries.length} ${entries.length === 1 ? "entrada" : "entradas"} · ${cfg.description}`}
+        actions={
+          <ButtonLink href={`/os/nuevo?area=${cfg.slug}`} size="sm">
+            <Plus className="h-3.5 w-3.5" /> Nueva entrada
+          </ButtonLink>
+        }
       />
 
       {typeChips.length > 1 ? (
@@ -67,13 +74,14 @@ export default async function OsAreaPage({
       <EntryList
         entries={entries}
         areaSlug={cfg.slug}
+        createHref={`/os/nuevo?area=${cfg.slug}`}
         emptyTitle={
-          f.status || f.type || f.q ? "Ninguna entrada con estos filtros" : "Todavía no hay entradas en esta área"
+          f.status || f.type || f.q ? "Ninguna entrada con estos filtros" : `Aún no hay entradas en «${cfg.label}»`
         }
         emptyHint={
           f.status || f.type || f.q
             ? "Prueba a quitar filtros."
-            : "Se cargarán con la importación inicial del conocimiento."
+            : `Esta área recogerá: ${cfg.description}`
         }
       />
     </div>

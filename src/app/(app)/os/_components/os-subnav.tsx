@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Search, Star } from "lucide-react";
+import { LayoutDashboard, Search, Star, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OS_AREAS } from "../_config";
 
@@ -16,6 +16,9 @@ export function OsSubnav() {
       <p className="k-label px-3 pb-1">KAIRAS OS</p>
       <SubnavLink href="/os" label="Dashboard" active={isActive("/os")}>
         <LayoutDashboard className="h-4 w-4" />
+      </SubnavLink>
+      <SubnavLink href="/os/nuevo" label="Nueva entrada" active={isActive("/os/nuevo")}>
+        <Plus className="h-4 w-4" />
       </SubnavLink>
       <SubnavLink href="/os/buscar" label="Buscar" active={isActive("/os/buscar")}>
         <Search className="h-4 w-4" />

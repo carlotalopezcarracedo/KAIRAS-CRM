@@ -12,11 +12,22 @@ import {
 import {
   createEntry,
   updateEntry,
+  archiveEntry,
   softDeleteEntry,
   addRelation,
   removeRelation,
   toggleFavorite,
+  setEntryTags,
 } from "@/server/services/os/knowledge-service";
+
+/** "a, b , c" -> ["a","b","c"] */
+function parseTags(raw?: string): string[] {
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
 
 function fields(e: z.ZodError): Record<string, string[]> {
   return z.flattenError(e).fieldErrors as Record<string, string[]>;
@@ -42,39 +53,65 @@ function toObject(fd: FormData): Record<string, string> {
   return o;
 }
 
-export async function createEntryAction(fd: FormData): Promise<ActionResult> {
+export async function createEntryAction(
+  _prev: ActionResult | undefined,
+  fd: FormData,
+): Promise<ActionResult> {
   const u = await withUser();
   if (!u.ok) return { ok: false, error: u.error };
   const raw = toObject(fd);
   const metaRaw = raw.meta;
   let meta: unknown = undefined;
   if (metaRaw && metaRaw.trim()) {
-    try { meta = JSON.parse(metaRaw); } catch { return { ok: false, error: "El campo meta no es JSON válido." }; }
+    try { meta = JSON.parse(metaRaw); } catch { return { ok: false, error: "El campo «meta» no es JSON válido." }; }
   }
   const parsed = entryCreateSchema.safeParse({ ...raw, meta });
-  if (!parsed.success) return { ok: false, error: "Revisa los campos.", fieldErrors: fields(parsed.error) };
+  if (!parsed.success) return { ok: false, error: "Revisa los campos marcados.", fieldErrors: fields(parsed.error) };
   const entry = await createEntry(parsed.data, u.userId);
+  await setEntryTags(entry.id, parseTags(raw.tags));
   revalidateOs(parsed.data.area);
   return { ok: true, id: entry.id };
 }
 
-export async function updateEntryAction(fd: FormData): Promise<ActionResult> {
+export async function updateEntryAction(
+  _prev: ActionResult | undefined,
+  fd: FormData,
+): Promise<ActionResult> {
   const u = await withUser();
   if (!u.ok) return { ok: false, error: u.error };
   const raw = toObject(fd);
   const metaRaw = raw.meta;
   let meta: unknown = undefined;
   if (metaRaw !== undefined && metaRaw.trim() !== "") {
-    try { meta = JSON.parse(metaRaw); } catch { return { ok: false, error: "El campo meta no es JSON válido." }; }
+    try { meta = JSON.parse(metaRaw); } catch { return { ok: false, error: "El campo «meta» no es JSON válido." }; }
   }
   const parsed = entryUpdateSchema.safeParse({ ...raw, meta });
-  if (!parsed.success) return { ok: false, error: "Revisa los campos.", fieldErrors: fields(parsed.error) };
-  const entry = await updateEntry(parsed.data);
-  revalidateOs(parsed.data.area);
+  if (!parsed.success) return { ok: false, error: "Revisa los campos marcados.", fieldErrors: fields(parsed.error) };
+  const entry = await updateEntry(parsed.data, u.userId);
+  if (raw.tags !== undefined) await setEntryTags(entry.id, parseTags(raw.tags));
+  revalidateOs(parsed.data.area ?? entry.area);
   revalidatePath(`/os/${entry.area}/${entry.id}`);
   return { ok: true, id: entry.id };
 }
 
+/** Archiva (no borra) una entrada. No hay borrado destructivo desde la interfaz. */
+export async function archiveEntryAction(
+  id: string,
+  area: string,
+  reason?: string,
+): Promise<ActionResult> {
+  const u = await withUser();
+  if (!u.ok) return { ok: false, error: u.error };
+  await archiveEntry(id, u.userId, reason);
+  revalidateOs(area);
+  revalidatePath(`/os/${area}/${id}`);
+  return { ok: true, id };
+}
+
+/**
+ * Borrado suave (reversible; NO expuesto en la interfaz V1). Se mantiene solo
+ * para pruebas y administración futura. La UI únicamente ofrece «Archivar».
+ */
 export async function deleteEntryAction(id: string, area: string): Promise<ActionResult> {
   const u = await withUser();
   if (!u.ok) return { ok: false, error: u.error };

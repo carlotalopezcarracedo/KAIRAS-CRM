@@ -22,6 +22,8 @@ import type {
   OsEntryType,
   OsStatus,
   OsAuthority,
+  OsBusinessLine,
+  OsMessageLayer,
 } from "@/types/os";
 
 export type AreaConfig = {
@@ -178,6 +180,22 @@ export const OS_TYPE_LABEL: Record<OsEntryType, string> = {
   token_visual: "Token visual",
   kpi: "KPI",
   articulo_constitucion: "Artículo",
+};
+
+export const OS_BUSINESS_LINE: Record<OsBusinessLine, string> = {
+  L1_automatizacion: "L1 · Automatización",
+  L2_web: "L2 · Web",
+  L3_branding: "L3 · Branding",
+  transversal: "Transversal",
+};
+
+export const OS_MESSAGE_LAYER: Record<OsMessageLayer, string> = {
+  corp: "Corporativa",
+  sect: "Sectorial",
+  prod: "Producto",
+  conv: "Conversacional",
+  prop: "Propuesta",
+  na: "No aplica",
 };
 
 export const OS_RELATION_LABEL: Record<string, string> = {
