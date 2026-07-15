@@ -44,8 +44,12 @@ experimental > histórico.
 ```bash
 npx tsx prisma/seed-os.ts          # Fase A: núcleo (64 entradas)
 npx tsx prisma/seed-os-fase-b.ts   # Fase B: comercial + recursos (26 entradas)
+npx tsx prisma/seed-os-fase-c.ts   # Fase C: histórico abril + logo + CTAs + conciencia (23 entradas)
 ```
-Ambos idempotentes (upsert por `externalKey`).
+Los tres idempotentes (upsert por `externalKey`). Total: **113 entradas**.
+La Fase C conserva el documento estratégico de abril 2026 como conocimiento
+histórico (9 bloques `histórico`/`obsoleto` con relación `sustituye`) y añade la
+norma de logo provisional, las CTAs por temperatura y los mensajes por conciencia.
 
 Transforma los sistemas aprobados (Constitución, marca, oferta, casos reales,
 contenidos, validación) en unidades navegables. **No copia documentos enteros ni
