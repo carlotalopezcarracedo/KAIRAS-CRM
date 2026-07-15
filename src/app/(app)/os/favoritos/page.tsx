@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/os/os-badges";
 import { OS_TYPE_LABEL } from "../_config";
+import { entryHref } from "../_sections";
 import { listFavorites } from "@/server/services/os/knowledge-service";
 import { requireUser } from "@/server/auth";
 import { formatDate } from "@/lib/utils";
@@ -31,7 +32,7 @@ export default async function OsFavoritesPage() {
           {entries.map((e) => (
             <li key={e.id}>
               <Link
-                href={`/os/${e.area}/${e.id}`}
+                href={entryHref(e.id)}
                 className="block rounded-card border border-line bg-surface p-4 transition-colors hover:border-line-strong hover:bg-raise/60"
               >
                 <div className="flex items-start justify-between gap-3">

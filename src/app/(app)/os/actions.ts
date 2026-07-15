@@ -19,6 +19,20 @@ import {
   toggleFavorite,
   setEntryTags,
 } from "@/server/services/os/knowledge-service";
+import { quickSearch, recordView, type BaseEntry } from "@/server/services/os/os-views-service";
+
+/** Búsqueda instantánea para el Spotlight (⌘K). */
+export async function quickSearchAction(q: string): Promise<BaseEntry[]> {
+  const u = await withUser();
+  if (!u.ok) return [];
+  return quickSearch(q);
+}
+
+/** Registra un acceso a una entrada (best-effort, para "más utilizado"/actividad). */
+export async function recordViewAction(entryId: string): Promise<void> {
+  const u = await withUser();
+  await recordView(entryId, u.ok ? u.userId : undefined);
+}
 
 /** "a, b , c" -> ["a","b","c"] */
 function parseTags(raw?: string): string[] {

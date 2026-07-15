@@ -7,7 +7,9 @@ import { CopyButton } from "@/components/os/copy-button";
 import { FavoriteButton } from "./favorite-button";
 import { ArchiveButton } from "./archive-button";
 import { RelationEditor, type EntryOption } from "./relation-editor";
+import { RelationshipGraph } from "./relationship-graph";
 import { OS_TYPE_LABEL, OS_BUSINESS_LINE, OS_MESSAGE_LAYER, getArea } from "../_config";
+import { entryHref } from "../_sections";
 import { formatDate } from "@/lib/utils";
 import type { EntryDetail as EntryDetailData } from "@/server/services/os/knowledge-service";
 
@@ -89,7 +91,7 @@ export function EntryDetail({
         <div className="flex flex-wrap items-center gap-2">
           <FavoriteButton entryId={entry.id} initial={isFavorite} />
           {entry.body ? <CopyButton text={entry.body} label="Copiar texto" /> : null}
-          <ButtonLink href={`/os/${entry.area}/${entry.id}/editar`} variant="secondary" size="sm">
+          <ButtonLink href={`${entryHref(entry.id)}/editar`} variant="secondary" size="sm">
             <Pencil className="h-3.5 w-3.5" /> Editar
           </ButtonLink>
           <ArchiveButton entryId={entry.id} area={entry.area} archived={entry.status === "archivado"} />
@@ -105,6 +107,13 @@ export function EntryDetail({
       ) : null}
 
       <MetaBlock meta={entry.meta} />
+
+      {relations.length > 0 ? (
+        <RelationshipGraph
+          center={{ id: entry.id, title: entry.title, type: entry.type }}
+          relations={relations.map((r) => ({ id: r.id, type: r.type, otherId: r.otherId, otherTitle: r.otherTitle }))}
+        />
+      ) : null}
 
       <Card>
         <CardBody>

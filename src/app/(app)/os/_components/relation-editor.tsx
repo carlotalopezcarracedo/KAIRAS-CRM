@@ -8,6 +8,7 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, Input } from "@/components/ui/field";
 import { OS_RELATION_LABEL } from "../_config";
+import { entryHref } from "../_sections";
 import { OS_RELATION_TYPES } from "@/server/validators/os/knowledge";
 import { addRelationAction, removeRelationAction } from "../actions";
 
@@ -81,7 +82,7 @@ export function RelationEditor({
           {relations.map((r) => (
             <li key={r.id} className="flex items-center gap-2 text-sm">
               <span className="text-faint">{OS_RELATION_LABEL[r.type] ?? r.type}</span>
-              <Link href={`/os/${r.otherArea}/${r.otherId}`} className="text-lavender hover:underline">
+              <Link href={entryHref(r.otherId)} className="text-lavender hover:underline">
                 {r.otherTitle}
               </Link>
               <button

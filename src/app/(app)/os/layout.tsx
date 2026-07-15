@@ -1,34 +1,42 @@
-import Link from "next/link";
-import { Search } from "lucide-react";
-import { OsSubnav } from "./_components/os-subnav";
+import { OsSidebar } from "./_components/os-sidebar";
+import { QuickSearch } from "./_components/quick-search";
+import { OS_SECTIONS } from "./_sections";
+import { getSectionCounts } from "@/server/services/os/os-views-service";
+import { requireUser } from "@/server/auth";
+import styles from "./_components/os.module.css";
 
-// Hereda la sesión del layout (app): aquí no se re-verifica auth.
-export default function OsLayout({ children }: { children: React.ReactNode }) {
+// Hereda la sesión del layout (app). Shell propio del módulo, como una "app"
+// dentro del área de contenido del CRM. No toca el CRM.
+export default async function OsLayout({ children }: { children: React.ReactNode }) {
+  const user = await requireUser();
+  const { areaMap, typeMap } = await getSectionCounts();
+  const counts: Record<string, number> = {};
+  for (const s of OS_SECTIONS) {
+    let n = 0;
+    if (s.areas) for (const a of s.areas) n += areaMap.get(a) ?? 0;
+    if (s.types) for (const t of s.types) n += typeMap.get(t) ?? 0;
+    counts[s.slug] = n;
+  }
+  const initial = (user.email || "?").trim().charAt(0).toUpperCase();
+
   return (
-    <div className="lg:grid lg:grid-cols-[15rem_1fr] lg:gap-8">
-      <aside className="mb-6 lg:mb-0">
-        {/* Buscador rápido del módulo */}
-        <form action="/os/buscar" className="mb-4 hidden lg:block">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-            <input
-              name="q"
-              placeholder="Buscar en KAIRAS OS…"
-              className="h-9 w-full rounded-xl border border-line bg-ink pl-9 pr-3 text-sm text-foam placeholder:text-faint focus:border-violet-line transition-colors"
-            />
+    <div className="overflow-hidden rounded-2xl border border-line bg-ink shadow-[0_40px_90px_-60px_rgba(0,0,0,0.9)]">
+      <div className="grid grid-cols-1 items-start lg:grid-cols-[236px_1fr]">
+        <aside className="hidden self-stretch border-r border-line bg-ink/50 lg:block">
+          <div className="lg:sticky lg:top-4">
+            <OsSidebar counts={counts} />
           </div>
-        </form>
-        <div className="rounded-card border border-line bg-surface/50 p-2 lg:sticky lg:top-6">
-          <OsSubnav />
+        </aside>
+        <div className="min-w-0">
+          <header className={`flex items-center gap-3 border-b border-line px-5 py-3 ${styles.glass}`}>
+            <QuickSearch variant="bar" />
+            <span className="ml-auto grid h-8 w-8 place-items-center rounded-full border border-line-strong bg-raise text-xs font-bold text-lavender">
+              {initial}
+            </span>
+          </header>
+          <main className="min-h-[70vh] px-5 py-6 sm:px-7">{children}</main>
         </div>
-        <p className="mt-3 px-3 text-[11px] leading-relaxed text-faint">
-          El cerebro de KAIRAS.{" "}
-          <Link href="/dashboard" className="underline hover:text-mist">
-            Volver al CRM
-          </Link>
-        </p>
-      </aside>
-      <div className="min-w-0">{children}</div>
+      </div>
     </div>
   );
 }

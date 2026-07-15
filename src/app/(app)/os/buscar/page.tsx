@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/os/os-badges";
 import { OS_TYPE_LABEL } from "../_config";
+import { entryHref } from "../_sections";
 import { searchEntries } from "@/server/services/os/knowledge-service";
 
 export const metadata: Metadata = { title: "Buscar · KAIRAS OS" };
@@ -49,7 +50,7 @@ export default async function OsSearchPage({
             {results.map((e) => (
               <li key={e.id}>
                 <Link
-                  href={`/os/${e.area}/${e.id}`}
+                  href={entryHref(e.id)}
                   className="block rounded-card border border-line bg-surface p-4 transition-colors hover:border-line-strong hover:bg-raise/60"
                 >
                   <div className="flex items-start justify-between gap-3">

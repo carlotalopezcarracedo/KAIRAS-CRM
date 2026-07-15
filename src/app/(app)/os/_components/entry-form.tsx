@@ -21,6 +21,7 @@ import {
   OS_BUSINESS_LINES,
   OS_MESSAGE_LAYERS,
 } from "@/server/validators/os/knowledge";
+import { entryHref } from "../_sections";
 
 export type EntryFormDefaults = Partial<{
   id: string;
@@ -62,7 +63,7 @@ export function EntryForm({
     if (state?.ok && state.id) {
       submitting.current = true; // evita el aviso de descarte al navegar
       toast.success(mode === "create" ? "Entrada creada" : "Cambios guardados");
-      router.push(`/os/${area}/${state.id}`);
+      router.push(entryHref(state.id));
       router.refresh();
     } else if (state && !state.ok) {
       toast.error(state.error);
@@ -81,7 +82,7 @@ export function EntryForm({
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  const cancelHref = mode === "edit" && defaults.id ? `/os/${area}/${defaults.id}` : `/os/${area}`;
+  const cancelHref = mode === "edit" && defaults.id ? entryHref(defaults.id) : "/os";
   const onCancel = (e: React.MouseEvent) => {
     if (dirty && !confirm("Tienes cambios sin guardar. ¿Salir y descartarlos?")) {
       e.preventDefault();

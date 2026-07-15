@@ -1,176 +1,177 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Plus } from "lucide-react";
-import { PageHeader } from "@/components/ui/page-header";
+import { Plus, ArrowUpRight, Activity, Sparkles, Star, Building2, BookOpen, Flame, Package } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { Card, CardBody } from "@/components/ui/card";
-import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/os/os-badges";
-import { OS_AREAS, OS_TYPE_LABEL } from "./_config";
-import { getDashboard, countByArea } from "@/server/services/os/knowledge-service";
+import { QuickSearch } from "./_components/quick-search";
+import { TypeIcon } from "./_components/os-ui";
+import { OS_SECTIONS, entryHref, sectionForEntry } from "./_sections";
+import { getDashboard } from "@/server/services/os/knowledge-service";
+import {
+  dashboardStats, getActivityFeed, getMostUsed, getWeeklyActivity, getSectionEntries,
+} from "@/server/services/os/os-views-service";
 import { requireUser } from "@/server/auth";
 import { formatDate } from "@/lib/utils";
+import styles from "./_components/os.module.css";
 
 export const metadata: Metadata = { title: "KAIRAS OS" };
 
-export default async function OsDashboardPage() {
+const QUICK = [
+  { slug: "marca", label: "Kit de marca", hint: "color · tipografía" },
+  { slug: "comercial", label: "Embudo comercial", hint: "chequeo → cierre" },
+  { slug: "estrategia", label: "Estrategia", hint: "ICP · oferta · hipótesis" },
+  { slug: "constitucion", label: "Constitución", hint: "no negociables" },
+];
+
+export default async function OsDashboard() {
   const user = await requireUser();
-  const [d, areaCounts] = await Promise.all([getDashboard(user.id), countByArea()]);
-  const totalEntries = [...areaCounts.values()].reduce((a, b) => a + b, 0);
+  const [stats, board, activity, mostUsed, weekly, clients, playbooks] = await Promise.all([
+    dashboardStats(),
+    getDashboard(user.id),
+    getActivityFeed(6),
+    getMostUsed(5),
+    getWeeklyActivity(),
+    getSectionEntries({ areas: ["clientes"] }),
+    getSectionEntries({ types: ["playbook"] }),
+  ]);
+  const hour = new Date().getHours();
+  const greet = hour < 6 ? "Buenas noches" : hour < 14 ? "Buenos días" : hour < 21 ? "Buenas tardes" : "Buenas noches";
 
   return (
-    <div>
-      <PageHeader
-        title="KAIRAS OS"
-        subtitle="El cerebro de la empresa: identidad, estrategia, oferta, contenidos, validación y playbooks."
-        actions={
-          <ButtonLink href="/os/nuevo" size="sm">
-            <Plus className="h-3.5 w-3.5" /> Nueva entrada
-          </ButtonLink>
-        }
-      />
+    <div className={styles.fade}>
+      <p className="text-[13px] text-faint">{greet} · el cerebro de KAIRAS</p>
+      <h1 className="mb-5 mt-0.5 text-[28px] font-extrabold tracking-tight text-foam">¿Qué necesitas hoy?</h1>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Entradas" value={totalEntries} />
-        <StatCard label="Vigentes" value={d.totalVigente} />
-        <StatCard label="Hipótesis abiertas" value={d.openHypotheses.length} accent />
-        <StatCard label="Experimentos activos" value={d.activeExperiments} />
-        <StatCard label="Decisiones" value={d.recentDecisions.length} />
-        <StatCard label="Riesgos" value={d.openRisks.length} />
+      <QuickSearch variant="hero" />
+
+      {/* accesos rápidos */}
+      <div className={`mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4 ${styles.stagger}`}>
+        {QUICK.map((q) => {
+          const s = OS_SECTIONS.find((x) => x.slug === q.slug)!;
+          return (
+            <Link key={q.slug} href={`/os/${q.slug}`} className={`flex flex-col gap-2 rounded-2xl border border-line bg-surface p-4 ${styles.lift}`}>
+              <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ background: `color-mix(in srgb, ${s.accent} 16%, transparent)`, color: s.accent }}>
+                <s.icon className="h-[18px] w-[18px]" />
+              </span>
+              <span className="text-[13px] font-semibold text-foam">{q.label}</span>
+              <span className="text-[11px] text-faint">{q.hint}</span>
+            </Link>
+          );
+        })}
       </div>
 
-      {totalEntries === 0 ? (
-        <Card className="mt-6">
-          <CardBody>
-            <p className="text-sm text-mist">
-              Todavía no hay conocimiento importado. Ejecuta la importación inicial
-              (<code className="text-lavender">npx tsx prisma/seed-os.ts</code>) para cargar la
-              Constitución, marca, comunicación, oferta, casos, contenidos y validación
-              vigentes, o crea la primera entrada a mano. Los archivos originales no se tocan.
-            </p>
-            <div className="mt-4">
-              <ButtonLink href="/os/nuevo" size="sm">
-                <Plus className="h-3.5 w-3.5" /> Nueva entrada
-              </ButtonLink>
-            </div>
-          </CardBody>
-        </Card>
+      {/* stats */}
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat value={stats.total} label="Entradas" />
+        <Stat value={stats.vigentes} label="Vigentes" accent />
+        <Stat value={stats.hypotheses} label="Hipótesis abiertas" />
+        <Stat value={stats.relations} label="Relaciones" />
+      </div>
+
+      {/* widgets */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+        <Widget title="Actividad reciente" icon={<Activity className="h-4 w-4" />} className="lg:col-span-1">
+          {activity.length === 0 ? <Muted>Sin actividad.</Muted> : activity.map((a) => (
+            <Row key={a.id} id={a.entry.id} type={a.entry.type} title={a.entry.title}
+              meta={`v${a.version} · ${formatDate(a.createdAt)}`} />
+          ))}
+        </Widget>
+
+        <Widget title="Decisiones" icon={<Sparkles className="h-4 w-4" />}>
+          {board.recentDecisions.length === 0 ? <Muted>Sin decisiones.</Muted> : board.recentDecisions.map((e) => (
+            <Row key={e.id} id={e.id} type={e.type} title={e.title} badge={<StatusBadge status={e.status} />} />
+          ))}
+        </Widget>
+
+        <Widget title="Tus favoritos" icon={<Star className="h-4 w-4" />}>
+          {board.favorites.length === 0 ? <Muted>Marca entradas con la estrella.</Muted> : board.favorites.map((e) => (
+            <Row key={e.id} id={e.id} type={e.type} title={e.title}
+              meta={sectionForEntry(e.area, e.type)?.label} />
+          ))}
+        </Widget>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Widget title="Clientes" icon={<Building2 className="h-4 w-4" />} href="/os/clientes">
+          {clients.slice(0, 4).map((e) => (
+            <Row key={e.id} id={e.id} type={e.type} title={e.title} badge={<StatusBadge status={e.status} />} />
+          ))}
+        </Widget>
+
+        <Widget title="Playbooks" icon={<BookOpen className="h-4 w-4" />} href="/os/playbooks">
+          {playbooks.slice(0, 4).map((e) => (
+            <Row key={e.id} id={e.id} type={e.type} title={e.title} />
+          ))}
+        </Widget>
+
+        <Widget title="Más utilizado" icon={<Flame className="h-4 w-4" />}>
+          {mostUsed.map((e) => (
+            <Row key={e.id} id={e.id} type={e.type} title={e.title}
+              meta={"views" in e && e.views ? `${e.views} vistas` : undefined} />
+          ))}
+        </Widget>
+      </div>
+
+      {weekly.resources.length > 0 ? (
+        <div className="mt-4">
+          <Widget title="Recursos usados esta semana" icon={<Package className="h-4 w-4" />} href="/os/recursos">
+            {weekly.resources.map((e) => (
+              <Row key={e.id} id={e.id} type={e.type} title={e.title} />
+            ))}
+          </Widget>
+        </div>
       ) : null}
 
-      {/* Áreas */}
-      <p className="k-label mt-8 mb-3">Áreas de conocimiento</p>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {OS_AREAS.map((a) => (
-          <Link
-            key={a.slug}
-            href={`/os/${a.slug}`}
-            className="group rounded-card border border-line bg-surface p-5 transition-colors hover:border-line-strong hover:bg-raise/60"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <a.icon className="h-5 w-5 text-lavender" />
-              <span className="text-xs text-faint">{areaCounts.get(a.slug) ?? 0}</span>
-            </div>
-            <p className="font-semibold text-foam">{a.label}</p>
-            <p className="mt-1 line-clamp-2 text-sm text-mist">{a.description}</p>
-          </Link>
-        ))}
-      </div>
-
-      {/* Actualizado + decisiones */}
-      <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardBody>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="k-label">Actualizado recientemente</p>
-            </div>
-            {d.recentlyUpdated.length === 0 ? (
-              <p className="text-sm text-faint">Sin entradas todavía.</p>
-            ) : (
-              <ul className="space-y-2">
-                {d.recentlyUpdated.map((e) => (
-                  <li key={e.id}>
-                    <Link
-                      href={`/os/${e.area}/${e.id}`}
-                      className="flex items-center gap-2 text-sm text-mist hover:text-foam"
-                    >
-                      <span className="truncate">{e.title}</span>
-                      <StatusBadge status={e.status} />
-                      <span className="ml-auto shrink-0 text-xs text-faint">{formatDate(e.updatedAt)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody>
-            <p className="k-label mb-3">Decisiones recientes</p>
-            {d.recentDecisions.length === 0 ? (
-              <p className="text-sm text-faint">Sin decisiones registradas.</p>
-            ) : (
-              <ul className="space-y-2">
-                {d.recentDecisions.map((e) => (
-                  <li key={e.id}>
-                    <Link href={`/os/validacion/${e.id}`} className="text-sm text-mist hover:text-foam">
-                      {e.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Hipótesis abiertas + favoritos */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardBody>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="k-label">Hipótesis abiertas</p>
-              <Link href="/os/validacion" className="text-xs text-lavender hover:underline">
-                Ver validación <ArrowRight className="inline h-3 w-3" />
-              </Link>
-            </div>
-            {d.openHypotheses.length === 0 ? (
-              <p className="text-sm text-faint">Sin hipótesis abiertas.</p>
-            ) : (
-              <ul className="space-y-2">
-                {d.openHypotheses.map((e) => (
-                  <li key={e.id}>
-                    <Link href={`/os/validacion/${e.id}`} className="flex items-center gap-2 text-sm text-mist hover:text-foam">
-                      <span className="truncate">{e.title}</span>
-                      <StatusBadge status={e.status} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody>
-            <p className="k-label mb-3">Tus favoritos</p>
-            {d.favorites.length === 0 ? (
-              <p className="text-sm text-faint">Marca entradas con la estrella para tenerlas a mano.</p>
-            ) : (
-              <ul className="space-y-2">
-                {d.favorites.map((e) => (
-                  <li key={e.id}>
-                    <Link href={`/os/${e.area}/${e.id}`} className="flex items-center gap-2 text-sm text-mist hover:text-foam">
-                      <span className="truncate">{e.title}</span>
-                      <span className="ml-auto shrink-0 text-xs text-faint">{OS_TYPE_LABEL[e.type]}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardBody>
-        </Card>
+      <div className="mt-6 flex justify-center">
+        <ButtonLink href="/os/nuevo" variant="secondary" size="sm">
+          <Plus className="h-3.5 w-3.5" /> Nueva entrada
+        </ButtonLink>
       </div>
     </div>
   );
+}
+
+function Stat({ value, label, accent }: { value: number; label: string; accent?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-line bg-surface p-4">
+      <p className={`text-[26px] font-extrabold tabular-nums tracking-tight ${accent ? "text-lavender" : "text-foam"}`}>{value}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-faint">{label}</p>
+    </div>
+  );
+}
+
+function Widget({ title, icon, href, className, children }: {
+  title: string; icon: React.ReactNode; href?: string; className?: string; children: React.ReactNode;
+}) {
+  return (
+    <section className={`rounded-2xl border border-line bg-surface p-5 ${className ?? ""}`}>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-lavender">{icon}</span>
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-faint">{title}</p>
+        {href ? (
+          <Link href={href} className="ml-auto text-[11px] text-lavender hover:underline">
+            ver todo <ArrowUpRight className="inline h-3 w-3" />
+          </Link>
+        ) : null}
+      </div>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function Row({ id, type, title, meta, badge }: {
+  id: string; type: import("@/types/os").OsEntryType;
+  title: string; meta?: string; badge?: React.ReactNode;
+}) {
+  return (
+    <Link href={entryHref(id)} className="flex items-center gap-2.5 border-t border-line py-2 text-[13px] text-mist first:border-t-0 hover:text-foam">
+      <TypeIcon type={type} className="h-3.5 w-3.5 flex-none text-faint" />
+      <span className="min-w-0 flex-1 truncate text-foam/90">{title}</span>
+      {badge ?? (meta ? <span className="flex-none text-[11px] text-faint">{meta}</span> : null)}
+    </Link>
+  );
+}
+
+function Muted({ children }: { children: React.ReactNode }) {
+  return <p className="py-2 text-[13px] text-faint">{children}</p>;
 }
