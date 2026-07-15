@@ -27,6 +27,15 @@ describe("os/validators — entryCreateSchema", () => {
     expect(() => entryCreateSchema.parse({ type: "regla", area: "oferta", title: "" })).toThrow();
   });
 
+  it("parsea la vigencia (validUntil): fecha -> Date, vacío -> null", () => {
+    const conFecha = entryCreateSchema.parse({ type: "oferta", area: "oferta", title: "T", validUntil: "2026-09-30" });
+    expect(conFecha.validUntil).toBeInstanceOf(Date);
+    const sinFecha = entryCreateSchema.parse({ type: "oferta", area: "oferta", title: "T", validUntil: "" });
+    expect(sinFecha.validUntil).toBeNull();
+    const invalida = entryCreateSchema.parse({ type: "oferta", area: "oferta", title: "T", validUntil: "no-es-fecha" });
+    expect(invalida.validUntil).toBeNull();
+  });
+
   it("rechaza tipo fuera del enum", () => {
     expect(() => entryCreateSchema.parse({ type: "no_existe", area: "x", title: "T" })).toThrow();
   });

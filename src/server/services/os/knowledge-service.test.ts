@@ -8,6 +8,7 @@ import { prisma } from "@/server/db/prisma";
 import {
   createEntry,
   updateEntry,
+  archiveEntry,
   getEntry,
   listEntries,
   searchEntries,
@@ -15,6 +16,8 @@ import {
   removeRelation,
   toggleFavorite,
   isFavorite,
+  listFavorites,
+  setEntryTags,
   softDeleteEntry,
 } from "./knowledge-service";
 
@@ -36,9 +39,11 @@ afterAll(async () => {
     for (const id of createdIds) {
       await prisma.knowledgeRelation.deleteMany({ where: { OR: [{ fromId: id }, { toId: id }] } });
       await prisma.knowledgeFavorite.deleteMany({ where: { entryId: id } });
+      await prisma.knowledgeEntryTag.deleteMany({ where: { entryId: id } });
       await prisma.knowledgeVersion.deleteMany({ where: { entryId: id } });
       await prisma.knowledgeEntry.delete({ where: { id } }).catch(() => {});
     }
+    await prisma.knowledgeTag.deleteMany({ where: { slug: { startsWith: "ztag-" } } });
   }
   await prisma.$disconnect();
 });
@@ -123,5 +128,74 @@ describe("knowledge-service (integración)", () => {
     const list = await listEntries({ area: `zz-${TAG}` });
     expect(list.some((x) => x.id === e.id)).toBe(false);
     expect(await getEntry(e.id)).toBeNull();
+  });
+
+  it("archivar cambia el estado sin borrar y versiona", async () => {
+    if (!dbUp) return;
+    const e = await createEntry({ type: "definicion", area: `zz-${TAG}`, title: "Archivar-test", status: "vigente", authority: "operativo", businessLine: "transversal", messageLayer: "na" }, USER);
+    createdIds.push(e.id);
+    await archiveEntry(e.id, USER, "fin de vigencia");
+    const detail = await getEntry(e.id);
+    expect(detail).not.toBeNull(); // NO se borra
+    expect(detail?.status).toBe("archivado");
+    expect(detail?.currentVersion).toBe(2);
+    expect(detail?.deletedAt).toBeNull();
+  });
+
+  it("el borrado NO es destructivo: la fila sigue en BD y es recuperable", async () => {
+    if (!dbUp) return;
+    const e = await createEntry({ type: "recurso", area: `zz-${TAG}`, title: "NoDestructivo-test", status: "vigente", authority: "operativo", businessLine: "transversal", messageLayer: "na" }, USER);
+    createdIds.push(e.id);
+    await softDeleteEntry(e.id);
+    // La fila persiste físicamente (solo marcada con deletedAt): recuperable.
+    const raw = await prisma.knowledgeEntry.findUnique({ where: { id: e.id } });
+    expect(raw).not.toBeNull();
+    expect(raw?.deletedAt).not.toBeNull();
+    // Recuperar limpiando deletedAt la devuelve a los listados.
+    await prisma.knowledgeEntry.update({ where: { id: e.id }, data: { deletedAt: null } });
+    expect(await getEntry(e.id)).not.toBeNull();
+  });
+
+  it("busca por contenido editado (no por el antiguo)", async () => {
+    if (!dbUp) return;
+    const e = await createEntry({ type: "mensaje", area: `zz-${TAG}`, title: "Palabra-antigua-xyz", status: "borrador", authority: "operativo", businessLine: "transversal", messageLayer: "na" }, USER);
+    createdIds.push(e.id);
+    await updateEntry({ id: e.id, title: "Palabra-nueva-abc" }, USER);
+    const nuevos = await searchEntries("Palabra-nueva-abc");
+    expect(nuevos.some((x) => x.id === e.id)).toBe(true);
+    const viejos = await searchEntries("Palabra-antigua-xyz");
+    expect(viejos.some((x) => x.id === e.id)).toBe(false);
+  });
+
+  it("filtra por estado", async () => {
+    if (!dbUp) return;
+    const vig = await createEntry({ type: "regla", area: `zzf-${TAG}`, title: "Filtro-vigente", status: "vigente", authority: "operativo", businessLine: "transversal", messageLayer: "na" }, USER);
+    const bor = await createEntry({ type: "regla", area: `zzf-${TAG}`, title: "Filtro-borrador", status: "borrador", authority: "operativo", businessLine: "transversal", messageLayer: "na" }, USER);
+    createdIds.push(vig.id, bor.id);
+    const soloVigentes = await listEntries({ area: `zzf-${TAG}`, status: "vigente" });
+    expect(soloVigentes.some((x) => x.id === vig.id)).toBe(true);
+    expect(soloVigentes.some((x) => x.id === bor.id)).toBe(false);
+  });
+
+  it("persiste favoritos entre consultas", async () => {
+    if (!dbUp) return;
+    const e = await createEntry({ type: "playbook", area: `zz-${TAG}`, title: "FavPersist-test", status: "vigente", authority: "operativo", businessLine: "transversal", messageLayer: "na" }, USER);
+    createdIds.push(e.id);
+    await toggleFavorite(e.id, USER);
+    const favs = await listFavorites(USER);
+    expect(favs.some((x) => x.id === e.id)).toBe(true);
+  });
+
+  it("sincroniza etiquetas (crea las que faltan, sin duplicar)", async () => {
+    if (!dbUp) return;
+    const e = await createEntry({ type: "definicion", area: `zz-${TAG}`, title: "Tags-test", status: "vigente", authority: "operativo", businessLine: "transversal", messageLayer: "na" }, USER);
+    createdIds.push(e.id);
+    await setEntryTags(e.id, ["ztag Uno", "ztag Dos", "ztag Uno"]); // duplicado ignorado
+    let detail = await getEntry(e.id);
+    expect(detail?.tags.length).toBe(2);
+    await setEntryTags(e.id, ["ztag Uno"]); // reemplaza el conjunto
+    detail = await getEntry(e.id);
+    expect(detail?.tags.length).toBe(1);
+    expect(detail?.tags[0].tag.slug).toBe("ztag-uno");
   });
 });
