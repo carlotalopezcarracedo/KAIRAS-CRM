@@ -1391,6 +1391,7 @@ model KnowledgeEntry {
   tags          KnowledgeEntryTag[]
   versions      KnowledgeVersion[]
   favorites     KnowledgeFavorite[]
+  views         KnowledgeView[]
   relationsFrom KnowledgeRelation[] @relation("OsRelFrom")
   relationsTo   KnowledgeRelation[] @relation("OsRelTo")
 
@@ -1477,6 +1478,20 @@ model KnowledgePermission {
   createdAt   DateTime @default(now())
 
   @@map("os_knowledge_permission")
+}
+
+// Registro de accesos para "más utilizado" y "actividad de la semana".
+// Solo del módulo; FK interna a os_knowledge_entry.
+model KnowledgeView {
+  id       String   @id @default(cuid())
+  entryId  String
+  userId   String?
+  viewedAt DateTime @default(now())
+  entry    KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
+  @@index([viewedAt])
+  @@map("os_knowledge_view")
 }
 
 // ============================================================
