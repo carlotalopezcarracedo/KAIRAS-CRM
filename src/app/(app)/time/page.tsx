@@ -213,6 +213,22 @@ export default async function TimePage({
     };
   }
 
+  // Última entrada (para "reanudar" cuando el cronómetro está parado)
+  let lastEntry: {
+    title: string | null;
+    projectId: string | null;
+    clientId: string | null;
+    billable: boolean;
+  } | null = null;
+  if (!activeTimer) {
+    const recent = await prisma.timeEntry.findFirst({
+      where: { userId: user.id, deletedAt: null },
+      orderBy: { startedAt: "desc" },
+      select: { title: true, projectId: true, clientId: true, billable: true },
+    });
+    if (recent) lastEntry = recent;
+  }
+
   // Navegación de la vista calendario
   const otherParams = new URLSearchParams();
   if (filters.clientId) otherParams.set("clientId", filters.clientId);
@@ -350,7 +366,12 @@ export default async function TimePage({
       />
 
       {/* Barra de temporizador estilo Toggl */}
-      <TimerBar active={timerBarActive} projects={projects} clients={clients} />
+      <TimerBar
+        active={timerBarActive}
+        lastEntry={lastEntry}
+        projects={projects}
+        clients={clients}
+      />
 
       {timerTooLong ? (
         <div className="mb-5 rounded-card border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">

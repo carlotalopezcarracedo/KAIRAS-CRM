@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Square, Trash2 } from "lucide-react";
+import { Play, Square, Trash2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Input, Select } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
@@ -33,12 +33,21 @@ function formatElapsed(totalSeconds: number): string {
  * Barra de temporizador estilo Toggl: descripción + proyecto + facturable
  * y un botón grande de iniciar/parar. Vive en la cabecera de /time.
  */
+export type LastEntry = {
+  title: string | null;
+  projectId: string | null;
+  clientId: string | null;
+  billable: boolean;
+} | null;
+
 export function TimerBar({
   active,
+  lastEntry,
   projects,
   clients,
 }: {
   active: TimerBarActive;
+  lastEntry?: LastEntry;
   projects: { id: string; name: string }[];
   clients: { id: string; name: string }[];
 }) {
@@ -133,8 +142,38 @@ export function TimerBar({
     });
   }
 
+  function resume() {
+    if (!lastEntry) return;
+    startTransition(async () => {
+      const result = await startTimerAction({
+        title: lastEntry.title || undefined,
+        projectId: lastEntry.projectId || undefined,
+        clientId: lastEntry.clientId || undefined,
+        billable: lastEntry.billable,
+      });
+      if (!result.ok) toast.error(result.error);
+      else {
+        toast.success("Cronómetro reanudado");
+        router.refresh();
+      }
+    });
+  }
+
   return (
-    <div className="mb-5 flex flex-col gap-2.5 rounded-card border border-line bg-surface px-4 py-3 sm:flex-row sm:items-center">
+    <div className="mb-5 rounded-card border border-line bg-surface px-4 py-3">
+      {lastEntry ? (
+        <button
+          type="button"
+          onClick={resume}
+          disabled={pending}
+          className="mb-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-line bg-ink/40 px-3 py-1 text-xs font-semibold text-mist transition-colors hover:border-violet-line hover:text-lavender disabled:opacity-50"
+          title="Reanudar la última entrada con su mismo contexto"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reanudar: {lastEntry.title || "última entrada"}
+        </button>
+      ) : null}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
       <Input
         ref={titleRef}
         placeholder="¿En qué estás trabajando?"
@@ -193,6 +232,7 @@ export function TimerBar({
           <Play className="h-4 w-4 fill-current" />
           Iniciar
         </button>
+      </div>
       </div>
     </div>
   );
