@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus, KanbanSquare, Rows3 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
+import { ExportLink } from "@/components/ui/export-link";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +79,7 @@ export default async function PipelinePage({
                 Tabla
               </Link>
             </div>
+            <ExportLink href={`/pipeline/export${view === "table" ? "?all=1" : ""}`} />
             <ButtonLink href="/pipeline/new" size="sm">
               <Plus className="h-4 w-4" />
               Oportunidad

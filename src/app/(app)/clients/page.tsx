@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
+import { ExportLink } from "@/components/ui/export-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
@@ -22,10 +23,13 @@ export default async function ClientsPage() {
         title="Clientes"
         subtitle={`${clients.length} clientes · ${formatMoney(totalMrr)} MRR`}
         actions={
-          <ButtonLink href="/clients/new">
-            <Plus className="h-4 w-4" />
-            Nuevo cliente
-          </ButtonLink>
+          <>
+            <ExportLink href="/clients/export" />
+            <ButtonLink href="/clients/new">
+              <Plus className="h-4 w-4" />
+              Nuevo cliente
+            </ButtonLink>
+          </>
         }
       />
 

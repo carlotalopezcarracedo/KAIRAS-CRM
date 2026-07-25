@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
+import { ExportLink } from "@/components/ui/export-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
@@ -32,16 +33,28 @@ export default async function LeadsPage({
   const hasFilters =
     !!filters.q || !!filters.status || !!filters.temperature || !!filters.source;
 
+  const leadExportParams = new URLSearchParams();
+  if (filters.q) leadExportParams.set("q", filters.q);
+  if (filters.status) leadExportParams.set("status", filters.status);
+  if (filters.temperature) leadExportParams.set("temperature", filters.temperature);
+  if (filters.source) leadExportParams.set("source", filters.source);
+  const leadExportQuery = leadExportParams.toString();
+
   return (
     <div>
       <PageHeader
         title="Leads"
         subtitle={`${leads.length} ${leads.length === 1 ? "lead" : "leads"}${hasFilters ? " con estos filtros" : ""}`}
         actions={
-          <ButtonLink href="/leads/new">
-            <Plus className="h-4 w-4" />
-            Nuevo lead
-          </ButtonLink>
+          <>
+            <ExportLink
+              href={`/leads/export${leadExportQuery ? `?${leadExportQuery}` : ""}`}
+            />
+            <ButtonLink href="/leads/new">
+              <Plus className="h-4 w-4" />
+              Nuevo lead
+            </ButtonLink>
+          </>
         }
       />
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
+import { ExportLink } from "@/components/ui/export-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
@@ -36,10 +37,15 @@ export default async function ProjectsPage({
         title="Proyectos"
         subtitle={`${projects.length} proyectos · ${active} en marcha`}
         actions={
-          <ButtonLink href="/projects/new">
-            <Plus className="h-4 w-4" />
-            Nuevo proyecto
-          </ButtonLink>
+          <>
+            <ExportLink
+              href={`/projects/export${statusFilter ? `?status=${statusFilter}` : ""}`}
+            />
+            <ButtonLink href="/projects/new">
+              <Plus className="h-4 w-4" />
+              Nuevo proyecto
+            </ButtonLink>
+          </>
         }
       />
 
