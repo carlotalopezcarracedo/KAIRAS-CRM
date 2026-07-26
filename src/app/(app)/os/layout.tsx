@@ -5,6 +5,12 @@ import { getSectionCounts } from "@/server/services/os/os-views-service";
 import { requireUser } from "@/server/auth";
 import styles from "./_components/os.module.css";
 
+// El dashboard y las vistas de este módulo hacen ~20 consultas Prisma en
+// total. Con la BD en Frankfurt y la función en la región por defecto de
+// Vercel (Hobby no permite elegir región), la latencia acumulada puede
+// superar el límite de 10s por defecto. Se amplía el margen del segmento.
+export const maxDuration = 30;
+
 // Hereda la sesión del layout (app). Shell propio del módulo, como una "app"
 // dentro del área de contenido del CRM. No toca el CRM.
 export default async function OsLayout({ children }: { children: React.ReactNode }) {
