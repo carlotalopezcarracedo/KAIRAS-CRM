@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import type { ComponentProps } from "react";
+import NextLink from "next/link";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -20,12 +21,16 @@ import {
   getOsDashboardOverview,
   type KnowledgeIndexEntry,
 } from "@/server/services/os/os-views-service";
-import { QuickSearch } from "./_components/quick-search";
+import { QuickSearchTrigger } from "./_components/quick-search";
 import { TypeIcon } from "./_components/os-ui";
 import { entryHref, sectionForEntry } from "./_sections";
 import styles from "./_components/os.module.css";
 
 export const metadata: Metadata = { title: "KAIRAS OS" };
+
+function Link(props: ComponentProps<typeof NextLink>) {
+  return <NextLink {...props} prefetch={false} />;
+}
 
 const TASK_SHORTCUTS = [
   {
@@ -91,7 +96,7 @@ export default async function OsDashboard() {
       </header>
 
       <div className="mt-6">
-        <QuickSearch variant="hero" />
+        <QuickSearchTrigger />
       </div>
 
       <nav aria-label="Accesos por tarea" className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">

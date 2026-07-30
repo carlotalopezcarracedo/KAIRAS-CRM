@@ -68,6 +68,7 @@ export function Topbar({ user }: { user: { id: string; name: string } }) {
         </Suspense>
         <Link
           href="/leads/new"
+          prefetch={false}
           className="inline-flex h-9 items-center gap-1.5 rounded-full bg-violet px-4 text-xs font-semibold text-white transition-colors hover:bg-violet/85"
         >
           <Plus className="h-3.5 w-3.5" />

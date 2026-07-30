@@ -7,6 +7,7 @@ import { MOBILE_NAV } from "./nav-items";
 
 export function MobileNav() {
   const pathname = usePathname();
+  const prefetch = pathname.startsWith("/os") ? false : null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 backdrop-blur pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -18,6 +19,7 @@ export function MobileNav() {
             <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
+                prefetch={prefetch}
                 className={cn(
                   "flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
                   active ? "text-lavender" : "text-faint hover:text-mist",

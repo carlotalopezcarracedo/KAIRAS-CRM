@@ -13,7 +13,7 @@ export function OsSidebar({ counts }: { counts?: Record<string, number> }) {
 
   return (
     <nav className="flex h-full flex-col gap-1 p-3">
-      <Link href="/os" className="mb-3 flex items-center gap-2.5 px-2 py-1">
+      <Link href="/os" prefetch={false} className="mb-3 flex items-center gap-2.5 px-2 py-1">
         <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-gradient-to-br from-violet to-[#5b34c9] text-white">
           <Brain className="h-4 w-4" />
         </span>
@@ -42,6 +42,7 @@ export function OsSidebar({ counts }: { counts?: Record<string, number> }) {
 
       <Link
         href="/dashboard"
+        prefetch={false}
         className="mt-auto flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-faint transition-colors hover:bg-raise hover:text-mist"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Volver al CRM
@@ -63,7 +64,7 @@ export function OsMobileNav() {
   return (
     <nav
       aria-label="Secciones de KAIRAS OS"
-      className="overflow-x-auto border-b border-line bg-ink/70 px-4 py-2 lg:hidden"
+      className="overflow-x-auto border-b border-line bg-ink/70 px-4 py-2 xl:hidden"
     >
       <ul className="flex min-w-max gap-1">
         {items.map((item) => {
@@ -75,6 +76,7 @@ export function OsMobileNav() {
             <li key={item.href}>
               <Link
                 href={item.href}
+                prefetch={false}
                 className={cn(
                   "block rounded-full px-3 py-1.5 text-xs font-semibold",
                   active ? "bg-violet-soft text-lavender" : "text-faint hover:text-foam",
@@ -106,6 +108,7 @@ function SideLink({
   return (
     <Link
       href={href}
+      prefetch={false}
       className={cn(
         "flex items-center gap-3 rounded-[10px] px-2.5 py-2 text-[13.5px] transition-colors",
         active ? "bg-violet-soft text-lavender" : "text-mist hover:bg-raise hover:text-foam",

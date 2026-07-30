@@ -8,11 +8,12 @@ import { NAV_SECTIONS } from "./nav-items";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const prefetch = pathname.startsWith("/os") ? false : null;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-surface/60 backdrop-blur lg:flex">
       <div className="px-6 pb-6 pt-7">
-        <Link href="/dashboard" className="block">
+        <Link href="/dashboard" prefetch={prefetch} className="block">
           <Image
             src="/brand/kairas-logo-horizontal.png"
             alt="KAIRAS"
@@ -37,6 +38,7 @@ export function Sidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      prefetch={prefetch}
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                         active

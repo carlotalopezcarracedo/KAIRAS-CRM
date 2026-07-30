@@ -1,4 +1,5 @@
-import Link from "next/link";
+import type { ComponentProps } from "react";
+import NextLink from "next/link";
 import Image from "next/image";
 import {
   Check,
@@ -29,6 +30,9 @@ import type { SectionEntry } from "@/server/services/os/os-views-service";
 import type { OsEntryType } from "@/types/os";
 
 type E = SectionEntry;
+function Link(props: ComponentProps<typeof NextLink>) {
+  return <NextLink {...props} prefetch={false} />;
+}
 const meta = (e: E) => (e.meta && typeof e.meta === "object" ? (e.meta as Record<string, unknown>) : {});
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 const arr = (v: unknown) => (Array.isArray(v) ? v.map(String) : undefined);

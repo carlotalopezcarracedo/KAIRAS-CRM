@@ -10,8 +10,26 @@ import type { BaseEntry } from "@/server/services/os/os-views-service";
 import styles from "./os.module.css";
 
 type Grouped = { section: string; label: string; items: (BaseEntry & { _i: number })[] };
+const RECENT_SEARCHES_KEY = "kairas-os:recent-searches:v1";
 
-export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
+export function QuickSearchTrigger() {
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event("os:open-search"))}
+      className="flex w-full items-center gap-4 rounded-2xl border border-line-strong bg-gradient-to-b from-raise to-surface px-5 py-4 text-left transition-colors hover:border-violet-line"
+    >
+      <Search className="h-5 w-5 text-lavender" />
+      <span className="text-lg font-medium text-faint">¿Qué necesitas del cerebro de KAIRAS?</span>
+      <span className="ml-auto flex gap-1 text-xs text-faint">
+        <kbd className="rounded-md border border-line px-1.5 py-1">⌘</kbd>
+        <kbd className="rounded-md border border-line px-1.5 py-1">K</kbd>
+      </span>
+    </button>
+  );
+}
+
+export function QuickSearch() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -45,7 +63,8 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
       const t = setTimeout(() => {
         inputRef.current?.focus();
         try {
-          setRecent(JSON.parse(localStorage.getItem("kairas-os-recent-searches") ?? "[]").slice(0, 5));
+          const stored: unknown = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]");
+          setRecent(Array.isArray(stored) ? stored.filter((item): item is string => typeof item === "string").slice(0, 5) : []);
         } catch {
           setRecent([]);
         }
@@ -99,7 +118,7 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
       ...recent.filter((item) => item.toLocaleLowerCase("es") !== value.toLocaleLowerCase("es")),
     ].slice(0, 5);
     setRecent(next);
-    localStorage.setItem("kairas-os-recent-searches", JSON.stringify(next));
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
   }, [recent]);
 
   const go = useCallback((id: string) => {
@@ -122,33 +141,18 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
 
   return (
     <>
-      {variant === "bar" ? (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex w-full max-w-[520px] items-center gap-2.5 rounded-xl border border-line bg-surface px-3.5 py-2 text-left text-[13.5px] text-faint transition-colors hover:border-line-strong"
-        >
-          <Search className="h-4 w-4 text-mist" />
-          Busca en el cerebro de KAIRAS…
-          <span className="ml-auto flex gap-1 text-[11px] text-faint">
-            <kbd className="rounded-md border border-line px-1.5 py-0.5">⌘</kbd>
-            <kbd className="rounded-md border border-line px-1.5 py-0.5">K</kbd>
-          </span>
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-4 rounded-2xl border border-line-strong bg-gradient-to-b from-raise to-surface px-5 py-4 text-left transition-colors hover:border-violet-line"
-        >
-          <Search className="h-5 w-5 text-lavender" />
-          <span className="text-lg font-medium text-faint">¿Qué necesitas del cerebro de KAIRAS?</span>
-          <span className="ml-auto flex gap-1 text-xs text-faint">
-            <kbd className="rounded-md border border-line px-1.5 py-1">⌘</kbd>
-            <kbd className="rounded-md border border-line px-1.5 py-1">K</kbd>
-          </span>
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full max-w-[520px] items-center gap-2.5 rounded-xl border border-line bg-surface px-3.5 py-2 text-left text-[13.5px] text-faint transition-colors hover:border-line-strong"
+      >
+        <Search className="h-4 w-4 text-mist" />
+        Busca en el cerebro de KAIRAS…
+        <span className="ml-auto flex gap-1 text-[11px] text-faint">
+          <kbd className="rounded-md border border-line px-1.5 py-0.5">⌘</kbd>
+          <kbd className="rounded-md border border-line px-1.5 py-0.5">K</kbd>
+        </span>
+      </button>
 
       {open ? (
         <div className={styles.overlay} onClick={() => setOpen(false)}>

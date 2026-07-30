@@ -72,6 +72,7 @@ export function KnowledgeCard({ entry, badge }: { entry: CardEntry; badge?: Reac
   return (
     <Link
       href={entryHref(entry.id)}
+      prefetch={false}
       className={cn(
         "group flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5",
         styles.lift,

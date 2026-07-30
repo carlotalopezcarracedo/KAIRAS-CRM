@@ -146,6 +146,7 @@ export default async function OsSearchPage({
                     <li key={entry.id}>
                       <Link
                         href={entryHref(entry.id)}
+                        prefetch={false}
                         className="block rounded-card border border-line bg-surface p-4 transition-colors hover:border-line-strong hover:bg-raise/60"
                       >
                         <div className="flex items-start justify-between gap-3">
