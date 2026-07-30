@@ -12,6 +12,11 @@ import {
   CircleDollarSign,
   MessageCircleQuestion,
   Route,
+  FlaskConical,
+  Lightbulb,
+  ShieldAlert,
+  CalendarRange,
+  Repeat2,
 } from "lucide-react";
 import { CopyButton } from "@/components/os/copy-button";
 import { StatusBadge, AuthorityBadge } from "@/components/os/os-badges";
@@ -749,24 +754,69 @@ export function ClientesView({ entries }: { entries: E[] }) {
 // ============================ PLAYBOOKS ============================
 export function PlaybooksView({ entries }: { entries: E[] }) {
   const pbs = byType(entries, "playbook").filter((e) => e.status !== "obsoleto");
-  if (pbs.length === 0) return <Empty title="Sin playbooks" />;
+  const operational = pbs.filter((entry) => !["historico", "archivado"].includes(entry.status));
+  const historic = pbs.filter((entry) => ["historico", "archivado"].includes(entry.status));
+  if (pbs.length === 0) return <Empty title="Sin playbooks" hint="Los procedimientos aparecerán aquí cuando tengan objetivo, pasos y criterio de cierre." />;
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-2", styles.stagger)}>
-      {pbs.map((p) => (
-        <Link key={p.id} href={entryHref(p.id)} className={cn("flex flex-col gap-3 rounded-2xl border border-line bg-surface p-6", styles.lift)}>
-          <div className="flex items-center justify-between">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-soft text-lavender">
-              <TypeIcon type="playbook" className="h-5 w-5" />
-            </span>
-            <StatusBadge status={p.status} />
-          </div>
-          <p className="text-lg font-bold leading-snug text-foam">{p.title.replace(/^Playbook\s*·\s*/i, "")}</p>
-          {str(meta(p).goal) ? <p className="text-[13px] text-mist">{str(meta(p).goal)}</p> : p.summary ? <p className="text-[13px] text-mist">{p.summary}</p> : null}
-          <div className="mt-auto flex flex-wrap gap-2 text-[11px] text-faint">
-            {str(meta(p).whenToUse) ? <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> {str(meta(p).whenToUse)}</span> : null}
-          </div>
-        </Link>
-      ))}
+    <div className={styles.fade}>
+      <Panel title="Listos para ejecutar" hint={`${operational.length} procedimientos operativos`}>
+        <div className={cn("grid gap-4 lg:grid-cols-2", styles.stagger)}>
+          {operational.map((p) => {
+            const steps = arr(meta(p).steps) ?? [];
+            const checklist = arr(meta(p).checklist) ?? [];
+            const done = str(meta(p).definitionOfDone);
+            const when = str(meta(p).whenToUse);
+            return (
+              <Link key={p.id} href={entryHref(p.id)} className={cn("group flex flex-col rounded-2xl border border-line bg-surface p-6", styles.lift)}>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-soft text-lavender">
+                    <TypeIcon type="playbook" className="h-5 w-5" />
+                  </span>
+                  <StatusBadge status={p.status} />
+                </div>
+                <h2 className="mt-4 text-lg font-bold leading-snug text-foam group-hover:text-lavender">
+                  {p.title.replace(/^Playbook\s*·\s*/i, "")}
+                </h2>
+                <p className="mt-2 text-[13px] leading-5 text-mist">
+                  {str(meta(p).goal) ?? p.summary ?? "Objetivo pendiente de documentar."}
+                </p>
+                {when ? (
+                  <p className="mt-4 flex items-start gap-2 rounded-xl bg-ink/40 px-3 py-2 text-xs leading-5 text-mist">
+                    <Clock className="mt-0.5 h-3.5 w-3.5 flex-none text-lavender" />
+                    <span><b className="text-foam">Úsalo cuando:</b> {when}</span>
+                  </p>
+                ) : null}
+                {steps.length > 0 ? (
+                  <ol className="mt-4 space-y-2">
+                    {steps.slice(0, 3).map((step, index) => (
+                      <li key={step} className="flex gap-2 text-xs leading-5 text-foam/85">
+                        <span className="grid h-5 w-5 flex-none place-items-center rounded-full border border-violet-line text-[10px] font-bold text-lavender">{index + 1}</span>
+                        <span className="line-clamp-1">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-wide text-faint">
+                  {steps.length > 0 ? <span>{steps.length} pasos</span> : null}
+                  {checklist.length > 0 ? <span>· {checklist.length} controles</span> : null}
+                </div>
+                {done ? (
+                  <div className="mt-4 border-t border-line pt-3 text-xs leading-5 text-ok">
+                    <b>Cierre:</b> {done}
+                  </div>
+                ) : null}
+              </Link>
+            );
+          })}
+        </div>
+      </Panel>
+      {historic.length > 0 ? (
+        <Panel title="Histórico" hint="referencia, no procedimiento vigente">
+          <CardGrid cols={3}>
+            {historic.map((entry) => <KnowledgeCard key={entry.id} entry={entry} />)}
+          </CardGrid>
+        </Panel>
+      ) : null}
     </div>
   );
 }
@@ -812,6 +862,157 @@ export function ProcesosView({ entries }: { entries: E[] }) {
   );
 }
 
+// ============================ APRENDIZAJE ============================
+export function LearningView({ entries }: { entries: E[] }) {
+  const decisions = byType(entries, "decision");
+  const hypotheses = byType(entries, "hipotesis");
+  const experiments = byType(entries, "experimento");
+  const risks = byType(entries, "riesgo");
+
+  if (entries.length === 0) {
+    return <Empty title="Sin aprendizaje registrado" hint="Documenta primero la decisión o hipótesis que debe guiar el trabajo." />;
+  }
+
+  return (
+    <div className={styles.fade}>
+      {decisions.length > 0 ? (
+        <Panel title="Decisión vigente" hint="la referencia para actuar hoy">
+          {decisions.map((decision) => (
+            <Link key={decision.id} href={entryHref(decision.id)} className="block rounded-2xl border border-ok/25 bg-ok/5 p-6 transition-colors hover:border-ok/45">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge status={decision.status} />
+                {str(meta(decision).decidedAt) ? <span className="text-xs text-faint">{str(meta(decision).decidedAt)}</span> : null}
+                {meta(decision).reversible === true ? <span className="text-xs text-faint">· reversible</span> : null}
+              </div>
+              <h2 className="mt-3 text-xl font-bold text-foam">{decision.title.replace(/^Decisión\s*·\s*/i, "")}</h2>
+              <p className="mt-2 text-sm leading-6 text-mist">{decision.summary}</p>
+              {str(meta(decision).why) ? <p className="mt-3 text-xs text-ok"><b>Por qué:</b> {str(meta(decision).why)}</p> : null}
+            </Link>
+          ))}
+        </Panel>
+      ) : null}
+
+      {hypotheses.length > 0 ? (
+        <Panel title="Hipótesis activas" hint="supuestos con umbral explícito">
+          <div className={cn("grid gap-3 md:grid-cols-2", styles.stagger)}>
+            {hypotheses.map((hypothesis) => (
+              <Link key={hypothesis.id} href={entryHref(hypothesis.id)} className={cn("rounded-2xl border border-line bg-surface p-5", styles.lift)}>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-warn-soft text-warn"><Lightbulb className="h-4 w-4" /></span>
+                  <StatusBadge status={hypothesis.status} />
+                </div>
+                <p className="mt-3 font-semibold leading-5 text-foam">{str(meta(hypothesis).statement) ?? hypothesis.title}</p>
+                <p className="mt-3 text-xs leading-5 text-warn"><b>{str(meta(hypothesis).code) ?? "Umbral"}:</b> {str(meta(hypothesis).threshold) ?? hypothesis.summary}</p>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {experiments.length > 0 ? (
+        <Panel title="Experimentos" hint="qué ocurrirá después de medir">
+          <div className="space-y-4">
+            {experiments.map((experiment) => (
+              <Link key={experiment.id} href={entryHref(experiment.id)} className="block rounded-2xl border border-line bg-surface p-6 transition-colors hover:border-violet-line">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-violet-soft text-lavender"><FlaskConical className="h-4 w-4" /></span>
+                  <h3 className="font-bold text-foam">{experiment.title}</h3>
+                  <StatusBadge status={experiment.status} />
+                </div>
+                <p className="mt-3 text-sm text-mist">{experiment.summary}</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-ok/20 bg-ok/5 p-3 text-xs leading-5 text-mist"><b className="text-ok">Si funciona:</b> {str(meta(experiment).ifSuccess) ?? "Resultado por definir"}</div>
+                  <div className="rounded-xl border border-warn/20 bg-warn-soft/20 p-3 text-xs leading-5 text-mist"><b className="text-warn">Si no:</b> {str(meta(experiment).ifFail) ?? "Siguiente decisión por definir"}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {risks.length > 0 ? (
+        <Panel title="Riesgos">
+          {risks.map((risk) => (
+            <Link key={risk.id} href={entryHref(risk.id)} className="flex items-start gap-4 rounded-2xl border border-warn/25 bg-warn-soft/20 p-5">
+              <ShieldAlert className="mt-0.5 h-5 w-5 flex-none text-warn" />
+              <div>
+                <h3 className="font-semibold text-foam">{risk.title}</h3>
+                <p className="mt-1 text-xs leading-5 text-mist">{risk.summary}</p>
+                {str(meta(risk).mitigation) ? <p className="mt-2 text-xs text-warn"><b>Mitigación:</b> {str(meta(risk).mitigation)}</p> : null}
+              </div>
+            </Link>
+          ))}
+        </Panel>
+      ) : null}
+    </div>
+  );
+}
+
+// ============================ CONTENIDOS ============================
+export function ContentView({ entries }: { entries: E[] }) {
+  const operational = entries.filter((entry) => !["obsoleto", "historico", "archivado"].includes(entry.status));
+  const sprint = operational.find((entry) => /sprint/i.test(entry.title));
+  const pillars = byType(operational, "pilar_contenido");
+  const series = byType(operational, "serie_contenido");
+  const pieces = byType(operational, "pieza_contenido");
+
+  return (
+    <div className={styles.fade}>
+      {sprint ? (
+        <Panel title="Plan activo" hint="orden de publicación propuesto">
+          <Link href={entryHref(sprint.id)} className="block rounded-2xl border border-info/25 bg-info/5 p-6 transition-colors hover:border-info/45">
+            <div className="flex items-center gap-2">
+              <CalendarRange className="h-5 w-5 text-info" />
+              <StatusBadge status={sprint.status} />
+            </div>
+            <h2 className="mt-3 text-xl font-bold text-foam">{sprint.title}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-mist">{sprint.summary}</p>
+            <p className="mt-3 text-xs text-info">Abre la ficha para consultar el desarrollo completo del sprint →</p>
+          </Link>
+        </Panel>
+      ) : null}
+
+      {pillars.length > 0 ? (
+        <Panel title="Pilares" hint="para elegir el porqué de cada pieza">
+          <div className={cn("grid gap-3 md:grid-cols-2 xl:grid-cols-3", styles.stagger)}>
+            {pillars.map((pillar, index) => (
+              <Link key={pillar.id} href={entryHref(pillar.id)} className={cn("rounded-2xl border border-line bg-surface p-5", styles.lift)}>
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-info">Pilar {index + 1}</span>
+                <h3 className="mt-2 font-bold leading-5 text-foam">{pillar.title.replace(/^Pilar \d+\s*·\s*/i, "")}</h3>
+                <p className="mt-3 text-xs leading-5 text-mist">{pillar.summary}</p>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {series.length > 0 ? (
+        <Panel title="Series recurrentes" hint="formatos que convierten el sistema en hábito">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {series.map((seriesEntry) => (
+              <Link key={seriesEntry.id} href={entryHref(seriesEntry.id)} className="flex items-start gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:border-violet-line">
+                <Repeat2 className="mt-0.5 h-4 w-4 flex-none text-lavender" />
+                <div>
+                  <h3 className="font-semibold text-foam">{seriesEntry.title}</h3>
+                  <p className="mt-1 text-xs leading-5 text-mist">{seriesEntry.summary}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      <Panel title="Piezas individuales" hint="ejecución concreta">
+        {pieces.length > 0 ? (
+          <CardGrid cols={3}>{pieces.map((piece) => <KnowledgeCard key={piece.id} entry={piece} />)}</CardGrid>
+        ) : (
+          <Empty title="Aún no hay piezas individuales registradas" hint="El sprint, los pilares y las series sí están definidos. Crea cada pieza cuando tenga objetivo, público y criterio de éxito." />
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 // ============================ RECURSOS ============================
 export function RecursosView({ entries }: { entries: E[] }) {
   const recs = byType(entries, "recurso", "guion");
@@ -822,7 +1023,7 @@ export function RecursosView({ entries }: { entries: E[] }) {
         <div key={r.id} className={cn("flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5", styles.lift)}>
           <div className="flex items-center justify-between">
             <span className="text-[11px] uppercase tracking-wide text-faint">{OS_TYPE_LABEL[r.type]}</span>
-            {r.body ? <CopyButton text={r.body} label="Copiar" /> : null}
+            {r.summary ? <CopyButton text={r.summary} label="Copiar resumen" /> : null}
           </div>
           <Link href={entryHref(r.id)} className="font-semibold leading-snug text-foam hover:text-lavender">{r.title}</Link>
           {str(meta(r).uso) ? <p className="text-[12px] text-mist"><b className="text-faint">Uso:</b> {str(meta(r).uso)}</p> : r.summary ? <p className="line-clamp-2 text-[12px] text-mist">{r.summary}</p> : null}
@@ -856,7 +1057,7 @@ export function ConstitucionView({ entries }: { entries: E[] }) {
               <h3 className="text-lg font-bold text-foam">{a.title}</h3>
               <AuthorityBadge authority={a.authority} />
             </div>
-            {a.body ? <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-foam/85">{a.body}</p> : a.summary ? <p className="text-[14px] text-mist">{a.summary}</p> : null}
+            {a.summary ? <p className="text-[14px] leading-6 text-mist">{a.summary}</p> : null}
             <div className="mt-3"><Link href={entryHref(a.id)} className="text-xs text-lavender hover:underline">Ficha completa · relaciones →</Link></div>
           </article>
         ))}

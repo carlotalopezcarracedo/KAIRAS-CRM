@@ -5,7 +5,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { SectionHero } from "../_components/os-ui";
 import {
   MarcaView, EstrategiaView, MarketingView, ComercialView, PlaybooksView,
-  RecursosView, ConstitucionView, GenericView,
+  LearningView, ContentView, RecursosView, ConstitucionView, GenericView,
 } from "../_components/section-views";
 import { canonicalSectionSlug, getSection } from "../_sections";
 import { getSectionEntries, type SectionEntry } from "@/server/services/os/os-views-service";
@@ -24,8 +24,8 @@ function render(slug: string, entries: SectionEntry[]) {
     case "comunicacion": return <MarketingView entries={entries} />;
     case "oferta": return <ComercialView entries={entries} />;
     case "playbooks": return <PlaybooksView entries={entries} />;
-    case "aprendizaje": return <GenericView entries={entries} />;
-    case "contenidos": return <MarketingView entries={entries} />;
+    case "aprendizaje": return <LearningView entries={entries} />;
+    case "contenidos": return <ContentView entries={entries} />;
     case "recursos": return <RecursosView entries={entries} />;
     case "constitucion": return <ConstitucionView entries={entries} />;
     default: return <GenericView entries={entries} />;

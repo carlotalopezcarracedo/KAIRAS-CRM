@@ -248,7 +248,15 @@ export async function getSectionEntries(q: SectionQuery, opts: { includeHistoric
   return prisma.knowledgeEntry.findMany({
     where: sectionWhere(q, extra),
     orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-    include: { source: true, tags: { include: { tag: true } } },
+    select: {
+      ...indexSelect,
+      meta: true,
+      hypothesisRef: true,
+      targetType: true,
+      targetId: true,
+      source: { select: { id: true, label: true, phase: true, path: true, kind: true } },
+      tags: { select: { tag: { select: { id: true, name: true, slug: true } } } },
+    },
   });
 }
 
