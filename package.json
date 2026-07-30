@@ -16,6 +16,8 @@
     "db:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:os": "tsx scripts/import-kairas-os.ts",
+    "db:verify:os": "tsx scripts/verify-kairas-os-import.ts",
     "db:studio": "prisma studio",
     "db:diff": "prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url \"postgres://postgres:postgres@localhost:51215/template1?sslmode=disable\" --script"
   },
