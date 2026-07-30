@@ -17,7 +17,12 @@ export default async function AppLayout({
     <div className="min-h-dvh">
       <Sidebar />
       <div className="lg:pl-60">
-        <Topbar />
+        <Topbar
+          user={{
+            id: session.user.id,
+            name: session.user.name ?? "",
+          }}
+        />
         <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-6 sm:px-6 lg:pb-10">
           {children}
         </main>

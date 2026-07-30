@@ -1,7 +1,8 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus, LogOut } from "lucide-react";
-import { auth, signOut } from "@/server/auth";
+import { signOut } from "@/server/auth";
 import { getActiveTimer } from "@/server/services/time-service";
 import { initials } from "@/lib/utils";
 import { TimerWidget, type ActiveTimerData } from "./timer-widget";
@@ -11,24 +12,31 @@ async function signOutAction() {
   await signOut({ redirectTo: "/login" });
 }
 
-export async function Topbar() {
-  const session = await auth();
-  const name = session?.user?.name ?? "";
-
+async function ActiveTimer({ userId }: { userId: string }) {
   let activeTimer: ActiveTimerData = null;
-  if (session?.user?.id) {
-    const timer = await getActiveTimer(session.user.id);
-    if (timer) {
-      activeTimer = {
-        id: timer.id,
-        startedAt: timer.startedAt.toISOString(),
-        accumulatedSeconds: timer.accumulatedSeconds,
-        title: timer.currentTitle,
-        billable: timer.billable,
-      };
-    }
+  const timer = await getActiveTimer(userId);
+  if (timer) {
+    activeTimer = {
+      id: timer.id,
+      startedAt: timer.startedAt.toISOString(),
+      accumulatedSeconds: timer.accumulatedSeconds,
+      title: timer.currentTitle,
+      billable: timer.billable,
+    };
   }
+  return <TimerWidget active={activeTimer} />;
+}
 
+function TimerFallback() {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-9 w-9 animate-pulse rounded-full border border-line bg-surface"
+    />
+  );
+}
+
+export function Topbar({ user }: { user: { id: string; name: string } }) {
   const isProduction = process.env.APP_ENV === "production";
 
   return (
@@ -55,7 +63,9 @@ export async function Topbar() {
       </div>
 
       <div className="flex items-center gap-2.5">
-        <TimerWidget active={activeTimer} />
+        <Suspense fallback={<TimerFallback />}>
+          <ActiveTimer userId={user.id} />
+        </Suspense>
         <Link
           href="/leads/new"
           className="inline-flex h-9 items-center gap-1.5 rounded-full bg-violet px-4 text-xs font-semibold text-white transition-colors hover:bg-violet/85"
@@ -67,9 +77,9 @@ export async function Topbar() {
 
         <div
           className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-surface text-xs font-bold text-lavender"
-          title={name}
+          title={user.name}
         >
-          {initials(name || "K")}
+          {initials(user.name || "K")}
         </div>
 
         <form action={signOutAction}>
