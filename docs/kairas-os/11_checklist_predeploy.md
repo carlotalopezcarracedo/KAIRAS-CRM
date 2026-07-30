@@ -17,7 +17,7 @@ Estado al 30 de julio de 2026. Este documento **no autoriza ni implica despliegu
 
 - [x] ESLint sin errores.
 - [x] TypeScript correcto.
-- [x] 28/28 tests.
+- [x] 29/29 tests.
 - [x] Smoke de leads, operaciones y archivos; datos temporales eliminados.
 - [x] Build de producción correcto.
 - [x] Navegación de rutas principales comprobada.

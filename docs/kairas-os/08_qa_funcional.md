@@ -9,7 +9,7 @@ Entorno: build de producción local, Next.js 16.2.10, PostgreSQL local, Chrome h
 | --- | --- |
 | ESLint | 0 errores; 1 aviso preexistente en `seed-os-fase-c.ts` (`ABRIL` sin uso) |
 | TypeScript | correcto |
-| Vitest | 3 archivos, 28/28 tests |
+| Vitest | 3 archivos, 29/29 tests |
 | Smoke CRM | lead, operaciones y archivos: correctos; datos temporales eliminados |
 | Prisma validate | esquema válido |
 | Prisma migrate status | 7 migraciones; base al día |
@@ -17,6 +17,12 @@ Entorno: build de producción local, Next.js 16.2.10, PostgreSQL local, Chrome h
 | Build producción | correcto |
 
 Los tests de integración cubren creación, actualización/versionado, archivo reversible, borrado suave recuperable, búsqueda, filtros, favoritos, etiquetas y relaciones sin tocar entidades del CRM.
+
+La auditoría final reprodujo un timeout del `afterAll` original: la limpieza
+hacía varios borrados por cada entrada sobre `connection_limit=1` y podía
+dejar una fila `zz-test_*`. Se sustituyó por un borrado en bloque con cascada,
+se añadió recuperación de residuos reservados y se repitió la suite: 29/29
+tests, 113 entradas reales y cero avisos del verificador.
 
 El smoke compartido verificó además el flujo completo lead → oportunidad → cliente → proyecto → tarea → tiempo → factura, eventos Meta sin envío y almacenamiento de archivos. Cada script confirmó la eliminación de sus datos temporales.
 
@@ -44,7 +50,7 @@ Prueba sobre `/os/buscar`, incluyendo render y red:
 | Necesidad | Consulta | Resultado principal | Tiempo |
 | --- | --- | --- | ---: |
 | colores | `colores` | tokens Lavanda, Morado y Blanco | 1,21 s |
-| mensaje para clínica en frío | `clínica en frío` | CTA en frío + caso Estersa | 1,14 s |
+| mensaje para clínica en frío | `mensaje frío para una clínica` | CTA en frío + plantilla de outreach + guion de apertura | resultado directo |
 | precios | `precios` | Precios vigentes | 1,13 s |
 | decisiones actuales | `decisiones` | decisión de vertical | 1,15 s |
 | playbook de propuesta | `propuesta comercial` | estructura + playbook | 1,25 s |
@@ -55,10 +61,15 @@ Prueba sobre `/os/buscar`, incluyendo render y red:
 
 El Spotlight responde a `Ctrl/Cmd+K`, flechas, Enter y Escape. El QA detectó y corrigió una doble instancia en portada; el resultado final tiene una única paleta visible y abre la ficha seleccionada.
 
+La consulta natural anterior se revalidó en la preview final: devuelve
+resultados agrupados de Comunicación, Recursos y Oferta y clientes sin errores
+de consola, respuestas HTTP fallidas ni overlay. El ranking ignora conectores
+españoles y amplía vocabulario de tipo/sector; no modifica el contenido.
+
 ## Responsive y visual
 
 - escritorio: 1440×1000;
-- tableta: 1024×900;
+- tableta: 768×1024 y 1024×900;
 - móvil: 390×844;
 - scroll horizontal del documento en móvil: **0 px**;
 - el sidebar interno aparece desde `xl`; tableta usa navegación horizontal;
@@ -79,3 +90,8 @@ Capturas:
 - Los errores parciales y de frontera quedan registrados con prefijo identificable.
 
 No se provocó una caída deliberada de PostgreSQL porque afectaría a todo el CRM compartido; la revisión se hizo mediante flujo, código tipado, build y frontera renderizada.
+
+Preview final: `http://localhost:3100`, iniciada con `AUTH_URL` y
+`NEXTAUTH_URL` efímeros para ese puerto. El artefacto posterior al último build
+abrió `/os`, mostró las 113 unidades y no registró 4xx/5xx, `pageerror`, error
+de consola ni overlay.

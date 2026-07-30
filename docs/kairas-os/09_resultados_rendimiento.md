@@ -12,7 +12,7 @@ Mediciones locales de producción en la misma máquina, base y navegador. Son co
 | Navegación cliente a `/os` | 1,46–1,49 s | 0,52–0,66 s | −55–65 % |
 | Prefetch RSC automático estable en `/os` | >30 | 0 | eliminado |
 | Errores de imagen de marca | 7 peticiones 400 observadas | 0 | resuelto |
-| Tests | 24 | 28 | +4 búsqueda pura |
+| Tests | 24 | 29 | +5 búsqueda/QA |
 
 La carga fría final se midió en tres contextos sin caché de navegador: **1,77 s, 2,74 s y 3,58 s**.
 
@@ -50,10 +50,16 @@ La mejora principal no procede del bundle, sino de consultas, serialización, pr
 
 Build final:
 
-- compilación: 26,2 s;
-- TypeScript: 53,0 s;
+- compilación: 42 s en la revalidación final (26,2 s en la medición anterior);
+- TypeScript: 54 s en la revalidación final (53,0 s en la medición anterior);
 - generación: 14/14 páginas estáticas;
 - todas las rutas dinámicas generadas correctamente.
+
+Sobre ese artefacto, una carga autenticada final de `/os` registró 1,50 s a
+`DOMContentLoaded` y 2,23 s a `networkidle`; una segunda sesión usada para
+validar el ranking quedó en 4,08 s a `networkidle`. Se conserva la mediana de
+2,74 s como comparación porque las pasadas dependen de caché y arranque del
+servidor local.
 
 Avisos no bloqueantes:
 

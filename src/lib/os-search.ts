@@ -16,6 +16,28 @@ export type SearchableKnowledge = {
   targetId?: string | null;
 };
 
+const SEARCH_STOP_WORDS = new Set([
+  "a",
+  "al",
+  "como",
+  "con",
+  "cual",
+  "de",
+  "del",
+  "el",
+  "en",
+  "la",
+  "las",
+  "lo",
+  "los",
+  "para",
+  "por",
+  "que",
+  "un",
+  "una",
+  "y",
+]);
+
 export function normalizeSearchText(value: string): string {
   return value
     .normalize("NFD")
@@ -83,7 +105,10 @@ export function scoreKnowledgeMatch(query: string, entry: SearchableKnowledge): 
   else if (title.includes(normalizedQuery)) score += 90;
   else if (secondary.includes(normalizedQuery)) score += 60;
 
-  const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  const queryTokens = normalizedQuery
+    .split(/\s+/)
+    .filter((token) => token && !SEARCH_STOP_WORDS.has(token));
+  if (queryTokens.length === 0) return 0;
   const titleWords = title.split(/\s+/).filter(Boolean);
   let matchedTokens = 0;
   for (const token of queryTokens) {

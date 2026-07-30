@@ -319,13 +319,24 @@ const searchVocabulary: Partial<Record<OsEntryType, string>> = {
   caso: "caso cliente clientes evidencia",
   prohibicion: "prohibición no prometer límites no negociable",
   recurso: "recurso plantilla checklist",
-  guion: "guion mensaje respuesta",
+  guion: "guion mensaje respuesta apertura outreach frío primer contacto",
+  cta: "cta llamada acción frío templado caliente intención",
+};
+
+const sectorVocabulary: Record<string, string> = {
+  estetica: "estética clínica clínicas centro centros belleza",
 };
 
 function relevance(term: string, entry: KnowledgeIndexEntry | BaseEntry): number {
   return scoreKnowledgeMatch(term, {
     ...entry,
-    summary: `${entry.summary ?? ""} ${searchVocabulary[entry.type] ?? ""}`,
+    summary: [
+      entry.summary,
+      searchVocabulary[entry.type],
+      entry.sector ? sectorVocabulary[entry.sector] : undefined,
+    ]
+      .filter(Boolean)
+      .join(" "),
   });
 }
 

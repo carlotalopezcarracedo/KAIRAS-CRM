@@ -29,6 +29,16 @@ const createdIds: string[] = [];
 beforeAll(async () => {
   try {
     await prisma.$queryRaw`SELECT 1`;
+    // Recupera residuos de una ejecución interrumpida. El prefijo está
+    // reservado exclusivamente para estas pruebas de integración.
+    await prisma.knowledgeEntry.deleteMany({
+      where: {
+        OR: [
+          { area: { startsWith: "zz-test_" } },
+          { area: { startsWith: "zzf-test_" } },
+        ],
+      },
+    });
   } catch {
     dbUp = false;
   }
@@ -36,17 +46,16 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (dbUp) {
-    for (const id of createdIds) {
-      await prisma.knowledgeRelation.deleteMany({ where: { OR: [{ fromId: id }, { toId: id }] } });
-      await prisma.knowledgeFavorite.deleteMany({ where: { entryId: id } });
-      await prisma.knowledgeEntryTag.deleteMany({ where: { entryId: id } });
-      await prisma.knowledgeVersion.deleteMany({ where: { entryId: id } });
-      await prisma.knowledgeEntry.delete({ where: { id } }).catch(() => {});
-    }
+    // Las relaciones os_* tienen onDelete: Cascade. Un único deleteMany evita
+    // decenas de round-trips sobre connection_limit=1 y mantiene el hook bajo
+    // el timeout de Vitest incluso con latencia.
+    await prisma.knowledgeEntry.deleteMany({
+      where: { id: { in: createdIds } },
+    });
     await prisma.knowledgeTag.deleteMany({ where: { slug: { startsWith: "ztag-" } } });
   }
   await prisma.$disconnect();
-});
+}, 30_000);
 
 describe("knowledge-service (integración)", () => {
   it("crea una entrada y genera snapshot v1", async () => {

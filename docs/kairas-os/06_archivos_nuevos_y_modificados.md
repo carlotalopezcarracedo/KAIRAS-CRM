@@ -52,6 +52,7 @@ Comparación contra el commit base `87c141663a7c5d1579f744f3aaad8b727a915a3b`.
 ### Servicios y shell
 
 - `src/server/services/os/os-views-service.ts`
+- `src/server/services/os/knowledge-service.test.ts`
 - `src/app/(app)/layout.tsx`
 - `src/components/shell/topbar.tsx`
 - `src/components/shell/sidebar.tsx`
@@ -71,3 +72,7 @@ Comparación contra el commit base `87c141663a7c5d1579f744f3aaad8b727a915a3b`.
 
 No era necesaria una migración: el modelo aislado `os_*` ya cubría estados, versiones, fuentes, relaciones, etiquetas y preferencias.
 
+La revalidación final corrigió además la limpieza del test de integración:
+ahora elimina sus filas reservadas `zz-test_*` en bloque, aprovecha los
+`onDelete: Cascade` del modelo y recupera residuos de una ejecución
+interrumpida sin tocar contenido real.

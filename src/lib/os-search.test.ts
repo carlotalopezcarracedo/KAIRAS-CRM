@@ -16,8 +16,16 @@ describe("búsqueda de KAIRAS OS", () => {
     expect(scoreKnowledgeMatch("estetcia", { title: "Clínica de estética" })).toBeGreaterThan(0);
   });
 
+  it("ignora conectores en preguntas naturales", () => {
+    expect(
+      scoreKnowledgeMatch("mensaje frío para una clínica", {
+        title: "Guion de apertura",
+        summary: "mensaje outreach frío para clínica y centro de estética",
+      }),
+    ).toBeGreaterThan(0);
+  });
+
   it("no devuelve coincidencias irrelevantes", () => {
     expect(scoreKnowledgeMatch("constitución", { title: "Paleta visual", summary: "Colores" })).toBe(0);
   });
 });
-
