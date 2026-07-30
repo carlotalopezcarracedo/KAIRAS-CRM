@@ -1,10 +1,13 @@
 // KAIRAS OS — servicio de vistas, actividad y agregados por sección (rediseño).
 // Solo tablas os_*. Aditivo: no toca el servicio de conocimiento existente.
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/server/db/prisma";
 import type { Prisma, OsEntryType } from "@prisma/client";
 import type { OsStatus } from "@prisma/client";
 import { scoreKnowledgeMatch } from "@/lib/os-search";
+
+export const OS_KNOWLEDGE_CACHE_TAG = "os-knowledge";
 
 // -- Índice ligero -----------------------------------------------------------
 // Una única lectura pequeña alimenta navegación, dashboard y clasificaciones.
@@ -36,17 +39,71 @@ export type KnowledgeIndexEntry = Prisma.KnowledgeEntryGetPayload<{
   select: typeof indexSelect;
 }>;
 
+function restoreEntryDates<T extends { updatedAt: Date; validUntil: Date | null }>(
+  entries: T[],
+): T[] {
+  return entries.map((entry) => ({
+    ...entry,
+    updatedAt:
+      entry.updatedAt instanceof Date ? entry.updatedAt : new Date(entry.updatedAt),
+    validUntil:
+      entry.validUntil instanceof Date || entry.validUntil === null
+        ? entry.validUntil
+        : new Date(entry.validUntil),
+  }));
+}
+
+const getCachedKnowledgeIndex = unstable_cache(
+  async (): Promise<KnowledgeIndexEntry[]> =>
+    prisma.knowledgeEntry.findMany({
+      where: { deletedAt: null },
+      orderBy: { updatedAt: "desc" },
+      select: indexSelect,
+    }),
+  ["os-knowledge-index-v2"],
+  { tags: [OS_KNOWLEDGE_CACHE_TAG] },
+);
+
 /**
- * `cache` deduplica la lectura cuando layout y página la piden en el mismo
- * render RSC. El resultado no se persiste entre peticiones ni entre usuarios.
+ * La caché de Next reutiliza el índice entre peticiones; `cache` deduplica
+ * además las lecturas concurrentes dentro del mismo render RSC.
  */
 export const getKnowledgeIndex = cache(async (): Promise<KnowledgeIndexEntry[]> => {
-  return prisma.knowledgeEntry.findMany({
-    where: { deletedAt: null },
-    orderBy: { updatedAt: "desc" },
-    select: indexSelect,
-  });
+  return restoreEntryDates(await getCachedKnowledgeIndex());
 });
+
+/** Inicia el índice antes de una espera de sesión sin bloquear el render. */
+export function preloadKnowledgeIndex() {
+  void getKnowledgeIndex();
+}
+
+const getCachedSectionEntries = unstable_cache(
+  async (areas: string[], types: OsEntryType[], includeHistoric: boolean) => {
+    const or: Prisma.KnowledgeEntryWhereInput[] = [];
+    if (areas.length) or.push({ area: { in: areas } });
+    if (types.length) or.push({ type: { in: types } });
+
+    return prisma.knowledgeEntry.findMany({
+      where: {
+        deletedAt: null,
+        ...(or.length ? { OR: or } : {}),
+        ...(!includeHistoric ? { status: { notIn: ["obsoleto"] } } : {}),
+      },
+      orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+      select: {
+        ...indexSelect,
+        meta: true,
+        hypothesisRef: true,
+        targetType: true,
+        targetId: true,
+        source: { select: { id: true, label: true, phase: true, path: true, kind: true } },
+        tags: { select: { tag: { select: { id: true, name: true, slug: true } } } },
+      },
+    });
+  },
+  ["os-section-entries-v2"],
+  { tags: [OS_KNOWLEDGE_CACHE_TAG] },
+);
 
 type ViewSample = { entryId: string; viewedAt: Date };
 
@@ -249,20 +306,13 @@ function sectionWhere(q: SectionQuery, extra?: Prisma.KnowledgeEntryWhereInput):
 }
 
 export async function getSectionEntries(q: SectionQuery, opts: { includeHistoric?: boolean } = {}) {
-  const extra: Prisma.KnowledgeEntryWhereInput = opts.includeHistoric ? {} : { status: { notIn: ["obsoleto"] } };
-  return prisma.knowledgeEntry.findMany({
-    where: sectionWhere(q, extra),
-    orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-    select: {
-      ...indexSelect,
-      meta: true,
-      hypothesisRef: true,
-      targetType: true,
-      targetId: true,
-      source: { select: { id: true, label: true, phase: true, path: true, kind: true } },
-      tags: { select: { tag: { select: { id: true, name: true, slug: true } } } },
-    },
-  });
+  return restoreEntryDates(
+    await getCachedSectionEntries(
+      q.areas ?? [],
+      q.types ?? [],
+      opts.includeHistoric ?? false,
+    ),
+  );
 }
 
 export type SectionEntry = Awaited<ReturnType<typeof getSectionEntries>>[number];

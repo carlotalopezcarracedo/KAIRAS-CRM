@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { cache } from "react";
 import { z } from "zod";
 import { prisma } from "@/server/db/prisma";
 import { authConfig } from "./config";
@@ -37,11 +38,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 });
 
 /**
+ * Una sola resolución de sesión por render RSC. Layout y página suelen pedir
+ * la misma sesión; `cache` evita repetir la validación durante la navegación.
+ */
+export const getSession = cache(async () => auth());
+
+/**
  * Devuelve la usuaria autenticada o lanza. Usar en TODOS los server
  * actions y servicios que toquen datos.
  */
 export async function requireUser() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) {
     throw new Error("UNAUTHORIZED");
   }

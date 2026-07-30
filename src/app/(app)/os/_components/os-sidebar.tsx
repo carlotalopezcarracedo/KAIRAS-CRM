@@ -76,7 +76,7 @@ export function OsMobileNav() {
             <li key={item.href}>
               <Link
                 href={item.href}
-                prefetch={false}
+                prefetch={item.href === "/os/estrategia"}
                 className={cn(
                   "block rounded-full px-3 py-1.5 text-xs font-semibold",
                   active ? "bg-violet-soft text-lavender" : "text-faint hover:text-foam",
@@ -108,7 +108,7 @@ function SideLink({
   return (
     <Link
       href={href}
-      prefetch={false}
+      prefetch={href === "/os/estrategia"}
       className={cn(
         "flex items-center gap-3 rounded-[10px] px-2.5 py-2 text-[13.5px] transition-colors",
         active ? "bg-violet-soft text-lavender" : "text-mist hover:bg-raise hover:text-foam",

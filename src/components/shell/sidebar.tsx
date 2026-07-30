@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "./nav-items";
 
@@ -34,11 +35,12 @@ export function Sidebar() {
               {section.items.map((item) => {
                 const active =
                   pathname === item.href || pathname.startsWith(item.href + "/");
+                const isOsEntry = item.href === "/os";
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      prefetch={prefetch}
+                      prefetch={isOsEntry && !pathname.startsWith("/os") ? true : prefetch}
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                         active
@@ -53,6 +55,7 @@ export function Sidebar() {
                         )}
                       />
                       {item.label}
+                      {isOsEntry ? <OsLinkPending /> : null}
                     </Link>
                   </li>
                 );
@@ -62,5 +65,19 @@ export function Sidebar() {
         ))}
       </nav>
     </aside>
+  );
+}
+
+function OsLinkPending() {
+  const { pending } = useLinkStatus();
+  return (
+    <span className="ml-auto grid h-4 w-4 place-items-center" aria-hidden>
+      <LoaderCircle
+        className={cn(
+          "h-3.5 w-3.5 transition-opacity",
+          pending ? "animate-spin opacity-100" : "opacity-0",
+        )}
+      />
+    </span>
   );
 }

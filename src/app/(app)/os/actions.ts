@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/server/auth";
 import type { ActionResult } from "@/lib/action-result";
@@ -19,7 +19,12 @@ import {
   toggleFavorite,
   setEntryTags,
 } from "@/server/services/os/knowledge-service";
-import { quickSearch, recordView, type BaseEntry } from "@/server/services/os/os-views-service";
+import {
+  OS_KNOWLEDGE_CACHE_TAG,
+  quickSearch,
+  recordView,
+  type BaseEntry,
+} from "@/server/services/os/os-views-service";
 
 /** Búsqueda instantánea para el Spotlight (⌘K). */
 export async function quickSearchAction(q: string): Promise<BaseEntry[]> {
@@ -57,6 +62,7 @@ async function withUser() {
 }
 
 function revalidateOs(area?: string) {
+  updateTag(OS_KNOWLEDGE_CACHE_TAG);
   revalidatePath("/os");
   if (area) revalidatePath(`/os/${area}`);
 }
