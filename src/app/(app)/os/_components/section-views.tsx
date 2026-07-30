@@ -269,7 +269,327 @@ export function MarcaView({ entries }: { entries: E[] }) {
 }
 
 // ============================ ESTRATEGIA ============================
-export function EstrategiaView({ entries }: { entries: E[] }) {
+function SourceLink({ entry, label = "Abrir fuente" }: { entry: E; label?: string }) {
+  return (
+    <Link
+      href={entryHref(entry.id)}
+      aria-label={`${label}: ${entry.title}`}
+      className="inline-flex items-center gap-1 text-[11px] font-semibold text-lavender hover:underline"
+    >
+      {label} <ArrowRight className="h-3 w-3" />
+    </Link>
+  );
+}
+
+export function StrategyOverviewView({ entries }: { entries: E[] }) {
+  const current = entries.filter(
+    (entry) => !["historico", "obsoleto", "archivado"].includes(entry.status),
+  );
+  const entryByKey = new Map(current.map((entry) => [entry.externalKey, entry]));
+  const purpose = entryByKey.get("id-proposito");
+  const mission = entryByKey.get("id-mision");
+  const positioning = entryByKey.get("id-posicionamiento");
+  const differentiation = entryByKey.get("id-diferenciacion");
+  const solves = entryByKey.get("id-resuelve");
+  const doesNotSolve = entryByKey.get("id-no-resuelve");
+  const icp = entryByKey.get("id-icp");
+  const noIcp = entryByKey.get("id-no-icp");
+  const decision = entryByKey.get("val-decision-vertical");
+  const funnel = entryByKey.get("com2-embudo");
+  const channelStrategy = entryByKey.get("com2-mensajes-canal");
+  const experiment = entryByKey.get("val-exp-ou1");
+  const risk = entryByKey.get("val-riesgo-agosto");
+  const guarantee = entryByKey.get("of-garantias");
+  const offers = ["of-chequeo", "of-mapa", "of-proyecto", "of-continuo"]
+    .map((key) => entryByKey.get(key))
+    .filter((entry): entry is E => Boolean(entry));
+  const hypotheses = current
+    .filter((entry) => entry.type === "hipotesis")
+    .sort((a, b) =>
+      (a.hypothesisRef ?? a.title).localeCompare(b.hypothesisRef ?? b.title, "es", {
+        numeric: true,
+      }),
+    );
+  const evidence = current.filter((entry) => entry.type === "caso");
+  const rules = current.filter(
+    (entry) =>
+      entry.area === "constitucion" &&
+      ["regla", "prohibicion"].includes(entry.type),
+  );
+
+  if (current.length === 0) {
+    return (
+      <Empty
+        title="La vista ejecutiva aún no tiene fuentes"
+        hint="Añade identidad, oferta, validación y reglas para construir el resumen."
+      />
+    );
+  }
+
+  return (
+    <div className={styles.fade}>
+      <section className="mb-8 overflow-hidden rounded-2xl border border-line bg-[#e1e8f0] text-[#0d090b]">
+        <div className="p-7 sm:p-9">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#0d090b]/45">
+              Estrategia ejecutiva · lectura de 60 segundos
+            </p>
+            {purpose ? <SourceLink entry={purpose} label="Ver fundamento" /> : null}
+          </div>
+          <h2 className="mt-5 max-w-5xl text-3xl font-extrabold leading-tight tracking-[-0.035em] sm:text-4xl">
+            {purpose?.summary ?? "La estrategia de KAIRAS, reunida en una sola página."}
+          </h2>
+          {mission ? (
+            <p className="mt-4 max-w-4xl text-sm leading-6 text-[#0d090b]/65">
+              {mission.summary}
+            </p>
+          ) : null}
+        </div>
+        <div className="grid border-t border-[#0d090b]/10 md:grid-cols-3">
+          {[
+            {
+              label: "Foco actual",
+              value: decision?.title.replace(/^Decisión\s*·\s*/i, "") ?? "Por definir",
+            },
+            { label: "Cliente prioritario", value: icp?.summary ?? "Por definir" },
+            { label: "Posicionamiento", value: positioning?.summary ?? "Por definir" },
+          ].map((item, index) => (
+            <div
+              key={item.label}
+              className={cn(
+                "p-5 sm:p-6",
+                index > 0 ? "border-t border-[#0d090b]/10 md:border-l md:border-t-0" : "",
+              )}
+            >
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#0d090b]/40">
+                {item.label}
+              </p>
+              <p className="mt-2 text-sm font-semibold leading-6">{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <Panel title="La apuesta" hint="problema, cliente y ventaja en una sola lectura">
+        <div className="grid gap-3 lg:grid-cols-3">
+          <article className="rounded-2xl border border-ok/25 bg-ok-soft/20 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ok">
+              Problema elegido
+            </p>
+            <p className="mt-3 text-sm leading-6 text-foam">
+              {solves?.summary ?? "Problema por definir."}
+            </p>
+            {solves ? <div className="mt-4"><SourceLink entry={solves} /></div> : null}
+          </article>
+          <article className="rounded-2xl border border-violet-line bg-violet-soft/25 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-lavender">
+              Por qué KAIRAS
+            </p>
+            <p className="mt-3 text-sm leading-6 text-foam">
+              {differentiation?.summary ?? "Diferenciación por definir."}
+            </p>
+            {differentiation ? (
+              <div className="mt-4"><SourceLink entry={differentiation} /></div>
+            ) : null}
+          </article>
+          <article className="rounded-2xl border border-danger/25 bg-danger-soft/20 p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-danger">
+              Fuera de alcance
+            </p>
+            <p className="mt-3 text-sm leading-6 text-foam">
+              {doesNotSolve?.summary ?? "Límites por definir."}
+            </p>
+            {doesNotSolve ? (
+              <div className="mt-4"><SourceLink entry={doesNotSolve} /></div>
+            ) : null}
+          </article>
+        </div>
+        {noIcp ? (
+          <div className="mt-3 flex flex-col gap-2 rounded-xl border border-line bg-surface px-4 py-3 sm:flex-row sm:items-center">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-faint">
+              No-ICP
+            </span>
+            <p className="text-xs leading-5 text-mist sm:border-l sm:border-line sm:pl-3">
+              {noIcp.summary}
+            </p>
+          </div>
+        ) : null}
+      </Panel>
+
+      {offers.length > 0 ? (
+        <Panel title="De entrada a recurrencia" hint="arquitectura de oferta y precios visibles">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {offers.map((offer, index) => (
+              <article key={offer.id} className="relative rounded-2xl border border-line bg-surface p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-violet-soft text-xs font-extrabold text-lavender">
+                    {index + 1}
+                  </span>
+                  <StatusBadge status={offer.status} />
+                </div>
+                <h3 className="mt-4 font-bold leading-5 text-foam">{offer.title}</h3>
+                <p className="mt-2 text-xs leading-5 text-mist">{offer.summary}</p>
+                <div className="mt-4"><SourceLink entry={offer} /></div>
+              </article>
+            ))}
+          </div>
+          {guarantee ? (
+            <div className="mt-3 rounded-xl border border-ok/20 bg-ok/5 px-4 py-3">
+              <p className="text-xs leading-5 text-mist">
+                <b className="text-ok">Garantías admisibles:</b> {guarantee.summary}
+              </p>
+            </div>
+          ) : null}
+        </Panel>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="mb-8 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+          <div className="flex items-center gap-2 text-lavender">
+            <Route className="h-4 w-4" />
+            <h2 className="text-[13px] font-bold uppercase tracking-[0.12em]">
+              Cómo llega al mercado
+            </h2>
+          </div>
+          {funnel ? (
+            <>
+              <p className="mt-4 text-sm font-semibold leading-6 text-foam">{funnel.summary}</p>
+              <div className="mt-3"><SourceLink entry={funnel} label="Abrir embudo" /></div>
+            </>
+          ) : null}
+          {channelStrategy ? (
+            <div className="mt-5 border-t border-line pt-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-faint">
+                Papel de cada canal
+              </p>
+              <p className="mt-2 text-xs leading-5 text-mist">{channelStrategy.summary}</p>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                {[
+                  ["WhatsApp", str(meta(channelStrategy).whatsapp)],
+                  ["Instagram", str(meta(channelStrategy).instagram)],
+                  ["Email", str(meta(channelStrategy).email)],
+                  ["Teléfono", str(meta(channelStrategy).telefono)],
+                ].map(([label, value]) =>
+                  value ? (
+                    <div key={label} className="rounded-lg bg-raise px-3 py-2">
+                      <dt className="text-[9px] font-bold uppercase tracking-wide text-faint">
+                        {label}
+                      </dt>
+                      <dd className="mt-1 text-xs text-foam">{value}</dd>
+                    </div>
+                  ) : null,
+                )}
+              </dl>
+            </div>
+          ) : null}
+          {experiment ? (
+            <div className="mt-5 rounded-xl border border-violet-line bg-violet-soft/20 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-lavender">
+                Canal madre en prueba
+              </p>
+              <p className="mt-2 text-sm font-semibold text-foam">{experiment.title}</p>
+              <p className="mt-2 text-xs leading-5 text-mist">{experiment.summary}</p>
+            </div>
+          ) : null}
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+          <div className="flex items-center gap-2 text-warn">
+            <FlaskConical className="h-4 w-4" />
+            <h2 className="text-[13px] font-bold uppercase tracking-[0.12em]">
+              Qué debe demostrarse
+            </h2>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-faint">
+            Son supuestos activos, no hechos. Cada uno conserva su umbral de decisión.
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {hypotheses.map((hypothesis) => (
+              <article key={hypothesis.id} className="rounded-xl border border-line bg-ink/40 p-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold text-warn">
+                    {str(meta(hypothesis).code) ?? hypothesis.hypothesisRef}
+                  </span>
+                  <StatusBadge status={hypothesis.status} />
+                </div>
+                <p className="mt-2 text-xs font-semibold leading-5 text-foam">
+                  {str(meta(hypothesis).statement) ?? hypothesis.title}
+                </p>
+                <p className="mt-1 text-[11px] leading-4 text-faint">
+                  {str(meta(hypothesis).threshold) ?? hypothesis.summary}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <Panel title="Evidencia, riesgo y reglas" hint="qué sabemos y cómo decidimos">
+        <div className="grid gap-3 lg:grid-cols-3">
+          <article className="rounded-2xl border border-line bg-surface p-5">
+            <div className="flex items-center gap-2 text-ok">
+              <Building2 className="h-4 w-4" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em]">
+                Evidencia disponible
+              </p>
+            </div>
+            <div className="mt-4 space-y-4">
+              {evidence.length > 0 ? evidence.map((caseEntry) => (
+                <div key={caseEntry.id}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-semibold text-foam">{caseEntry.title}</p>
+                    <StatusBadge status={caseEntry.status} />
+                  </div>
+                  <p className="mt-1 text-[11px] leading-5 text-mist">{caseEntry.summary}</p>
+                </div>
+              )) : <p className="text-xs text-faint">Todavía no hay casos utilizables como evidencia.</p>}
+            </div>
+          </article>
+
+          <article className="rounded-2xl border border-warn/25 bg-warn-soft/15 p-5">
+            <div className="flex items-center gap-2 text-warn">
+              <ShieldAlert className="h-4 w-4" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em]">
+                Riesgo actual
+              </p>
+            </div>
+            {risk ? (
+              <>
+                <p className="mt-4 text-sm font-semibold leading-5 text-foam">{risk.title}</p>
+                <p className="mt-2 text-xs leading-5 text-mist">{risk.summary}</p>
+                {str(meta(risk).mitigation) ? (
+                  <p className="mt-3 text-xs leading-5 text-warn">
+                    <b>Mitigación:</b> {str(meta(risk).mitigation)}
+                  </p>
+                ) : null}
+              </>
+            ) : <p className="mt-4 text-xs text-faint">No hay un riesgo prioritario registrado.</p>}
+          </article>
+
+          <article className="rounded-2xl border border-line bg-surface p-5">
+            <div className="flex items-center gap-2 text-lavender">
+              <CheckCircle2 className="h-4 w-4" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em]">
+                No negociables
+              </p>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {rules.map((rule) => (
+                <li key={rule.id} className="flex items-start gap-2 text-xs leading-5 text-mist">
+                  <Check className="mt-0.5 h-3.5 w-3.5 flex-none text-lavender" />
+                  <span>{rule.summary}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ============================ IDENTIDAD ============================
+export function IdentityView({ entries }: { entries: E[] }) {
   const current = entries.filter(
     (entry) => !["historico", "obsoleto", "archivado"].includes(entry.status),
   );

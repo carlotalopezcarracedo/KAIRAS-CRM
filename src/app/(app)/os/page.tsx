@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { ComponentProps } from "react";
+import { Suspense, type ComponentProps } from "react";
 import NextLink from "next/link";
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import { formatDate } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
 import {
   getOsDashboardOverview,
+  preloadKnowledgeIndex,
   type KnowledgeIndexEntry,
 } from "@/server/services/os/os-views-service";
 import { QuickSearchTrigger } from "./_components/quick-search";
@@ -28,8 +29,8 @@ import styles from "./_components/os.module.css";
 
 export const metadata: Metadata = { title: "KAIRAS OS" };
 
-function Link(props: ComponentProps<typeof NextLink>) {
-  return <NextLink {...props} prefetch={false} />;
+function Link({ prefetch = false, ...props }: ComponentProps<typeof NextLink>) {
+  return <NextLink {...props} prefetch={prefetch} />;
 }
 
 const TASK_SHORTCUTS = [
@@ -63,9 +64,8 @@ const TASK_SHORTCUTS = [
   },
 ];
 
-export default async function OsDashboard() {
-  const user = await requireUser();
-  const overview = await getOsDashboardOverview(user.id);
+export default function OsDashboard() {
+  preloadKnowledgeIndex();
   const hour = new Date().getHours();
   const greeting =
     hour < 6
@@ -75,10 +75,6 @@ export default async function OsDashboard() {
         : hour < 21
           ? "Buenas tardes"
           : "Buenas noches";
-  const continueEntries =
-    overview.recentlyViewed.length > 0
-      ? overview.recentlyViewed
-      : overview.updates.slice(0, 4);
 
   return (
     <div className={styles.fade}>
@@ -98,6 +94,31 @@ export default async function OsDashboard() {
       <div className="mt-6">
         <QuickSearchTrigger />
       </div>
+
+      <Link
+        href="/os/estrategia"
+        prefetch
+        className={`group mt-4 block overflow-hidden rounded-2xl border border-violet-line bg-violet-soft/35 p-5 sm:p-6 ${styles.lift}`}
+      >
+        <div className="flex items-start gap-4">
+          <span className="grid h-11 w-11 flex-none place-items-center rounded-xl bg-violet text-white">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-lavender">
+              Vista ejecutiva
+            </span>
+            <span className="mt-1 block text-lg font-bold text-foam sm:text-xl">
+              Entiende toda la estrategia de KAIRAS en una sola página
+            </span>
+            <span className="mt-2 block max-w-3xl text-xs leading-5 text-mist">
+              Foco, cliente, problema, oferta, embudo, hipótesis, evidencia, riesgo y
+              no negociables; con las fichas como fuente opcional.
+            </span>
+          </span>
+          <ArrowUpRight className="ml-auto mt-1 h-4 w-4 flex-none text-lavender" />
+        </div>
+      </Link>
 
       <nav aria-label="Accesos por tarea" className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
         {TASK_SHORTCUTS.map((item) => (
@@ -125,6 +146,23 @@ export default async function OsDashboard() {
         ))}
       </nav>
 
+      <Suspense fallback={<DashboardPanelsFallback />}>
+        <DashboardData />
+      </Suspense>
+    </div>
+  );
+}
+
+async function DashboardData() {
+  const user = await requireUser();
+  const overview = await getOsDashboardOverview(user.id);
+  const continueEntries =
+    overview.recentlyViewed.length > 0
+      ? overview.recentlyViewed
+      : overview.updates.slice(0, 4);
+
+  return (
+    <>
       <div className="mt-8 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
         <Panel
           eyebrow="Radar de hoy"
@@ -277,6 +315,22 @@ export default async function OsDashboard() {
           Nueva entrada
         </ButtonLink>
       </div>
+    </>
+  );
+}
+
+function DashboardPanelsFallback() {
+  return (
+    <div role="status" aria-label="Cargando resumen operativo" className="mt-8 space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,0.65fr)]">
+        <div className="h-60 animate-pulse rounded-2xl border border-line bg-surface" />
+        <div className="h-60 animate-pulse rounded-2xl border border-line bg-surface" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="h-52 animate-pulse rounded-2xl border border-line bg-surface" />
+        <div className="h-52 animate-pulse rounded-2xl border border-line bg-surface" />
+      </div>
+      <span className="sr-only">Cargando decisiones, actividad y favoritos…</span>
     </div>
   );
 }

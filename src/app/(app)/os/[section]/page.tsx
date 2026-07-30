@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { SectionHero } from "../_components/os-ui";
 import {
-  MarcaView, EstrategiaView, MarketingView, ComercialView, PlaybooksView,
+  MarcaView, IdentityView, StrategyOverviewView, MarketingView, ComercialView, PlaybooksView,
   LearningView, ContentView, RecursosView, ConstitucionView, GenericView,
 } from "../_components/section-views";
 import { canonicalSectionSlug, getSection } from "../_sections";
@@ -19,7 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ section: 
 
 function render(slug: string, entries: SectionEntry[]) {
   switch (slug) {
-    case "marca": return <EstrategiaView entries={entries} />;
+    case "estrategia": return <StrategyOverviewView entries={entries} />;
+    case "marca": return <IdentityView entries={entries} />;
     case "visual": return <MarcaView entries={entries} />;
     case "comunicacion": return <MarketingView entries={entries} />;
     case "oferta": return <ComercialView entries={entries} />;
@@ -33,7 +34,7 @@ function render(slug: string, entries: SectionEntry[]) {
 }
 
 export default async function OsSectionPage({ params }: { params: Promise<{ section: string }> }) {
-  await requireUser();
+  const userPromise = requireUser();
   const { section } = await params;
   const canonical = canonicalSectionSlug(section);
   if (canonical && canonical !== section) redirect(`/os/${canonical}`);
@@ -42,16 +43,19 @@ export default async function OsSectionPage({ params }: { params: Promise<{ sect
 
   const includeHistoric =
     section === "marca" || section === "visual" || section === "constitucion";
-  const entries = await getSectionEntries(
-    { areas: cfg.areas, types: cfg.types },
-    { includeHistoric },
-  );
+  const [, entries] = await Promise.all([
+    userPromise,
+    getSectionEntries(
+      { areas: cfg.areas, types: cfg.types },
+      { includeHistoric },
+    ),
+  ]);
 
   return (
     <div>
       <SectionHero
         section={cfg}
-        count={entries.length}
+        count={cfg.slug === "estrategia" ? undefined : entries.length}
         actions={
           <ButtonLink href="/os/nuevo" variant="secondary" size="sm">
             <Plus className="h-3.5 w-3.5" /> Nueva

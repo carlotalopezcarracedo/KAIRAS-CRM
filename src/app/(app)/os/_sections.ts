@@ -4,6 +4,7 @@
 
 import {
   LayoutDashboard,
+  Compass,
   Fingerprint,
   SwatchBook,
   MessageSquareText,
@@ -18,6 +19,7 @@ import {
 import type { OsEntryType } from "@/types/os";
 
 export type SectionSlug =
+  | "estrategia"
   | "marca"
   | "visual"
   | "comunicacion"
@@ -43,10 +45,18 @@ export type SectionConfig = {
 
 export const OS_SECTIONS: SectionConfig[] = [
   {
+    slug: "estrategia",
+    label: "Estrategia",
+    icon: Compass,
+    tagline: "El proyecto completo, explicado en una sola página",
+    areas: ["identidad", "oferta", "comercial", "validacion", "clientes", "constitucion"],
+    accent: "var(--color-violet)",
+  },
+  {
     slug: "marca",
-    label: "Marca",
+    label: "Identidad",
     icon: Fingerprint,
-    tagline: "Qué representa KAIRAS y qué límites tiene",
+    tagline: "Propósito, misión, posicionamiento y límites",
     areas: ["identidad"],
     accent: "var(--color-violet)",
   },
@@ -120,7 +130,6 @@ export const OS_SECTIONS: SectionConfig[] = [
 export const OS_DASHBOARD = { slug: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard };
 
 const LEGACY_SECTION_ALIASES: Record<string, SectionSlug> = {
-  estrategia: "marca",
   marketing: "comunicacion",
   comercial: "oferta",
   clientes: "oferta",
@@ -141,9 +150,14 @@ export function getSection(slug: string): SectionConfig | undefined {
 export function sectionForEntry(area: string, type: OsEntryType): SectionConfig | undefined {
   // Los playbooks tienen una sección propia aunque su área documental sea comercial.
   if (type === "playbook") return OS_SECTIONS.find((section) => section.slug === "playbooks");
-  const byArea = OS_SECTIONS.find((s) => s.areas?.includes(area));
+  // Estrategia es una lectura transversal, no la URL canónica de las fuentes.
+  const byArea = OS_SECTIONS.find(
+    (section) => section.slug !== "estrategia" && section.areas?.includes(area),
+  );
   if (byArea) return byArea;
-  return OS_SECTIONS.find((s) => s.types?.includes(type));
+  return OS_SECTIONS.find(
+    (section) => section.slug !== "estrategia" && section.types?.includes(type),
+  );
 }
 
 /** URL canónica de una entrada en el rediseño. */
