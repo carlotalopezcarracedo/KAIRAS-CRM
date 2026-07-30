@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { Check, ArrowRight, Clock, AlertTriangle } from "lucide-react";
+import Image from "next/image";
+import {
+  Check,
+  ArrowRight,
+  Clock,
+  AlertTriangle,
+  Download,
+  CheckCircle2,
+  X,
+} from "lucide-react";
 import { CopyButton } from "@/components/os/copy-button";
 import { StatusBadge, AuthorityBadge } from "@/components/os/os-badges";
 import { KnowledgeCard, CardGrid, Empty, TypeIcon } from "./os-ui";
@@ -31,42 +40,69 @@ function Panel({ title, hint, children }: { title: string; hint?: string; childr
 
 // ============================ MARCA ============================
 export function MarcaView({ entries }: { entries: E[] }) {
-  const logo = entries.find((e) => e.type === "regla_marca" && /logo/i.test(e.title));
-  const colors = byType(entries, "token_visual").filter((e) => str(meta(e).hex));
-  const tipografia = entries.find((e) => /tipograf/i.test(e.title));
-  const reglas = byType(entries, "regla_marca").filter((e) => e !== logo && e !== tipografia);
+  const current = entries.filter(
+    (entry) => !["historico", "obsoleto", "archivado"].includes(entry.status),
+  );
+  const historic = entries.filter((entry) => ["historico", "obsoleto"].includes(entry.status));
+  const logo = current.find((entry) => entry.type === "regla_marca" && /logo/i.test(entry.title));
+  const colors = byType(current, "token_visual").filter((entry) => str(meta(entry).hex));
+  const typography = current.find((entry) => /tipograf/i.test(entry.title));
+  const artDirection = current.find((entry) => /direcci[oó]n de arte/i.test(entry.title));
+  const pending = logo ? arr(meta(logo).pendientesTecnicos) ?? [] : [];
+  const logoDonts = logo ? arr(meta(logo).noHacer) ?? [] : [];
+  const correct = artDirection ? str(meta(artDirection).do) : undefined;
+  const incorrect = artDirection ? str(meta(artDirection).dont) : undefined;
 
   return (
     <div className={styles.fade}>
       {logo ? (
-        <Panel title="Logo">
-          <div className="rounded-2xl border border-warn/30 bg-warn-soft/40 p-5">
-            <div className="mb-2 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-warn" />
-              <p className="font-semibold text-foam">{logo.title}</p>
-              <StatusBadge status={logo.status} />
-            </div>
-            {str(meta(logo).callout) ? (
-              <p className="mb-3 text-sm text-warn">{str(meta(logo).callout)}</p>
-            ) : null}
-            {logo.body ? <p className="whitespace-pre-wrap text-[13px] text-mist">{logo.body}</p> : null}
-            {arr(meta(logo).pendientesTecnicos) ? (
-              <div className="mt-3">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-faint">Pendiente (sin manual técnico cerrado)</p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {arr(meta(logo).pendientesTecnicos)!.map((p) => (
-                    <span key={p} className="rounded-full border border-line px-2 py-0.5 text-[11px] text-faint">{p}</span>
-                  ))}
-                </div>
+        <Panel title="Logotipo" hint="versiones y uso operativo">
+          <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+            <div className="grid md:grid-cols-2">
+              <div className="grid min-h-48 place-items-center bg-[#0d090b] p-8">
+                <Image
+                  src="/brand/kairas-logo-horizontal.png"
+                  alt="Logotipo horizontal de KAIRAS sobre fondo oscuro"
+                  width={280}
+                  height={42}
+                  className="h-auto w-56 max-w-full"
+                />
               </div>
-            ) : null}
-            <div className="mt-3"><Link href={entryHref(logo.id)} className="text-xs text-lavender hover:underline">Abrir ficha →</Link></div>
+              <div className="grid min-h-48 place-items-center bg-[#e1e8f0] p-8">
+                <Image
+                  src="/brand/kairas-logo-horizontal.png"
+                  alt="Versión oscura de referencia del logotipo horizontal de KAIRAS"
+                  width={280}
+                  height={42}
+                  className="h-auto w-56 max-w-full invert"
+                />
+              </div>
+            </div>
+            <div className="border-t border-line p-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-foam">{logo.title}</p>
+                <StatusBadge status={logo.status} />
+              </div>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-mist">{logo.summary}</p>
+              {str(meta(logo).callout) ? (
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-warn/25 bg-warn-soft/35 p-3 text-xs leading-5 text-warn">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+                  {str(meta(logo).callout)}
+                </div>
+              ) : null}
+              <Link
+                href={entryHref(logo.id)}
+                className="mt-4 inline-flex text-xs font-semibold text-lavender hover:underline"
+              >
+                Abrir norma completa →
+              </Link>
+            </div>
           </div>
         </Panel>
       ) : null}
 
       {colors.length > 0 ? (
-        <Panel title="Paleta" hint="clic para copiar el HEX">
+        <Panel title="Paleta oficial" hint="clic para copiar el HEX">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {colors.map((c) => {
               const hex = str(meta(c).hex) ?? "#000";
@@ -87,20 +123,132 @@ export function MarcaView({ entries }: { entries: E[] }) {
         </Panel>
       ) : null}
 
-      {tipografia ? (
-        <Panel title="Tipografía">
-          <div className="rounded-2xl border border-line bg-surface p-6">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-faint">{str(meta(tipografia).pesos) ? `Plus Jakarta Sans · ${str(meta(tipografia).pesos)}` : tipografia.title}</p>
-            <p className="mt-2 text-4xl font-extrabold tracking-tight text-foam">Lo que entra no debería perderse</p>
-            <p className="mt-3 text-2xl font-bold text-foam">Jerarquía por peso, escala y aire</p>
-            <p className="mt-2 max-w-prose text-sm text-mist">{tipografia.body ?? tipografia.summary}</p>
+      {typography ? (
+        <Panel title="Sistema tipográfico">
+          <div className="rounded-2xl border border-line bg-[#e1e8f0] p-6 text-[#0d090b] sm:p-8">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#0d090b]/50">
+              {str(meta(typography).pesos)
+                ? `Plus Jakarta Sans · ${str(meta(typography).pesos)}`
+                : typography.title}
+            </p>
+            <p className="mt-5 max-w-4xl text-4xl font-extrabold tracking-[-0.045em] sm:text-5xl">
+              Lo que entra no debería perderse.
+            </p>
+            <div className="mt-8 grid gap-5 border-t border-[#0d090b]/10 pt-5 sm:grid-cols-3">
+              <div>
+                <p className="text-2xl font-bold">Heading 700</p>
+                <p className="mt-1 text-xs text-[#0d090b]/55">Jerarquía clara</p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.14em]">Label 600</p>
+                <p className="mt-1 text-xs text-[#0d090b]/55">Contexto y navegación</p>
+              </div>
+              <div>
+                <p className="text-sm leading-6">Body 400–500 para explicar sin añadir ruido.</p>
+              </div>
+            </div>
           </div>
         </Panel>
       ) : null}
 
-      {reglas.length > 0 ? (
-        <Panel title="Dirección y reglas">
-          <CardGrid cols={3}>{reglas.map((e) => <KnowledgeCard key={e.id} entry={e} />)}</CardGrid>
+      {artDirection || logoDonts.length > 0 ? (
+        <Panel title="Correcto / incorrecto" hint="criterio antes que decoración">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-ok/25 bg-ok-soft/25 p-5">
+              <div className="flex items-center gap-2 text-ok">
+                <CheckCircle2 className="h-4 w-4" />
+                <p className="text-xs font-bold uppercase tracking-[0.12em]">Sí</p>
+              </div>
+              <p className="mt-4 text-lg font-semibold text-foam">
+                {correct ?? "Aire, jerarquía y contraste."}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-mist">
+                Fondo oscuro, blanco frío y morado como acento quirúrgico.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-danger/25 bg-danger-soft/25 p-5">
+              <div className="flex items-center gap-2 text-danger">
+                <X className="h-4 w-4" />
+                <p className="text-xs font-bold uppercase tracking-[0.12em]">No</p>
+              </div>
+              <p className="mt-4 text-lg font-semibold text-foam">
+                {incorrect ?? "Ruido visual e iconografía cliché."}
+              </p>
+              {logoDonts.length > 0 ? (
+                <p className="mt-2 text-sm leading-6 text-mist">{logoDonts.join(" · ")}</p>
+              ) : null}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
+      <Panel title="Activos disponibles" hint="fuentes locales de referencia">
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            {
+              label: "Logotipo horizontal",
+              href: "/brand/kairas-logo-horizontal.png",
+              image: "/brand/kairas-logo-horizontal.png",
+            },
+            {
+              label: "Logotipo vertical",
+              href: "/brand/kairas-logo-vertical.png",
+              image: "/brand/kairas-logo-vertical.png",
+            },
+            {
+              label: "Marca",
+              href: "/brand/kairas-mark.png",
+              image: "/brand/kairas-mark.png",
+            },
+          ].map((asset) => (
+            <a
+              key={asset.href}
+              href={asset.href}
+              download
+              className={cn("group rounded-2xl border border-line bg-surface p-4", styles.lift)}
+            >
+              <span className="grid h-28 place-items-center rounded-xl bg-ink p-5">
+                <Image
+                  src={asset.image}
+                  alt=""
+                  width={180}
+                  height={72}
+                  className="max-h-16 w-auto max-w-full object-contain"
+                />
+              </span>
+              <span className="mt-3 flex items-center gap-2 text-xs font-semibold text-foam">
+                {asset.label}
+                <Download className="ml-auto h-3.5 w-3.5 text-faint group-hover:text-lavender" />
+              </span>
+            </a>
+          ))}
+        </div>
+      </Panel>
+
+      {pending.length > 0 ? (
+        <Panel title="Cobertura pendiente" hint="no presentar como norma cerrada">
+          <div className="rounded-2xl border border-warn/25 bg-warn-soft/25 p-5">
+            <div className="flex flex-wrap gap-2">
+              {pending.map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-warn/25 px-3 py-1 text-xs text-warn"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
+      {historic.length > 0 ? (
+        <Panel title="Antecedentes" hint="referencia, no norma vigente">
+          <CardGrid cols={2}>
+            {historic.map((entry) => (
+              <KnowledgeCard key={entry.id} entry={entry} />
+            ))}
+          </CardGrid>
         </Panel>
       ) : null}
     </div>
@@ -109,60 +257,144 @@ export function MarcaView({ entries }: { entries: E[] }) {
 
 // ============================ ESTRATEGIA ============================
 export function EstrategiaView({ entries }: { entries: E[] }) {
-  const cards = byType(entries, "principio", "definicion", "posicionamiento", "icp");
-  const hyps = byType(entries, "hipotesis");
-  const timeline = byType(entries, "decision", "experimento", "riesgo", "aprendizaje");
-  const hypCols: { k: string; label: string }[] = [
-    { k: "provisional", label: "En validación" },
-    { k: "condicionado", label: "Condicionadas" },
-    { k: "validado", label: "Validadas" },
-  ];
+  const current = entries.filter(
+    (entry) => !["historico", "obsoleto", "archivado"].includes(entry.status),
+  );
+  const historic = entries.filter((entry) => ["historico", "obsoleto"].includes(entry.status));
+  const purpose = current.find((entry) => /^Prop[oó]sito$/i.test(entry.title));
+  const mission = current.find((entry) => /^Misi[oó]n$/i.test(entry.title));
+  const vision = current.find((entry) => /^Visi[oó]n$/i.test(entry.title));
+  const positioning = current.find((entry) => /posicionamiento corporativo/i.test(entry.title));
+  const differentiation = current.find((entry) => /diferenciaci[oó]n/i.test(entry.title));
+  const solves = current.find((entry) => /^Problemas que resuelve$/i.test(entry.title));
+  const doesNotSolve = current.find((entry) => /problemas que no resuelve/i.test(entry.title));
+  const icp = current.find((entry) => /^Cliente ideal/i.test(entry.title));
+  const noIcp = current.find((entry) => /^No-ICP$/i.test(entry.title));
+  const principles = current.filter(
+    (entry) =>
+      entry.type === "principio" &&
+      ![purpose?.id, mission?.id, vision?.id].includes(entry.id),
+  );
+
   return (
     <div className={styles.fade}>
-      {cards.length > 0 ? (
-        <Panel title="Fundamentos">
-          <CardGrid cols={3}>{cards.map((e) => <KnowledgeCard key={e.id} entry={e} />)}</CardGrid>
-        </Panel>
+      {purpose ? (
+        <Link
+          href={entryHref(purpose.id)}
+          className="group mb-8 block rounded-2xl border border-line bg-[#e1e8f0] p-7 text-[#0d090b] sm:p-9"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#0d090b]/45">
+            Propósito
+          </p>
+          <p className="mt-5 max-w-4xl text-3xl font-extrabold leading-tight tracking-[-0.035em] sm:text-4xl">
+            {purpose.summary}
+          </p>
+          <span className="mt-6 inline-flex items-center gap-2 text-xs font-semibold text-[#5b34c9]">
+            Ver fundamento <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </Link>
       ) : null}
 
-      {hyps.length > 0 ? (
-        <Panel title="Hipótesis" hint={`${hyps.length} en el tablero`}>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {hypCols.map((col) => {
-              const items = hyps.filter((h) => (col.k === "provisional" ? ["provisional", "borrador"].includes(h.status) : h.status === col.k));
-              return (
-                <div key={col.k} className="rounded-2xl border border-line bg-surface/50 p-3">
-                  <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-faint">{col.label} · {items.length}</p>
-                  {items.map((h) => (
-                    <Link key={h.id} href={entryHref(h.id)} className={cn("mb-2 block rounded-xl border border-line bg-surface p-3", styles.lift)}>
-                      <p className="text-[13px] font-medium text-foam">{h.title}</p>
-                      {str(meta(h).threshold) ? <p className="mt-1 text-[11px] text-faint">Umbral: {str(meta(h).threshold)}</p> : null}
-                    </Link>
-                  ))}
-                  {items.length === 0 ? <p className="px-1 text-[12px] text-faint">—</p> : null}
-                </div>
-              );
-            })}
-          </div>
-        </Panel>
-      ) : null}
-
-      {timeline.length > 0 ? (
-        <Panel title="Decisiones, experimentos y riesgos">
-          <div className="relative ml-2 border-l border-line pl-5">
-            {timeline.map((e) => (
-              <div key={e.id} className="relative mb-4">
-                <span className="absolute -left-[27px] top-1 grid h-5 w-5 place-items-center rounded-full border border-line-strong bg-raise text-lavender">
-                  <TypeIcon type={e.type} className="h-3 w-3" />
-                </span>
-                <Link href={entryHref(e.id)} className="group">
-                  <p className="text-[13px] font-semibold text-foam group-hover:text-lavender">{e.title}</p>
-                  {e.summary ? <p className="mt-0.5 text-[12px] text-mist">{e.summary}</p> : null}
-                  <span className="text-[10px] uppercase tracking-wide text-faint">{OS_TYPE_LABEL[e.type]} · {OS_STATUS[e.status].label}</span>
-                </Link>
-              </div>
+      {[mission, vision, positioning].some(Boolean) ? (
+        <Panel title="Fundamentos" hint="una marca, una dirección">
+          <div className="grid gap-3 md:grid-cols-3">
+            {[mission, vision, positioning].filter(Boolean).map((entry) => (
+              <Link
+                key={entry!.id}
+                href={entryHref(entry!.id)}
+                className={cn("rounded-2xl border border-line bg-surface p-5", styles.lift)}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-lavender">
+                  {entry!.title}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-foam/85">{entry!.summary}</p>
+              </Link>
             ))}
           </div>
+        </Panel>
+      ) : null}
+
+      {solves || doesNotSolve ? (
+        <Panel title="Qué es / qué no es">
+          <div className="grid gap-3 md:grid-cols-2">
+            {solves ? (
+              <Link href={entryHref(solves.id)} className="rounded-2xl border border-ok/25 bg-ok-soft/20 p-5">
+                <div className="flex items-center gap-2 text-ok">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <p className="text-xs font-bold uppercase tracking-[0.12em]">KAIRAS resuelve</p>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-foam">{solves.summary}</p>
+              </Link>
+            ) : null}
+            {doesNotSolve ? (
+              <Link href={entryHref(doesNotSolve.id)} className="rounded-2xl border border-danger/25 bg-danger-soft/20 p-5">
+                <div className="flex items-center gap-2 text-danger">
+                  <X className="h-4 w-4" />
+                  <p className="text-xs font-bold uppercase tracking-[0.12em]">KAIRAS no promete</p>
+                </div>
+                <p className="mt-4 text-sm leading-6 text-foam">{doesNotSolve.summary}</p>
+              </Link>
+            ) : null}
+          </div>
+        </Panel>
+      ) : null}
+
+      {icp || noIcp ? (
+        <Panel title="Encaje" hint="para quién sí y para quién no">
+          <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+            {icp ? (
+              <Link
+                href={entryHref(icp.id)}
+                className={cn("rounded-2xl border border-violet-line bg-violet-soft/35 p-6", styles.lift)}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-lavender">Cliente ideal</p>
+                <p className="mt-3 text-xl font-bold text-foam">{icp.title}</p>
+                <p className="mt-3 text-sm leading-6 text-mist">{icp.summary}</p>
+              </Link>
+            ) : null}
+            {noIcp ? (
+              <Link
+                href={entryHref(noIcp.id)}
+                className={cn("rounded-2xl border border-line bg-surface p-6", styles.lift)}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-faint">No-ICP</p>
+                <p className="mt-3 text-sm leading-6 text-mist">{noIcp.summary}</p>
+              </Link>
+            ) : null}
+          </div>
+        </Panel>
+      ) : null}
+
+      {differentiation ? (
+        <Panel title="Diferenciación">
+          <Link
+            href={entryHref(differentiation.id)}
+            className="block rounded-2xl border border-line bg-surface p-6"
+          >
+            <p className="max-w-4xl text-xl font-semibold leading-8 text-foam">
+              {differentiation.summary}
+            </p>
+          </Link>
+        </Panel>
+      ) : null}
+
+      {principles.length > 0 ? (
+        <Panel title="Principios">
+          <CardGrid cols={2}>
+            {principles.map((entry) => (
+              <KnowledgeCard key={entry.id} entry={entry} />
+            ))}
+          </CardGrid>
+        </Panel>
+      ) : null}
+
+      {historic.length > 0 ? (
+        <Panel title="Antecedentes estratégicos" hint="no usar como criterio vigente">
+          <CardGrid cols={3}>
+            {historic.map((entry) => (
+              <KnowledgeCard key={entry.id} entry={entry} />
+            ))}
+          </CardGrid>
         </Panel>
       ) : null}
     </div>
