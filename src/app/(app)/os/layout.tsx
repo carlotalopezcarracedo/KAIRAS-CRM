@@ -1,4 +1,4 @@
-import { OsSidebar } from "./_components/os-sidebar";
+import { OsMobileNav, OsSidebar } from "./_components/os-sidebar";
 import { QuickSearch } from "./_components/quick-search";
 import styles from "./_components/os.module.css";
 
@@ -20,6 +20,7 @@ export default function OsLayout({ children }: { children: React.ReactNode }) {
               Conocimiento operativo
             </span>
           </header>
+          <OsMobileNav />
           <main className="min-h-[70vh] px-5 py-6 sm:px-7">{children}</main>
         </div>
       </div>

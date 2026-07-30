@@ -4,13 +4,13 @@
 
 import {
   LayoutDashboard,
-  Palette,
-  Compass,
-  Megaphone,
-  Handshake,
-  Users,
+  Fingerprint,
+  SwatchBook,
+  MessageSquareText,
+  BriefcaseBusiness,
   BookOpen,
-  Workflow,
+  FlaskConical,
+  Clapperboard,
   Package,
   Scale,
   type LucideIcon,
@@ -19,12 +19,12 @@ import type { OsEntryType } from "@/types/os";
 
 export type SectionSlug =
   | "marca"
-  | "estrategia"
-  | "marketing"
-  | "comercial"
-  | "clientes"
+  | "visual"
+  | "comunicacion"
+  | "oferta"
   | "playbooks"
-  | "procesos"
+  | "aprendizaje"
+  | "contenidos"
   | "recursos"
   | "constitucion";
 
@@ -45,57 +45,57 @@ export const OS_SECTIONS: SectionConfig[] = [
   {
     slug: "marca",
     label: "Marca",
-    icon: Palette,
-    tagline: "Identidad visual lista para usar",
-    areas: ["marca"],
+    icon: Fingerprint,
+    tagline: "Qué representa KAIRAS y qué límites tiene",
+    areas: ["identidad"],
     accent: "var(--color-violet)",
   },
   {
-    slug: "estrategia",
-    label: "Estrategia",
-    icon: Compass,
-    tagline: "Qué es KAIRAS, para quién y por qué",
-    areas: ["identidad", "validacion"],
-    accent: "var(--color-info)",
-  },
-  {
-    slug: "marketing",
-    label: "Marketing",
-    icon: Megaphone,
-    tagline: "Mensaje, contenidos y conversión",
-    areas: ["comunicacion", "contenidos"],
+    slug: "visual",
+    label: "Manual visual",
+    icon: SwatchBook,
+    tagline: "Cómo debe verse cada pieza",
+    areas: ["marca"],
     accent: "var(--color-lavender)",
   },
   {
-    slug: "comercial",
-    label: "Comercial",
-    icon: Handshake,
-    tagline: "Del chequeo al cierre",
-    areas: ["comercial", "oferta"],
-    accent: "var(--color-ok)",
+    slug: "comunicacion",
+    label: "Comunicación",
+    icon: MessageSquareText,
+    tagline: "Qué decir, cómo decirlo y qué evitar",
+    areas: ["comunicacion"],
+    accent: "var(--color-info)",
   },
   {
-    slug: "clientes",
-    label: "Clientes",
-    icon: Users,
-    tagline: "Fichas, casos y aprendizajes",
-    areas: ["clientes"],
-    accent: "var(--color-warn)",
+    slug: "oferta",
+    label: "Oferta y clientes",
+    icon: BriefcaseBusiness,
+    tagline: "Encaje, alcance, precio, objeciones y casos",
+    areas: ["oferta", "clientes", "comercial"],
+    accent: "var(--color-ok)",
   },
   {
     slug: "playbooks",
     label: "Playbooks",
     icon: BookOpen,
-    tagline: "Procesos consultables",
+    tagline: "Cómo ejecutar el trabajo sin reinventarlo",
     types: ["playbook"],
     accent: "var(--color-violet)",
   },
   {
-    slug: "procesos",
-    label: "Procesos",
-    icon: Workflow,
-    tagline: "Flujos, pasos y checklists",
-    types: ["playbook"],
+    slug: "aprendizaje",
+    label: "Decisiones y aprendizaje",
+    icon: FlaskConical,
+    tagline: "Qué está vigente, qué probamos y qué aprendimos",
+    areas: ["validacion"],
+    accent: "var(--color-warn)",
+  },
+  {
+    slug: "contenidos",
+    label: "Contenidos",
+    icon: Clapperboard,
+    tagline: "Qué pieza crear, para quién y por qué",
+    areas: ["contenidos"],
     accent: "var(--color-info)",
   },
   {
@@ -118,13 +118,28 @@ export const OS_SECTIONS: SectionConfig[] = [
 
 export const OS_DASHBOARD = { slug: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard };
 
+const LEGACY_SECTION_ALIASES: Record<string, SectionSlug> = {
+  estrategia: "marca",
+  marketing: "comunicacion",
+  comercial: "oferta",
+  clientes: "oferta",
+  procesos: "playbooks",
+};
+
+export function canonicalSectionSlug(slug: string): SectionSlug | undefined {
+  if (OS_SECTIONS.some((section) => section.slug === slug)) return slug as SectionSlug;
+  return LEGACY_SECTION_ALIASES[slug];
+}
+
 export function getSection(slug: string): SectionConfig | undefined {
-  return OS_SECTIONS.find((s) => s.slug === slug);
+  const canonical = canonicalSectionSlug(slug);
+  return OS_SECTIONS.find((section) => section.slug === canonical);
 }
 
 /** Sección "principal" a la que pertenece una entrada (para breadcrumbs/URLs). */
 export function sectionForEntry(area: string, type: OsEntryType): SectionConfig | undefined {
-  // Por área primero; si no, por tipo (playbooks/procesos).
+  // Los playbooks tienen una sección propia aunque su área documental sea comercial.
+  if (type === "playbook") return OS_SECTIONS.find((section) => section.slug === "playbooks");
   const byArea = OS_SECTIONS.find((s) => s.areas?.includes(area));
   if (byArea) return byArea;
   return OS_SECTIONS.find((s) => s.types?.includes(type));

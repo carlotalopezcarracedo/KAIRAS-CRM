@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { SectionHero } from "../_components/os-ui";
 import {
-  MarcaView, EstrategiaView, MarketingView, ComercialView, ClientesView,
-  PlaybooksView, ProcesosView, RecursosView, ConstitucionView, GenericView,
+  MarcaView, EstrategiaView, MarketingView, ComercialView, PlaybooksView,
+  RecursosView, ConstitucionView, GenericView,
 } from "../_components/section-views";
-import { getSection } from "../_sections";
+import { canonicalSectionSlug, getSection } from "../_sections";
 import { getSectionEntries, type SectionEntry } from "@/server/services/os/os-views-service";
 import { requireUser } from "@/server/auth";
 
@@ -19,13 +19,13 @@ export async function generateMetadata({ params }: { params: Promise<{ section: 
 
 function render(slug: string, entries: SectionEntry[]) {
   switch (slug) {
-    case "marca": return <MarcaView entries={entries} />;
-    case "estrategia": return <EstrategiaView entries={entries} />;
-    case "marketing": return <MarketingView entries={entries} />;
-    case "comercial": return <ComercialView entries={entries} />;
-    case "clientes": return <ClientesView entries={entries} />;
+    case "marca": return <EstrategiaView entries={entries} />;
+    case "visual": return <MarcaView entries={entries} />;
+    case "comunicacion": return <MarketingView entries={entries} />;
+    case "oferta": return <ComercialView entries={entries} />;
     case "playbooks": return <PlaybooksView entries={entries} />;
-    case "procesos": return <ProcesosView entries={entries} />;
+    case "aprendizaje": return <GenericView entries={entries} />;
+    case "contenidos": return <MarketingView entries={entries} />;
     case "recursos": return <RecursosView entries={entries} />;
     case "constitucion": return <ConstitucionView entries={entries} />;
     default: return <GenericView entries={entries} />;
@@ -35,10 +35,13 @@ function render(slug: string, entries: SectionEntry[]) {
 export default async function OsSectionPage({ params }: { params: Promise<{ section: string }> }) {
   await requireUser();
   const { section } = await params;
+  const canonical = canonicalSectionSlug(section);
+  if (canonical && canonical !== section) redirect(`/os/${canonical}`);
   const cfg = getSection(section);
   if (!cfg) notFound();
 
-  const includeHistoric = section === "estrategia" || section === "marca" || section === "constitucion";
+  const includeHistoric =
+    section === "marca" || section === "visual" || section === "constitucion";
   const entries = await getSectionEntries(
     { areas: cfg.areas, types: cfg.types },
     { includeHistoric },

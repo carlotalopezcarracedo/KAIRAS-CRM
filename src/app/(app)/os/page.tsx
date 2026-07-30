@@ -14,10 +14,10 @@ import styles from "./_components/os.module.css";
 export const metadata: Metadata = { title: "KAIRAS OS" };
 
 const QUICK = [
-  { slug: "marca", label: "Kit de marca", hint: "color · tipografía" },
-  { slug: "comercial", label: "Embudo comercial", hint: "chequeo → cierre" },
-  { slug: "estrategia", label: "Estrategia", hint: "ICP · oferta · hipótesis" },
-  { slug: "constitucion", label: "Constitución", hint: "no negociables" },
+  { slug: "visual", label: "Manual visual", hint: "color · tipografía" },
+  { slug: "oferta", label: "Oferta y clientes", hint: "encaje · precio · casos" },
+  { slug: "aprendizaje", label: "Decisiones", hint: "vigencia · hipótesis" },
+  { slug: "comunicacion", label: "Comunicación", hint: "voz · objeciones" },
 ];
 
 export default async function OsDashboard() {
@@ -82,7 +82,7 @@ export default async function OsDashboard() {
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Widget title="Clientes" icon={<Building2 className="h-4 w-4" />} href="/os/clientes">
+        <Widget title="Clientes" icon={<Building2 className="h-4 w-4" />} href="/os/oferta">
           {overview.clients.map((e) => (
             <Row key={e.id} id={e.id} type={e.type} title={e.title} badge={<StatusBadge status={e.status} />} />
           ))}

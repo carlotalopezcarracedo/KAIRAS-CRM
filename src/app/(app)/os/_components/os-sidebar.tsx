@@ -23,7 +23,7 @@ export function OsSidebar({ counts }: { counts?: Record<string, number> }) {
         </span>
       </Link>
 
-      <SideLink href="/os" label="Dashboard" active={isActive("/os")} icon={<LayoutDashboard className="h-4 w-4" />} />
+      <SideLink href="/os" label="Inicio" active={isActive("/os")} icon={<LayoutDashboard className="h-4 w-4" />} />
 
       <p className="px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-faint">Áreas</p>
       {OS_SECTIONS.map((s) => (
@@ -46,6 +46,46 @@ export function OsSidebar({ counts }: { counts?: Record<string, number> }) {
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Volver al CRM
       </Link>
+    </nav>
+  );
+}
+
+export function OsMobileNav() {
+  const pathname = usePathname();
+  const items = [
+    { href: "/os", label: "Inicio" },
+    ...OS_SECTIONS.map((section) => ({
+      href: `/os/${section.slug}`,
+      label: section.label,
+    })),
+  ];
+
+  return (
+    <nav
+      aria-label="Secciones de KAIRAS OS"
+      className="overflow-x-auto border-b border-line bg-ink/70 px-4 py-2 lg:hidden"
+    >
+      <ul className="flex min-w-max gap-1">
+        {items.map((item) => {
+          const active =
+            item.href === "/os"
+              ? pathname === "/os"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={cn(
+                  "block rounded-full px-3 py-1.5 text-xs font-semibold",
+                  active ? "bg-violet-soft text-lavender" : "text-faint hover:text-foam",
+                )}
+              >
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   );
 }
