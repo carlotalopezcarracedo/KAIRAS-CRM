@@ -4,6 +4,7 @@
 
 ```text
 /os
+├─ /os/estrategia
 ├─ /os/marca
 ├─ /os/visual
 ├─ /os/comunicacion
@@ -26,7 +27,6 @@ Las rutas anteriores siguen resolviendo y redirigen a su destino canónico:
 
 | Ruta anterior | Destino |
 | --- | --- |
-| `/os/estrategia` | `/os/marca` |
 | `/os/marketing` | `/os/comunicacion` |
 | `/os/comercial` | `/os/oferta` |
 | `/os/clientes` | `/os/oferta` |
@@ -42,7 +42,8 @@ Sidebar CRM
        ┌──────────────────┬─────────────────────────────────┐
        │ Sidebar OS       │ Topbar contextual               │
        │ Inicio           │ Buscar / Cmd-K                  │
-       │ Marca            ├─────────────────────────────────┤
+       │ Estrategia       ├─────────────────────────────────┤
+       │ Identidad        │ Contenido de la ruta            │
        │ Manual visual    │ Contenido de la ruta            │
        │ Comunicación     │                                 │
        │ Oferta/clientes  │                                 │
@@ -57,7 +58,8 @@ Sidebar CRM
 ## Tablet y móvil
 
 - el sidebar interior desaparece;
-- una barra horizontal desplazable conserva las diez áreas;
+- una barra horizontal desplazable conserva las diez opciones: nueve áreas y
+  la vista transversal de Estrategia;
 - el buscador sigue visible;
 - la navegación principal del CRM permanece intacta;
 - las cards pasan a una columna cuando es necesario;
@@ -65,12 +67,13 @@ Sidebar CRM
 
 ## Accesos directos
 
-La home expone cuatro entradas de alta frecuencia:
+La home expone una entrada prioritaria y cuatro accesos por tarea:
 
+- Estrategia en una página;
 - Manual visual;
 - Oferta y clientes;
-- Decisiones;
 - Comunicación.
+- Playbooks.
 
 El resto permanece a un clic desde la navegación interior.
 

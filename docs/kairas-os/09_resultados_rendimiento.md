@@ -12,7 +12,7 @@ Mediciones locales de producción en la misma máquina, base y navegador. Son co
 | Navegación cliente a `/os` | 1,46–1,49 s | 0,52–0,66 s | −55–65 % |
 | Prefetch RSC automático estable en `/os` | >30 | 0 | eliminado |
 | Errores de imagen de marca | 7 peticiones 400 observadas | 0 | resuelto |
-| Tests | 24 | 29 | +5 búsqueda/QA |
+| Tests | 24 | 33 | +9 búsqueda/arquitectura/QA |
 
 La carga fría final se midió en tres contextos sin caché de navegador: **1,77 s, 2,74 s y 3,58 s**.
 
@@ -45,6 +45,25 @@ Salida de `next experimental-analyze --output`, gzip:
 | `/time` | 486 KB | 476 KB | 737 KB | 721 KB |
 
 La mejora principal no procede del bundle, sino de consultas, serialización, prefetch y feedback de navegación.
+
+## Revalidación tras feedback de carga y presentación
+
+En producción local, sobre el mismo preview autenticado:
+
+| Señal | Antes de esta iteración | Después |
+| --- | ---: | ---: |
+| Navegación cliente `/dashboard` → `/os`, contenido útil | 4,06 s | 1,01 s |
+| Feedback local del enlace | 0,74 s | 0,24 s |
+| Cambio de URL | 0,55 s | 0,28 s |
+| Solicitudes RSC/OS estables tras entrar | >30 al reactivar auto-prefetch | 4 controladas |
+| `/os` → vista Estrategia precargada | no existía como resumen | 0,18 s |
+
+La prueba se repitió tras reiniciar el servidor y con la caché serializada:
+encabezado, resumen operativo y Estrategia completaron sin errores HTTP ni de
+consola. En viewport móvil de 390 px, `scrollWidth === clientWidth`.
+
+Estas cifras son mediciones locales comparativas; no sustituyen una traza de
+la función y la base de datos reales en producción.
 
 ## Build
 

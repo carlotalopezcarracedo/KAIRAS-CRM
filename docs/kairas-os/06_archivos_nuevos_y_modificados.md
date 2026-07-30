@@ -2,6 +2,12 @@
 
 Comparación contra el commit base `87c141663a7c5d1579f744f3aaad8b727a915a3b`.
 
+## Commits de la revisión tras feedback
+
+- `8fc7ab0` — caché de conocimiento, sesión deduplicada y precarga controlada.
+- `3c10ac9` — portada progresiva y vista Estrategia en una página.
+- la actualización documental queda en el commit inmediatamente posterior.
+
 ## Nuevos
 
 ### Documentación
@@ -30,6 +36,7 @@ Comparación contra el commit base `87c141663a7c5d1579f744f3aaad8b727a915a3b`.
 - `src/app/(app)/os/loading.tsx`
 - `src/lib/os-search.ts`
 - `src/lib/os-search.test.ts`
+- `src/app/(app)/os/_sections.test.ts`
 - `scripts/import-kairas-os.ts`
 - `scripts/verify-kairas-os-import.ts`
 
@@ -38,6 +45,8 @@ Comparación contra el commit base `87c141663a7c5d1579f744f3aaad8b727a915a3b`.
 ### Experiencia KAIRAS OS
 
 - `src/app/(app)/os/page.tsx`
+- `src/app/(app)/menu/page.tsx`
+- `src/app/(app)/os/actions.ts`
 - `src/app/(app)/os/layout.tsx`
 - `src/app/(app)/os/[section]/page.tsx`
 - `src/app/(app)/os/buscar/page.tsx`
@@ -52,6 +61,7 @@ Comparación contra el commit base `87c141663a7c5d1579f744f3aaad8b727a915a3b`.
 ### Servicios y shell
 
 - `src/server/services/os/os-views-service.ts`
+- `src/server/auth/index.ts`
 - `src/server/services/os/knowledge-service.test.ts`
 - `src/app/(app)/layout.tsx`
 - `src/components/shell/topbar.tsx`
@@ -64,7 +74,7 @@ Comparación contra el commit base `87c141663a7c5d1579f744f3aaad8b727a915a3b`.
 
 - `prisma/schema.prisma`
 - `prisma/migrations/**`
-- autenticación y roles;
+- roles y política de autorización;
 - modelos y servicios de CRM;
 - contenido de los tres seeds existentes;
 - variables de entorno;
