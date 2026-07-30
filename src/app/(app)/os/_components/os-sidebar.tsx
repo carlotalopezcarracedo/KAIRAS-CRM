@@ -6,7 +6,7 @@ import { LayoutDashboard, Star, ArrowLeft, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OS_SECTIONS, type SectionSlug } from "../_sections";
 
-export function OsSidebar({ counts }: { counts: Record<string, number> }) {
+export function OsSidebar({ counts }: { counts?: Record<string, number> }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/os" ? pathname === "/os" : pathname === href || pathname.startsWith(href + "/");
@@ -33,7 +33,7 @@ export function OsSidebar({ counts }: { counts: Record<string, number> }) {
           label={s.label}
           active={isActive(`/os/${s.slug}`)}
           icon={<s.icon className="h-4 w-4" />}
-          count={counts[s.slug]}
+          count={counts?.[s.slug]}
         />
       ))}
 

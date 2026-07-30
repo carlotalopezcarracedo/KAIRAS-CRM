@@ -6,10 +6,7 @@ import { StatusBadge } from "@/components/os/os-badges";
 import { QuickSearch } from "./_components/quick-search";
 import { TypeIcon } from "./_components/os-ui";
 import { OS_SECTIONS, entryHref, sectionForEntry } from "./_sections";
-import { getDashboard } from "@/server/services/os/knowledge-service";
-import {
-  dashboardStats, getActivityFeed, getMostUsed, getWeeklyActivity, getSectionEntries,
-} from "@/server/services/os/os-views-service";
+import { getOsDashboardOverview } from "@/server/services/os/os-views-service";
 import { requireUser } from "@/server/auth";
 import { formatDate } from "@/lib/utils";
 import styles from "./_components/os.module.css";
@@ -25,15 +22,8 @@ const QUICK = [
 
 export default async function OsDashboard() {
   const user = await requireUser();
-  const [stats, board, activity, mostUsed, weekly, clients, playbooks] = await Promise.all([
-    dashboardStats(),
-    getDashboard(user.id),
-    getActivityFeed(6),
-    getMostUsed(5),
-    getWeeklyActivity(),
-    getSectionEntries({ areas: ["clientes"] }),
-    getSectionEntries({ types: ["playbook"] }),
-  ]);
+  const overview = await getOsDashboardOverview(user.id);
+  const { stats } = overview;
   const hour = new Date().getHours();
   const greet = hour < 6 ? "Buenas noches" : hour < 14 ? "Buenos días" : hour < 21 ? "Buenas tardes" : "Buenas noches";
 
@@ -65,26 +55,26 @@ export default async function OsDashboard() {
         <Stat value={stats.total} label="Entradas" />
         <Stat value={stats.vigentes} label="Vigentes" accent />
         <Stat value={stats.hypotheses} label="Hipótesis abiertas" />
-        <Stat value={stats.relations} label="Relaciones" />
+        <Stat value={stats.attention} label="Requieren revisión" />
       </div>
 
       {/* widgets */}
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Widget title="Actividad reciente" icon={<Activity className="h-4 w-4" />} className="lg:col-span-1">
-          {activity.length === 0 ? <Muted>Sin actividad.</Muted> : activity.map((a) => (
-            <Row key={a.id} id={a.entry.id} type={a.entry.type} title={a.entry.title}
-              meta={`v${a.version} · ${formatDate(a.createdAt)}`} />
+          {overview.updates.length === 0 ? <Muted>Sin actividad.</Muted> : overview.updates.map((entry) => (
+            <Row key={entry.id} id={entry.id} type={entry.type} title={entry.title}
+              meta={formatDate(entry.updatedAt)} />
           ))}
         </Widget>
 
         <Widget title="Decisiones" icon={<Sparkles className="h-4 w-4" />}>
-          {board.recentDecisions.length === 0 ? <Muted>Sin decisiones.</Muted> : board.recentDecisions.map((e) => (
+          {overview.decisions.length === 0 ? <Muted>Sin decisiones.</Muted> : overview.decisions.map((e) => (
             <Row key={e.id} id={e.id} type={e.type} title={e.title} badge={<StatusBadge status={e.status} />} />
           ))}
         </Widget>
 
         <Widget title="Tus favoritos" icon={<Star className="h-4 w-4" />}>
-          {board.favorites.length === 0 ? <Muted>Marca entradas con la estrella.</Muted> : board.favorites.map((e) => (
+          {overview.favorites.length === 0 ? <Muted>Marca entradas con la estrella.</Muted> : overview.favorites.map((e) => (
             <Row key={e.id} id={e.id} type={e.type} title={e.title}
               meta={sectionForEntry(e.area, e.type)?.label} />
           ))}
@@ -93,30 +83,30 @@ export default async function OsDashboard() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Widget title="Clientes" icon={<Building2 className="h-4 w-4" />} href="/os/clientes">
-          {clients.slice(0, 4).map((e) => (
+          {overview.clients.map((e) => (
             <Row key={e.id} id={e.id} type={e.type} title={e.title} badge={<StatusBadge status={e.status} />} />
           ))}
         </Widget>
 
         <Widget title="Playbooks" icon={<BookOpen className="h-4 w-4" />} href="/os/playbooks">
-          {playbooks.slice(0, 4).map((e) => (
+          {overview.playbooks.slice(0, 4).map((e) => (
             <Row key={e.id} id={e.id} type={e.type} title={e.title} />
           ))}
         </Widget>
 
         <Widget title="Más utilizado" icon={<Flame className="h-4 w-4" />}>
-          {mostUsed.map((e) => (
+          {overview.mostUsed.map((e) => (
             <Row key={e.id} id={e.id} type={e.type} title={e.title}
-              meta={"views" in e && e.views ? `${e.views} vistas` : undefined} />
+              meta={e.views ? `${e.views} vistas` : undefined} />
           ))}
         </Widget>
       </div>
 
-      {weekly.resources.length > 0 ? (
+      {overview.attention.length > 0 ? (
         <div className="mt-4">
-          <Widget title="Recursos usados esta semana" icon={<Package className="h-4 w-4" />} href="/os/recursos">
-            {weekly.resources.map((e) => (
-              <Row key={e.id} id={e.id} type={e.type} title={e.title} />
+          <Widget title="Requiere revisión" icon={<Package className="h-4 w-4" />}>
+            {overview.attention.map((e) => (
+              <Row key={e.id} id={e.id} type={e.type} title={e.title} badge={<StatusBadge status={e.status} />} />
             ))}
           </Widget>
         </div>

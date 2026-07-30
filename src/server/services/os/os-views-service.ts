@@ -1,7 +1,167 @@
 // KAIRAS OS — servicio de vistas, actividad y agregados por sección (rediseño).
 // Solo tablas os_*. Aditivo: no toca el servicio de conocimiento existente.
+import { cache } from "react";
 import { prisma } from "@/server/db/prisma";
 import type { Prisma, OsEntryType } from "@prisma/client";
+
+// -- Índice ligero -----------------------------------------------------------
+// Una única lectura pequeña alimenta navegación, dashboard y clasificaciones.
+// Nunca incluye body, versiones, relaciones ni documentos completos.
+const indexSelect = {
+  id: true,
+  externalKey: true,
+  title: true,
+  summary: true,
+  area: true,
+  type: true,
+  status: true,
+  authority: true,
+  businessLine: true,
+  messageLayer: true,
+  sector: true,
+  validUntil: true,
+  funnelStage: true,
+  awarenessLevel: true,
+  temperature: true,
+  channel: true,
+  updatedAt: true,
+} satisfies Prisma.KnowledgeEntrySelect;
+
+export type KnowledgeIndexEntry = Prisma.KnowledgeEntryGetPayload<{
+  select: typeof indexSelect;
+}>;
+
+/**
+ * `cache` deduplica la lectura cuando layout y página la piden en el mismo
+ * render RSC. El resultado no se persiste entre peticiones ni entre usuarios.
+ */
+export const getKnowledgeIndex = cache(async (): Promise<KnowledgeIndexEntry[]> => {
+  return prisma.knowledgeEntry.findMany({
+    where: { deletedAt: null },
+    orderBy: { updatedAt: "desc" },
+    select: indexSelect,
+  });
+});
+
+type ViewSample = { entryId: string; viewedAt: Date };
+
+function latestDistinctViews(views: ViewSample[], limit: number) {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const view of views) {
+    if (seen.has(view.entryId)) continue;
+    seen.add(view.entryId);
+    ids.push(view.entryId);
+    if (ids.length === limit) break;
+  }
+  return ids;
+}
+
+function mostViewedIds(views: ViewSample[], limit: number) {
+  const counts = new Map<string, number>();
+  for (const view of views) counts.set(view.entryId, (counts.get(view.entryId) ?? 0) + 1);
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+}
+
+export type OsDashboardOverview = Awaited<ReturnType<typeof getOsDashboardOverview>>;
+
+/**
+ * Dashboard operativo en tres round-trips como máximo:
+ * índice + favoritos + muestra de vistas. Los dos últimos son secundarios y
+ * degradan de forma explícita sin tumbar la pantalla.
+ */
+export async function getOsDashboardOverview(userId: string) {
+  const indexPromise = getKnowledgeIndex();
+  const secondary = await Promise.allSettled([
+    prisma.knowledgeFavorite.findMany({
+      where: { userId },
+      select: { entryId: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.knowledgeView.findMany({
+      select: { entryId: true, viewedAt: true },
+      orderBy: { viewedAt: "desc" },
+      take: 200,
+    }),
+  ]);
+  const entries = await indexPromise;
+
+  if (secondary[0].status === "rejected") {
+    console.error("[KAIRAS_OS_PARTIAL] favorites_unavailable");
+  }
+  if (secondary[1].status === "rejected") {
+    console.error("[KAIRAS_OS_PARTIAL] views_unavailable");
+  }
+
+  const favoriteIds =
+    secondary[0].status === "fulfilled"
+      ? new Set(secondary[0].value.map((favorite) => favorite.entryId))
+      : new Set<string>();
+  const views = secondary[1].status === "fulfilled" ? secondary[1].value : [];
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const now = Date.now();
+  const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+  const operational = entries.filter(
+    (entry) => !["historico", "obsoleto", "archivado"].includes(entry.status),
+  );
+  const attention = operational.filter((entry) => {
+    if (entry.validUntil && entry.validUntil.getTime() < now) return true;
+    return (
+      ["provisional", "condicionado"].includes(entry.status) &&
+      entry.updatedAt.getTime() < ninetyDaysAgo
+    );
+  });
+  const recentViewIds = latestDistinctViews(views, 6);
+  const mostUsed = mostViewedIds(views, 6)
+    .map(([id, count]) => {
+      const entry = byId.get(id);
+      return entry ? { ...entry, views: count } : null;
+    })
+    .filter((entry): entry is KnowledgeIndexEntry & { views: number } => entry !== null);
+
+  return {
+    stats: {
+      total: entries.length,
+      vigentes: entries.filter((entry) => entry.status === "vigente").length,
+      hypotheses: entries.filter(
+        (entry) =>
+          entry.type === "hipotesis" &&
+          ["provisional", "condicionado", "borrador"].includes(entry.status),
+      ).length,
+      attention: attention.length,
+    },
+    decisions: entries.filter((entry) => entry.type === "decision").slice(0, 5),
+    hypotheses: entries
+      .filter(
+        (entry) =>
+          entry.type === "hipotesis" &&
+          ["provisional", "condicionado", "borrador"].includes(entry.status),
+      )
+      .slice(0, 5),
+    updates: entries.slice(0, 6),
+    favorites: entries.filter((entry) => favoriteIds.has(entry.id)).slice(0, 6),
+    recentlyViewed: recentViewIds
+      .map((id) => byId.get(id))
+      .filter((entry): entry is KnowledgeIndexEntry => Boolean(entry)),
+    mostUsed:
+      mostUsed.length > 0
+        ? mostUsed
+        : operational.slice(0, 6).map((entry) => ({ ...entry, views: 0 })),
+    playbooks: operational.filter((entry) => entry.type === "playbook").slice(0, 5),
+    clients: operational.filter((entry) => entry.area === "clientes").slice(0, 4),
+    attention: attention.slice(0, 5),
+    upcoming: operational
+      .filter((entry) => entry.validUntil && entry.validUntil.getTime() >= now)
+      .sort(
+        (a, b) =>
+          (a.validUntil?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+          (b.validUntil?.getTime() ?? Number.MAX_SAFE_INTEGER),
+      )
+      .slice(0, 5),
+  };
+}
 
 // -- Registro de uso ---------------------------------------------------------
 export async function recordView(entryId: string, userId?: string) {
@@ -100,12 +260,13 @@ export async function countSection(q: SectionQuery) {
 
 /** Conteos por área y por tipo en 2 consultas, para el sidebar. */
 export async function getSectionCounts() {
-  const [byArea, byType] = await Promise.all([
-    prisma.knowledgeEntry.groupBy({ by: ["area"], _count: true, where: { deletedAt: null } }),
-    prisma.knowledgeEntry.groupBy({ by: ["type"], _count: true, where: { deletedAt: null } }),
-  ]);
-  const areaMap = new Map(byArea.map((r) => [r.area, r._count]));
-  const typeMap = new Map(byType.map((r) => [r.type, r._count]));
+  const entries = await getKnowledgeIndex();
+  const areaMap = new Map<string, number>();
+  const typeMap = new Map<OsEntryType, number>();
+  for (const entry of entries) {
+    areaMap.set(entry.area, (areaMap.get(entry.area) ?? 0) + 1);
+    typeMap.set(entry.type, (typeMap.get(entry.type) ?? 0) + 1);
+  }
   return { areaMap, typeMap };
 }
 
