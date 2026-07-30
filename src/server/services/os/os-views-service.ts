@@ -3,6 +3,8 @@
 import { cache } from "react";
 import { prisma } from "@/server/db/prisma";
 import type { Prisma, OsEntryType } from "@prisma/client";
+import type { OsStatus } from "@prisma/client";
+import { scoreKnowledgeMatch } from "@/lib/os-search";
 
 // -- Índice ligero -----------------------------------------------------------
 // Una única lectura pequeña alimenta navegación, dashboard y clasificaciones.
@@ -24,6 +26,9 @@ const indexSelect = {
   awarenessLevel: true,
   temperature: true,
   channel: true,
+  hypothesisRef: true,
+  targetType: true,
+  targetId: true,
   updatedAt: true,
 } satisfies Prisma.KnowledgeEntrySelect;
 
@@ -291,29 +296,115 @@ export async function dashboardStats() {
   return { total, vigentes, hypotheses, relations };
 }
 
-// -- Búsqueda instantánea (Spotlight) ----------------------------------------
-export async function quickSearch(q: string, take = 8) {
-  const term = q.trim();
-  if (term.length < 2) return [];
-  return prisma.knowledgeEntry.findMany({
-    where: {
-      deletedAt: null,
-      OR: [
-        { title: { contains: term, mode: "insensitive" } },
-        { summary: { contains: term, mode: "insensitive" } },
-        { body: { contains: term, mode: "insensitive" } },
-      ],
-    },
-    orderBy: [{ authority: "asc" }, { updatedAt: "desc" }],
-    take,
-    select: baseSelect,
-  });
-}
+// -- Búsqueda ---------------------------------------------------------------
+export type KnowledgeSearchFilters = {
+  type?: OsEntryType;
+  status?: OsStatus;
+  areas?: string[];
+};
 
-// -- Selección base ligera ---------------------------------------------------
 const baseSelect = {
   id: true, externalKey: true, title: true, summary: true, area: true,
   type: true, status: true, authority: true, sector: true, updatedAt: true, deletedAt: true,
 } satisfies Prisma.KnowledgeEntrySelect;
 
 export type BaseEntry = Prisma.KnowledgeEntryGetPayload<{ select: typeof baseSelect }>;
+
+const searchVocabulary: Partial<Record<OsEntryType, string>> = {
+  token_visual: "color colores paleta hexadecimal hex",
+  regla_marca: "marca visual logo logotipo uso",
+  precio: "precio precios inversión coste",
+  objecion: "objeción objeciones respuesta",
+  playbook: "playbook proceso procedimiento pasos checklist",
+  caso: "caso cliente clientes evidencia",
+  prohibicion: "prohibición no prometer límites no negociable",
+  recurso: "recurso plantilla checklist",
+  guion: "guion mensaje respuesta",
+};
+
+function relevance(term: string, entry: KnowledgeIndexEntry | BaseEntry): number {
+  return scoreKnowledgeMatch(term, {
+    ...entry,
+    summary: `${entry.summary ?? ""} ${searchVocabulary[entry.type] ?? ""}`,
+  });
+}
+
+export async function searchKnowledge(
+  q: string,
+  filters: KnowledgeSearchFilters = {},
+  take = 50,
+): Promise<BaseEntry[]> {
+  const term = q.trim();
+  if (term.length < 2) return [];
+
+  const whereFilters: Prisma.KnowledgeEntryWhereInput = {
+    deletedAt: null,
+    ...(filters.type ? { type: filters.type } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.areas?.length ? { area: { in: filters.areas } } : {}),
+  };
+  const exact = await prisma.knowledgeEntry.findMany({
+    where: {
+      ...whereFilters,
+      OR: [
+        { title: { contains: term, mode: "insensitive" } },
+        { summary: { contains: term, mode: "insensitive" } },
+        { body: { contains: term, mode: "insensitive" } },
+        { area: { contains: term, mode: "insensitive" } },
+        { sector: { contains: term, mode: "insensitive" } },
+        { hypothesisRef: { contains: term, mode: "insensitive" } },
+        { funnelStage: { contains: term, mode: "insensitive" } },
+        { awarenessLevel: { contains: term, mode: "insensitive" } },
+        { temperature: { contains: term, mode: "insensitive" } },
+        { channel: { contains: term, mode: "insensitive" } },
+        { targetType: { contains: term, mode: "insensitive" } },
+        { targetId: { contains: term, mode: "insensitive" } },
+        { tags: { some: { tag: { name: { contains: term, mode: "insensitive" } } } } },
+      ],
+    },
+    orderBy: [{ authority: "asc" }, { updatedAt: "desc" }],
+    take: Math.min(Math.max(take * 8, 50), 200),
+    select: baseSelect,
+  });
+
+  const exactIds = new Set(exact.map((entry) => entry.id));
+  const rankedExact = exact.map((entry) => ({
+    entry,
+    // Un 1 conserva coincidencias que solo están en body, meta indexada o tags.
+    score: Math.max(1, relevance(term, entry)),
+  }));
+  const fuzzy = (await getKnowledgeIndex())
+    .filter(
+      (entry) =>
+        !exactIds.has(entry.id) &&
+        (!filters.type || entry.type === filters.type) &&
+        (!filters.status || entry.status === filters.status) &&
+        (!filters.areas?.length || filters.areas.includes(entry.area)),
+    )
+    .map((entry) => ({ entry, score: relevance(term, entry) }))
+    .filter(({ score }) => score > 0)
+    .map(({ entry }) => ({
+      id: entry.id,
+      externalKey: entry.externalKey,
+      title: entry.title,
+      summary: entry.summary,
+      area: entry.area,
+      type: entry.type,
+      status: entry.status,
+      authority: entry.authority,
+      sector: entry.sector,
+      updatedAt: entry.updatedAt,
+      deletedAt: null,
+    }))
+    .map((entry) => ({ entry, score: relevance(term, entry) }));
+
+  return [...rankedExact, ...fuzzy]
+    .sort((a, b) => b.score - a.score || b.entry.updatedAt.getTime() - a.entry.updatedAt.getTime())
+    .slice(0, take)
+    .map(({ entry }) => entry);
+}
+
+/** Búsqueda instantánea para Spotlight, limitada al primer bloque útil. */
+export async function quickSearch(q: string, take = 8) {
+  return searchKnowledge(q, {}, take);
+}

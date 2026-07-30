@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, CornerDownLeft } from "lucide-react";
+import { Search, CornerDownLeft, History, LoaderCircle } from "lucide-react";
 import { quickSearchAction } from "../actions";
 import { OS_SECTIONS, sectionForEntry, entryHref } from "../_sections";
 import { OS_TYPE_LABEL } from "../_config";
@@ -17,7 +17,10 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<BaseEntry[]>([]);
   const [sel, setSel] = useState(0);
+  const [pending, setPending] = useState(false);
+  const [recent, setRecent] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const requestRef = useRef(0);
 
   // Abrir con ⌘K / Ctrl+K, o evento global desde el buscador de la home.
   useEffect(() => {
@@ -39,22 +42,41 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
 
   useEffect(() => {
     if (open) {
-      const t = setTimeout(() => inputRef.current?.focus(), 20);
+      const t = setTimeout(() => {
+        inputRef.current?.focus();
+        try {
+          setRecent(JSON.parse(localStorage.getItem("kairas-os-recent-searches") ?? "[]").slice(0, 5));
+        } catch {
+          setRecent([]);
+        }
+      }, 20);
       return () => clearTimeout(t);
     }
     const t = setTimeout(() => { setQ(""); setResults([]); setSel(0); }, 0);
     return () => clearTimeout(t);
   }, [open]);
 
-  // Búsqueda con debounce (todo setState va dentro del timeout: nada síncrono).
+  // Debounce + secuencia: una respuesta lenta nunca reemplaza otra más reciente.
   useEffect(() => {
     const term = q.trim();
+    const requestId = ++requestRef.current;
     const t = setTimeout(async () => {
-      if (term.length < 2) { setResults([]); setSel(0); return; }
-      const r = await quickSearchAction(q);
-      setResults(r);
-      setSel(0);
-    }, term.length < 2 ? 0 : 130);
+      if (term.length < 2) {
+        setResults([]);
+        setSel(0);
+        setPending(false);
+        return;
+      }
+      setPending(true);
+      try {
+        const result = await quickSearchAction(term);
+        if (requestRef.current !== requestId) return;
+        setResults(result);
+        setSel(0);
+      } finally {
+        if (requestRef.current === requestId) setPending(false);
+      }
+    }, term.length < 2 ? 0 : 220);
     return () => clearTimeout(t);
   }, [q]);
 
@@ -69,10 +91,28 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
     g.items.push(e);
   }
 
+  const remember = useCallback((term: string) => {
+    const value = term.trim();
+    if (value.length < 2) return;
+    const next = [
+      value,
+      ...recent.filter((item) => item.toLocaleLowerCase("es") !== value.toLocaleLowerCase("es")),
+    ].slice(0, 5);
+    setRecent(next);
+    localStorage.setItem("kairas-os-recent-searches", JSON.stringify(next));
+  }, [recent]);
+
   const go = useCallback((id: string) => {
+    remember(q);
     setOpen(false);
     router.push(entryHref(id));
-  }, [router]);
+  }, [q, remember, router]);
+
+  const openAll = useCallback(() => {
+    remember(q);
+    setOpen(false);
+    router.push(`/os/buscar?q=${encodeURIComponent(q.trim())}`);
+  }, [q, remember, router]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(s + 1, flat.length - 1)); }
@@ -128,7 +168,27 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
 
             <div className={`max-h-[52vh] overflow-y-auto p-2 ${styles.scroll}`}>
               {q.trim().length < 2 ? (
-                <p className="px-4 py-8 text-center text-sm text-faint">Escribe para buscar en las 113 unidades de conocimiento.</p>
+                recent.length > 0 ? (
+                  <div className="p-2">
+                    <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-faint">Búsquedas recientes</p>
+                    {recent.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => setQ(term)}
+                        className="flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left text-sm text-mist hover:bg-raise hover:text-foam"
+                      >
+                        <History className="h-3.5 w-3.5 text-faint" /> {term}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-4 py-8 text-center text-sm text-faint">Escribe al menos dos caracteres para buscar en todo KAIRAS OS.</p>
+                )
+              ) : pending ? (
+                <p className="flex items-center justify-center gap-2 px-4 py-8 text-sm text-faint">
+                  <LoaderCircle className="h-4 w-4 animate-spin" /> Buscando…
+                </p>
               ) : flat.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-faint">Sin resultados para «{q}».</p>
               ) : (
@@ -167,7 +227,12 @@ export function QuickSearch({ variant = "bar" }: { variant?: "bar" | "hero" }) {
             <div className="flex gap-4 border-t border-line px-4 py-2.5 text-[11px] text-faint">
               <span className="flex items-center gap-1.5">↑↓ navegar</span>
               <span className="flex items-center gap-1.5"><CornerDownLeft className="h-3 w-3" /> abrir</span>
-              <span>{flat.length} resultados</span>
+              <span>{flat.length} resultados rápidos</span>
+              {q.trim().length >= 2 ? (
+                <button type="button" onClick={openAll} className="ml-auto font-semibold text-lavender hover:underline">
+                  Ver todos y filtrar
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
