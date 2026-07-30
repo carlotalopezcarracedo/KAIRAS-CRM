@@ -8,6 +8,10 @@ import {
   Download,
   CheckCircle2,
   X,
+  Building2,
+  CircleDollarSign,
+  MessageCircleQuestion,
+  Route,
 } from "lucide-react";
 import { CopyButton } from "@/components/os/copy-button";
 import { StatusBadge, AuthorityBadge } from "@/components/os/os-badges";
@@ -406,12 +410,43 @@ export function MarketingView({ entries }: { entries: E[] }) {
   const claims = byType(entries, "claim");
   const objeciones = byType(entries, "objecion");
   const ctas = byType(entries, "cta");
-  const mensajes = byType(entries, "mensaje", "guion");
+  const voice = entries.find((entry) => /voz y tono/i.test(entry.title));
+  const mensajes = byType(entries, "mensaje", "guion").filter((entry) => entry !== voice);
   const contenidos = byType(entries, "pilar_contenido", "serie_contenido", "pieza_contenido");
+  const awareness = mensajes
+    .filter((entry) => typeof meta(entry).nivel === "number")
+    .sort((a, b) => Number(meta(a).nivel) - Number(meta(b).nivel));
+  const otherMessages = mensajes.filter((entry) => !awareness.includes(entry));
+  const temperatureCtas = ctas.filter((entry) => /fr[ií]o|templado|caliente/i.test(entry.title));
+  const otherCtas = ctas.filter((entry) => !temperatureCtas.includes(entry));
+
   return (
     <div className={styles.fade}>
+      {voice ? (
+        <Panel title="Voz y tono" hint="criterio rápido antes de escribir">
+          <div className="grid overflow-hidden rounded-2xl border border-line md:grid-cols-[1.1fr_0.9fr]">
+            <Link href={entryHref(voice.id)} className="bg-surface p-6 sm:p-8">
+              <p className="text-2xl font-bold leading-snug text-foam">{voice.summary}</p>
+              <span className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-lavender">
+                Abrir guía de voz <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </Link>
+            <div className="grid grid-cols-2 border-t border-line md:border-l md:border-t-0">
+              <div className="bg-ok-soft/20 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-ok">Usar</p>
+                <p className="mt-3 text-sm leading-6 text-foam">{str(meta(voice).si)}</p>
+              </div>
+              <div className="border-l border-line bg-danger-soft/20 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-danger">Evitar</p>
+                <p className="mt-3 text-sm leading-6 text-foam">{str(meta(voice).no)}</p>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
       {claims.length > 0 ? (
-        <Panel title="Claims">
+        <Panel title="Claims" hint="capa y vigencia visibles">
           <div className="grid gap-3 sm:grid-cols-2">
             {claims.map((c) => (
               <Link key={c.id} href={entryHref(c.id)} className={cn("rounded-2xl border border-line bg-gradient-to-b from-raise to-surface p-6", styles.lift)}>
@@ -424,35 +459,106 @@ export function MarketingView({ entries }: { entries: E[] }) {
       ) : null}
 
       {contenidos.length > 0 ? (
-        <Panel title="Contenidos" hint="pilares y series">
+        <Panel title="Mapa de contenidos" hint="pilares, series y piezas">
           <CardGrid cols={3}>{contenidos.map((e) => <KnowledgeCard key={e.id} entry={e} />)}</CardGrid>
         </Panel>
       ) : null}
 
-      {ctas.length > 0 ? (
-        <Panel title="CTAs por temperatura">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ctas.map((e) => <KnowledgeCard key={e.id} entry={e} />)}
-          </div>
-        </Panel>
-      ) : null}
-
-      {objeciones.length > 0 ? (
-        <Panel title="Banco de objeciones">
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {objeciones.map((o) => (
-              <Link key={o.id} href={entryHref(o.id)} className={cn("rounded-xl border border-line bg-surface p-4", styles.lift)}>
-                <p className="text-[13px] font-semibold text-foam">{o.title.replace(/^Objeci[oó]n\s*·\s*/i, "")}</p>
-                {o.summary ? <p className="mt-1 line-clamp-2 text-[12px] text-mist">{o.summary}</p> : null}
+      {awareness.length > 0 ? (
+        <Panel title="Mensaje por nivel de conciencia" hint="no adelantar la oferta">
+          <div className="grid gap-2 md:grid-cols-3">
+            {awareness.map((entry) => (
+              <Link
+                key={entry.id}
+                href={entryHref(entry.id)}
+                className={cn("relative rounded-2xl border border-line bg-surface p-5", styles.lift)}
+              >
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-violet-soft text-xs font-extrabold text-lavender">
+                  {String(meta(entry).nivel)}
+                </span>
+                <p className="mt-4 text-sm font-semibold leading-5 text-foam">
+                  {entry.title.replace(/^Conciencia\s+\d+\s*·\s*/i, "")}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-mist">{entry.summary}</p>
+                {str(meta(entry).canal) ? (
+                  <p className="mt-3 text-[10px] uppercase tracking-[0.1em] text-faint">
+                    {str(meta(entry).canal)}
+                  </p>
+                ) : null}
               </Link>
             ))}
           </div>
         </Panel>
       ) : null}
 
-      {mensajes.length > 0 ? (
-        <Panel title="Mensajes y guiones" hint="voz, conciencia, canal">
-          <CardGrid cols={3}>{mensajes.map((e) => <KnowledgeCard key={e.id} entry={e} />)}</CardGrid>
+      {objeciones.length > 0 ? (
+        <Panel title="Banco de objeciones" hint="respuesta recomendada y contexto">
+          <div className="space-y-3">
+            {objeciones.map((o) => (
+              <Link
+                key={o.id}
+                href={entryHref(o.id)}
+                className={cn("grid gap-4 rounded-2xl border border-line bg-surface p-5 md:grid-cols-[0.35fr_0.65fr]", styles.lift)}
+              >
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-faint">
+                    Objeción
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-foam">
+                    «{str(meta(o).objecion) ?? o.title.replace(/^Objeci[oó]n\s*·\s*/i, "")}»
+                  </p>
+                </div>
+                <div className="border-t border-line pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ok">
+                    Respuesta recomendada
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-mist">
+                    {str(meta(o).respuesta) ?? o.summary}
+                  </p>
+                  {str(meta(o).estructura) ? (
+                    <p className="mt-3 text-[10px] uppercase tracking-[0.1em] text-faint">
+                      {str(meta(o).estructura)}
+                    </p>
+                  ) : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {temperatureCtas.length > 0 ? (
+        <Panel title="CTA por temperatura" hint="el compromiso debe encajar con la intención">
+          <div className="grid gap-3 md:grid-cols-3">
+            {temperatureCtas.map((entry) => (
+              <Link
+                key={entry.id}
+                href={entryHref(entry.id)}
+                className={cn("rounded-2xl border border-line bg-surface p-5", styles.lift)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold text-foam">{entry.title.replace(/^CTA\s+/i, "")}</p>
+                  <StatusBadge status={entry.status} />
+                </div>
+                <p className="mt-3 text-xs leading-5 text-mist">{entry.summary}</p>
+                {str(meta(entry).ejemploAutorizado) ? (
+                  <p className="mt-4 rounded-xl bg-raise p-3 text-xs leading-5 text-foam/85">
+                    {str(meta(entry).ejemploAutorizado)}
+                  </p>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {otherMessages.length > 0 || otherCtas.length > 0 ? (
+        <Panel title="Mensajes y marcos" hint="pitches, bios, reglas y guiones">
+          <CardGrid cols={3}>
+            {[...otherMessages, ...otherCtas].map((entry) => (
+              <KnowledgeCard key={entry.id} entry={entry} />
+            ))}
+          </CardGrid>
         </Panel>
       ) : null}
     </div>
@@ -464,10 +570,52 @@ export function ComercialView({ entries }: { entries: E[] }) {
   const embudo = find(entries, "com2-embudo") ?? entries.find((e) => /embudo/i.test(e.title));
   const etapas = embudo ? arr(meta(embudo).etapas) : undefined;
   const ofertas = byType(entries, "oferta");
+  const price = entries.find((entry) => entry.type === "precio" || /precios vigentes/i.test(entry.title));
+  const cases = byType(entries, "caso");
+  const objections = byType(entries, "objecion");
+  const scripts = byType(entries, "guion");
   const playbooks = byType(entries, "playbook").filter((e) => e.status !== "obsoleto");
-  const otros = byType(entries, "guion", "regla", "mensaje", "definicion", "garantia", "precio").filter((e) => e !== embudo);
+  const otros = byType(entries, "regla", "mensaje", "definicion", "garantia").filter((e) => e !== embudo);
   return (
     <div className={styles.fade}>
+      <Panel title="Ruta contextual" hint="del sector a la propuesta">
+        <div className="overflow-x-auto rounded-2xl border border-line bg-surface p-4">
+          <div className="flex min-w-max items-center gap-2">
+            {["Sector", "Dolor", "Oferta", "Objeciones", "Caso", "Guion", "Propuesta"].map(
+              (step, index, all) => (
+                <div key={step} className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-xl bg-raise px-3 py-2 text-xs font-semibold text-foam">
+                    {index === 0 ? <Route className="h-3.5 w-3.5 text-lavender" /> : null}
+                    {step}
+                  </span>
+                  {index < all.length - 1 ? <ArrowRight className="h-3.5 w-3.5 text-faint" /> : null}
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+      </Panel>
+
+      {price ? (
+        <Panel title="Precio vigente" hint="fuente operativa, no factura fiscal">
+          <Link
+            href={entryHref(price.id)}
+            className={cn("flex items-start gap-4 rounded-2xl border border-violet-line bg-violet-soft/30 p-6", styles.lift)}
+          >
+            <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-violet text-white">
+              <CircleDollarSign className="h-5 w-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-lg font-bold text-foam">{price.title}</span>
+                <StatusBadge status={price.status} />
+              </span>
+              <span className="mt-2 block text-sm leading-6 text-mist">{price.summary}</span>
+            </span>
+          </Link>
+        </Panel>
+      ) : null}
+
       {embudo && etapas ? (
         <Panel title="Embudo comercial">
           <Link href={entryHref(embudo.id)} className="mb-3 block text-[13px] text-mist hover:text-foam">{embudo.summary}</Link>
@@ -483,7 +631,7 @@ export function ComercialView({ entries }: { entries: E[] }) {
       ) : null}
 
       {ofertas.length > 0 ? (
-        <Panel title="Escalera de oferta">
+        <Panel title="Escalera de oferta" hint="alcance y estado antes de vender">
           <div className="space-y-2">
             {ofertas.map((o, i) => (
               <Link key={o.id} href={entryHref(o.id)} className={cn("flex items-center gap-4 rounded-2xl border border-line bg-surface p-4", styles.lift)}>
@@ -499,15 +647,73 @@ export function ComercialView({ entries }: { entries: E[] }) {
         </Panel>
       ) : null}
 
-      {playbooks.length > 0 ? (
-        <Panel title="Playbooks de venta">
-          <CardGrid cols={3}>{playbooks.map((e) => <KnowledgeCard key={e.id} entry={e} />)}</CardGrid>
+      {cases.length > 0 ? (
+        <Panel title="Casos y límites de uso" hint="evidencia comercial, no promesa universal">
+          <div className="grid gap-3 md:grid-cols-3">
+            {cases.map((entry) => (
+              <Link
+                key={entry.id}
+                href={entryHref(entry.id)}
+                className={cn("flex flex-col rounded-2xl border border-line bg-surface p-5", styles.lift)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-raise text-lavender">
+                    <Building2 className="h-4 w-4" />
+                  </span>
+                  <StatusBadge status={entry.status} />
+                </div>
+                <p className="mt-4 font-semibold leading-5 text-foam">{entry.title}</p>
+                <p className="mt-2 text-xs leading-5 text-mist">{entry.summary}</p>
+                <span className="mt-auto pt-4 text-[10px] uppercase tracking-[0.1em] text-faint">
+                  Abrir evidencia y límites
+                </span>
+              </Link>
+            ))}
+          </div>
         </Panel>
       ) : null}
 
-      {otros.length > 0 ? (
-        <Panel title="Más conocimiento comercial">
-          <CardGrid cols={3}>{otros.map((e) => <KnowledgeCard key={e.id} entry={e} />)}</CardGrid>
+      {objections.length > 0 ? (
+        <Panel title="Objeciones relacionadas">
+          <div className="grid gap-3 md:grid-cols-2">
+            {objections.slice(0, 6).map((entry) => (
+              <Link
+                key={entry.id}
+                href={entryHref(entry.id)}
+                className={cn("rounded-2xl border border-line bg-surface p-5", styles.lift)}
+              >
+                <div className="flex items-center gap-2 text-lavender">
+                  <MessageCircleQuestion className="h-4 w-4" />
+                  <p className="text-xs font-bold">
+                    {str(meta(entry).objecion) ?? entry.title.replace(/^Objeci[oó]n\s*·\s*/i, "")}
+                  </p>
+                </div>
+                <p className="mt-3 line-clamp-3 text-xs leading-5 text-mist">
+                  {str(meta(entry).respuesta) ?? entry.summary}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      ) : null}
+
+      {playbooks.length > 0 ? (
+        <Panel title="Procesos comerciales" hint="ejecución relacionada">
+          <CardGrid cols={3}>
+            {playbooks.slice(0, 3).map((entry) => (
+              <KnowledgeCard key={entry.id} entry={entry} />
+            ))}
+          </CardGrid>
+        </Panel>
+      ) : null}
+
+      {scripts.length > 0 || otros.length > 0 ? (
+        <Panel title="Guiones y referencias">
+          <CardGrid cols={3}>
+            {[...scripts, ...otros].slice(0, 9).map((entry) => (
+              <KnowledgeCard key={entry.id} entry={entry} />
+            ))}
+          </CardGrid>
         </Panel>
       ) : null}
     </div>

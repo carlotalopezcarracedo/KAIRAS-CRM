@@ -72,6 +72,7 @@ export const OS_SECTIONS: SectionConfig[] = [
     icon: BriefcaseBusiness,
     tagline: "Encaje, alcance, precio, objeciones y casos",
     areas: ["oferta", "clientes", "comercial"],
+    types: ["objecion", "guion"],
     accent: "var(--color-ok)",
   },
   {
