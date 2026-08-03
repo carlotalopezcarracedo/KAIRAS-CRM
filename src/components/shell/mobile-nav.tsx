@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { IntentLink } from "@/components/navigation/intent-link";
 import { MOBILE_NAV } from "./nav-items";
 
 export function MobileNav() {
   const pathname = usePathname();
-  const prefetch = pathname.startsWith("/os") ? false : null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/90 backdrop-blur pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -17,9 +16,8 @@ export function MobileNav() {
             pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <li key={item.href} className="flex-1">
-              <Link
+              <IntentLink
                 href={item.href}
-                prefetch={prefetch}
                 className={cn(
                   "flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
                   active ? "text-lavender" : "text-faint hover:text-mist",
@@ -27,7 +25,7 @@ export function MobileNav() {
               >
                 <item.icon className="h-5 w-5" />
                 {item.label}
-              </Link>
+              </IntentLink>
             </li>
           );
         })}

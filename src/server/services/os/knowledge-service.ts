@@ -1,6 +1,8 @@
 // KAIRAS OS — servicio de conocimiento. Usa el prisma singleton del CRM.
 // Solo tablas os_*; ninguna escritura sobre entidades del CRM.
+import { cache } from "react";
 import { prisma } from "@/server/db/prisma";
+import { getKnowledgeIndex } from "@/server/services/os/os-views-service";
 import type { Prisma, OsStatus, OsEntryType } from "@prisma/client";
 import type { EntryCreateInput, EntryUpdateInput } from "@/server/validators/os/knowledge";
 
@@ -42,7 +44,7 @@ export async function listEntries(params: ListParams) {
   });
 }
 
-export async function getEntry(id: string) {
+const getEntryUncached = async (id: string) => {
   const entry = await prisma.knowledgeEntry.findFirst({
     where: { id, deletedAt: null },
     include: {
@@ -54,7 +56,10 @@ export async function getEntry(id: string) {
     },
   });
   return entry;
-}
+};
+
+/** Metadata y pagina piden la misma ficha; una sola consulta por render RSC. */
+export const getEntry = cache(getEntryUncached);
 
 export type EntryDetail = NonNullable<Awaited<ReturnType<typeof getEntry>>>;
 export type EntryListItem = Awaited<ReturnType<typeof listEntries>>[number];
@@ -246,11 +251,14 @@ export async function getUserNames(ids: (string | null | undefined)[]) {
 
 // -- Opciones para el selector de relaciones ---------------------------------
 export async function listEntryOptions(excludeId?: string) {
-  return prisma.knowledgeEntry.findMany({
-    where: { deletedAt: null, ...(excludeId ? { id: { not: excludeId } } : {}) },
-    select: { id: true, title: true, area: true, type: true },
-    orderBy: [{ area: "asc" }, { title: "asc" }],
-  });
+  const entries = await getKnowledgeIndex();
+  return entries
+    .filter((entry) => entry.id !== excludeId)
+    .map(({ id, title, area, type }) => ({ id, title, area, type }))
+    .sort(
+      (a, b) =>
+        a.area.localeCompare(b.area, "es") || a.title.localeCompare(b.title, "es"),
+    );
 }
 
 // -- Búsqueda global ---------------------------------------------------------

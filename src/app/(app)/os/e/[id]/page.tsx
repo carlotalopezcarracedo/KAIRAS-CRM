@@ -4,7 +4,7 @@ import { Breadcrumbs } from "@/components/os/breadcrumbs";
 import { EntryDetail } from "../../_components/entry-detail";
 import { ViewRecorder } from "../../_components/view-recorder";
 import { sectionForEntry } from "../../_sections";
-import { getEntry, isFavorite, listEntryOptions, getUserNames } from "@/server/services/os/knowledge-service";
+import { getEntry, isFavorite, getUserNames } from "@/server/services/os/knowledge-service";
 import { requireUser } from "@/server/auth";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -15,14 +15,17 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function OsEntryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireUser();
-  const [entry, fav, options] = await Promise.all([
-    getEntry(id),
-    isFavorite(id, user.id),
-    listEntryOptions(id),
+  const userPromise = requireUser();
+  const entryPromise = getEntry(id);
+  const [user, entry] = await Promise.all([
+    userPromise,
+    entryPromise,
   ]);
   if (!entry) notFound();
-  const authorNames = await getUserNames(entry.versions.map((v) => v.authorId));
+  const [fav, authorNames] = await Promise.all([
+    isFavorite(id, user.id),
+    getUserNames(entry.versions.map((version) => version.authorId)),
+  ]);
   const section = sectionForEntry(entry.area, entry.type);
 
   return (
@@ -35,7 +38,7 @@ export default async function OsEntryPage({ params }: { params: Promise<{ id: st
           { label: entry.title },
         ]}
       />
-      <EntryDetail entry={entry} isFavorite={fav} options={options} authorNames={authorNames} />
+      <EntryDetail entry={entry} isFavorite={fav} authorNames={authorNames} />
     </div>
   );
 }
