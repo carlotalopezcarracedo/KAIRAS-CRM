@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { ChevronRight } from "lucide-react";
 
 export type Crumb = { label: string; href?: string };

@@ -8,14 +8,6 @@ import { cn } from "@/lib/utils";
 import { IntentLink } from "@/components/navigation/intent-link";
 import { NAV_SECTIONS } from "./nav-items";
 
-const PRIORITY_NAV_ROUTES = new Set([
-  "/dashboard",
-  "/tasks",
-  "/time",
-  "/calendar",
-  "/os",
-]);
-
 export function Sidebar() {
   const pathname = usePathname();
 
@@ -47,9 +39,6 @@ export function Sidebar() {
                   <li key={item.href}>
                     <IntentLink
                       href={item.href}
-                      priorityPrefetch={
-                        PRIORITY_NAV_ROUTES.has(item.href) && !active
-                      }
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                         active

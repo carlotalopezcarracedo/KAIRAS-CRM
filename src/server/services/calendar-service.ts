@@ -24,6 +24,35 @@ export type CalendarItem = {
   durationSeconds?: number;
 };
 
+export type EventSelectData = {
+  leads: { id: string; name: string }[];
+  clients: { id: string; name: string }[];
+  projects: { id: string; name: string }[];
+};
+
+/** Opciones del formulario: se consultan solo cuando se abre el diálogo. */
+export async function getEventSelectOptions(): Promise<EventSelectData> {
+  const [leads, clients, projects] = await Promise.all([
+    prisma.lead.findMany({
+      where: { deletedAt: null },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+      select: { id: true, name: true },
+    }),
+    prisma.client.findMany({
+      where: { deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.project.findMany({
+      where: { deletedAt: null, status: { notIn: ["completed", "cancelled"] } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  return { leads, clients, projects };
+}
+
 export async function getCalendarItems(
   userId: string,
   from: Date,

@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/action-result";
+import type { EventSelectData } from "@/server/services/calendar-service";
+
+export type { EventSelectData } from "@/server/services/calendar-service";
 
 const typeOptions = [
   { value: "meeting", label: "Reunión" },
@@ -29,12 +32,6 @@ export type EventFormDefaults = Partial<{
   clientId: string;
   projectId: string;
 }>;
-
-export type EventSelectData = {
-  leads: { id: string; name: string }[];
-  clients: { id: string; name: string }[];
-  projects: { id: string; name: string }[];
-};
 
 export function EventForm({
   action,

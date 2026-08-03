@@ -7,8 +7,6 @@ import { cn } from "@/lib/utils";
 import { IntentLink } from "@/components/navigation/intent-link";
 import { MOBILE_NAV } from "./nav-items";
 
-const PRIORITY_MOBILE_ROUTES = new Set(["/dashboard", "/tasks"]);
-
 export function MobileNav() {
   const pathname = usePathname();
 
@@ -22,9 +20,6 @@ export function MobileNav() {
             <li key={item.href} className="flex-1">
               <IntentLink
                 href={item.href}
-                priorityPrefetch={
-                  PRIORITY_MOBILE_ROUTES.has(item.href) && !active
-                }
                 className={cn(
                   "relative flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold uppercase tracking-wider transition-colors",
                   active ? "text-lavender" : "text-faint hover:text-mist",

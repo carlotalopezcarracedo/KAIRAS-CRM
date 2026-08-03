@@ -9,6 +9,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  getEventSelectOptions,
 } from "@/server/services/calendar-service";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -33,6 +34,12 @@ async function withUser(): Promise<
   } catch {
     return { ok: false, error: "Sesión caducada. Vuelve a entrar." };
   }
+}
+
+export async function getEventSelectOptionsAction() {
+  const auth = await withUser();
+  if (!auth.ok) return { leads: [], clients: [], projects: [] };
+  return getEventSelectOptions();
 }
 
 export async function createEventAction(

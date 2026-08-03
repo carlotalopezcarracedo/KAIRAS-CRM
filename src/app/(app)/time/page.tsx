@@ -29,6 +29,7 @@ import {
   listEntries,
   getTimeSummary,
   getActiveTimer,
+  getTimeEntryExtraOptions,
   type TimeFilters as TimeFiltersType,
 } from "@/server/services/time-service";
 import { HoursBars, DistributionDonut, type DayHours } from "@/components/charts/kairas-charts";
@@ -37,7 +38,6 @@ import { TimeFilters } from "./time-filters";
 import { TimerBar, type TimerBarActive } from "./timer-bar";
 import { WeekGrid, type GridDay, type GridEntry } from "./week-grid";
 import { StartTimerButton } from "./start-timer-button";
-import type { EntrySelectData } from "./entry-form";
 
 export const metadata: Metadata = { title: "Tiempo" };
 
@@ -161,9 +161,8 @@ export default async function TimePage({
     activeTimer,
     clients,
     projects,
-    services,
-    tasks,
     recentEntry,
+    extraOptions,
   ] =
     await Promise.all([
       listEntries(user.id, { from, to }, filters),
@@ -179,17 +178,6 @@ export default async function TimePage({
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
-      prisma.service.findMany({
-        where: { active: true, deletedAt: null },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      }),
-      prisma.task.findMany({
-        where: { deletedAt: null, status: { in: ["todo", "in_progress", "waiting"] } },
-        orderBy: { updatedAt: "desc" },
-        take: 100,
-        select: { id: true, title: true },
-      }),
       prisma.timeEntry.findFirst({
         where: { userId: user.id, deletedAt: null },
         orderBy: { startedAt: "desc" },
@@ -200,9 +188,13 @@ export default async function TimePage({
           billable: true,
         },
       }),
+      view === "grid"
+        ? getTimeEntryExtraOptions()
+        : Promise.resolve({ services: [], tasks: [] }),
     ]);
 
-  const selects: EntrySelectData = { clients, projects, services, tasks };
+  const entrySelects = { clients, projects, ...extraOptions };
+
   const timerTooLong = activeTimer && isTimerTooLong(activeTimer.startedAt);
 
   // Timer para la barra estilo Toggl (con nombres)
@@ -359,7 +351,11 @@ export default async function TimePage({
               <Download className="h-3.5 w-3.5" />
               Extracto
             </a>
-            <ManualEntryDialog selects={selects} />
+            <ManualEntryDialog
+              clients={clients}
+              projects={projects}
+              initialExtras={view === "grid" ? extraOptions : undefined}
+            />
           </>
         }
       />
@@ -429,7 +425,7 @@ export default async function TimePage({
       </div>
 
       {view === "grid" ? (
-        <WeekGrid days={gridDays} entries={gridEntries} selects={selects} />
+        <WeekGrid days={gridDays} entries={gridEntries} selects={entrySelects} />
       ) : (
         <>
           {/* Analítica */}

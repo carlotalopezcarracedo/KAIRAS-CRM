@@ -16,6 +16,7 @@ import {
   updateEntry,
   setEntryStatus,
   softDeleteEntry,
+  getTimeEntryExtraOptions,
 } from "@/server/services/time-service";
 import type { ActionResult } from "@/lib/action-result";
 import type { TimeEntryStatus } from "@prisma/client";
@@ -48,6 +49,12 @@ function revalidateTimePaths() {
   revalidatePath("/dashboard");
   revalidatePath("/calendar");
   revalidatePath("/", "layout"); // refresca el widget del topbar
+}
+
+export async function getTimeEntryExtraOptionsAction() {
+  const auth = await withUser();
+  if (!auth.ok) return { services: [], tasks: [] };
+  return getTimeEntryExtraOptions();
 }
 
 export async function startTimerAction(input: {

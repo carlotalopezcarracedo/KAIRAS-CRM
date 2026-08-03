@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { toDateTimeLocalInput } from "@/lib/dates";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";

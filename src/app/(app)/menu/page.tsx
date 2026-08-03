@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { NAV_SECTIONS } from "@/components/shell/nav-items";
 
@@ -18,7 +18,6 @@ export default function MenuPage() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={item.href === "/os" ? true : null}
                   className="flex items-center gap-3 rounded-card border border-line bg-surface p-4 transition-colors hover:border-line-strong hover:bg-raise"
                 >
                   <item.icon className="h-5 w-5 text-lavender" />
