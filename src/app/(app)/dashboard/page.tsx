@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { MessageCircle, Plus } from "lucide-react";
+import { IntentLink } from "@/components/navigation/intent-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,7 @@ import {
 } from "@/lib/utils";
 import { getDashboardData } from "@/server/services/dashboard-service";
 import { HoursBars, type DayHours } from "@/components/charts/kairas-charts";
-import { requireUser, auth } from "@/server/auth";
+import { getSession } from "@/server/auth";
 
 export const metadata: Metadata = { title: "Hoy" };
 
@@ -40,11 +40,9 @@ const STAGE_ORDER = [
 const WEEKDAY_LABELS = ["L", "M", "X", "J", "V", "S", "D"];
 
 export default async function DashboardPage() {
-  const user = await requireUser();
-  const [data, session] = await Promise.all([
-    getDashboardData(user.id),
-    auth(),
-  ]);
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("UNAUTHORIZED");
+  const data = await getDashboardData(session.user.id);
   const firstName = session?.user?.name?.split(" ")[0] ?? "";
 
   // Serie de la semana (L-D) para la gráfica
@@ -109,7 +107,7 @@ export default async function DashboardPage() {
         title={firstName ? `Hola, ${firstName}` : "Hoy"}
         subtitle={today.charAt(0).toUpperCase() + today.slice(1)}
         actions={
-          <ButtonLink href="/leads/new" size="sm">
+          <ButtonLink href="/leads/new" size="sm" prefetch={false}>
             <Plus className="h-4 w-4" />
             Nuevo lead
           </ButtonLink>
@@ -122,13 +120,13 @@ export default async function DashboardPage() {
           <p className="k-label mb-1.5 text-warn">Requiere atención</p>
           <div className="flex flex-wrap gap-x-5 gap-y-1">
             {alertItems.map((alert) => (
-              <Link
+              <IntentLink
                 key={alert.text}
                 href={alert.href}
                 className="text-sm font-medium text-foam hover:text-warn"
               >
                 {alert.text} →
-              </Link>
+              </IntentLink>
             ))}
           </div>
         </div>
@@ -221,7 +219,7 @@ export default async function DashboardPage() {
                     return (
                       <li key={lead.id}>
                         <div className="flex items-center gap-3 rounded-xl border border-line bg-ink/40 px-4 py-2.5">
-                          <Link
+                          <IntentLink
                             href={`/leads/${lead.id}`}
                             className="min-w-0 flex-1"
                           >
@@ -240,7 +238,7 @@ export default async function DashboardPage() {
                                 {relativeDays(lead.nextActionAt)}
                               </span>
                             </p>
-                          </Link>
+                          </IntentLink>
                           <TemperatureBadge temperature={lead.temperature} />
                           {lead.phone ? (
                             <a
