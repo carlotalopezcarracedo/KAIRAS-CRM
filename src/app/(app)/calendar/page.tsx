@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,7 +12,6 @@ import {
   addDays,
 } from "@/lib/dates";
 import { requireUser } from "@/server/auth";
-import { prisma } from "@/server/db/prisma";
 import {
   getCalendarItems,
   CALENDAR_LAYERS,
@@ -20,7 +19,6 @@ import {
   type CalendarItem,
 } from "@/server/services/calendar-service";
 import { EventDialog } from "./event-dialog";
-import type { EventSelectData } from "./event-form";
 
 export const metadata: Metadata = { title: "Calendario" };
 
@@ -136,26 +134,7 @@ export default async function CalendarPage({
     to = new Date(addDays(from, 42).getTime() - 1); // 6 semanas
   }
 
-  const [items, leads, clients, projects] = await Promise.all([
-    getCalendarItems(user.id, from, to, layers),
-    prisma.lead.findMany({
-      where: { deletedAt: null },
-      orderBy: { updatedAt: "desc" },
-      take: 100,
-      select: { id: true, name: true },
-    }),
-    prisma.client.findMany({
-      where: { deletedAt: null },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.project.findMany({
-      where: { deletedAt: null, status: { notIn: ["completed", "cancelled"] } },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-  ]);
-  const selects: EventSelectData = { leads, clients, projects };
+  const items = await getCalendarItems(user.id, from, to, layers);
 
   // Agrupar por día
   const byDay = new Map<string, CalendarItem[]>();
@@ -204,7 +183,7 @@ export default async function CalendarPage({
             ? dayTitle.charAt(0).toUpperCase() + dayTitle.slice(1)
             : monthTitle.charAt(0).toUpperCase() + monthTitle.slice(1)
         }
-        actions={<EventDialog selects={selects} />}
+        actions={<EventDialog />}
       />
 
       {/* Controles */}

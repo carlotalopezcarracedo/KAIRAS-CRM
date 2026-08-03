@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink } from "@/components/navigation/intent-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -84,7 +84,7 @@ export default async function TasksPage({
       {/* Tabs */}
       <div className="mb-5 flex flex-wrap gap-1.5">
         {VIEWS.map((v) => (
-          <Link
+          <IntentLink
             key={v.key}
             href={`/tasks?view=${v.key}`}
             className={cn(
@@ -102,7 +102,7 @@ export default async function TasksPage({
             {countFor[v.key] !== null ? (
               <span className="ml-1.5 opacity-70">{countFor[v.key]}</span>
             ) : null}
-          </Link>
+          </IntentLink>
         ))}
       </div>
 

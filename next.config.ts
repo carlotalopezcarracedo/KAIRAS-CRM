@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
   // Evita que Next use un package-lock.json ajeno fuera del proyecto.
   outputFileTracingRoot: path.join(__dirname),
 
+  // Conserva brevemente en el navegador las rutas RSC ya visitadas o
+  // precargadas. Las Server Actions que mutan datos invalidan esta caché.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+    },
+  },
+
   async headers() {
     return [
       {

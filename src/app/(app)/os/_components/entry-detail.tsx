@@ -6,7 +6,7 @@ import { StatusBadge, AuthorityBadge } from "@/components/os/os-badges";
 import { CopyButton } from "@/components/os/copy-button";
 import { FavoriteButton } from "./favorite-button";
 import { ArchiveButton } from "./archive-button";
-import { RelationEditor, type EntryOption } from "./relation-editor";
+import { RelationEditor } from "./relation-editor";
 import { RelationshipGraph } from "./relationship-graph";
 import { OS_TYPE_LABEL, OS_BUSINESS_LINE, OS_MESSAGE_LAYER, getArea } from "../_config";
 import { entryHref } from "../_sections";
@@ -50,12 +50,10 @@ function MetaBlock({ meta }: { meta: unknown }) {
 export function EntryDetail({
   entry,
   isFavorite,
-  options,
   authorNames = {},
 }: {
   entry: EntryDetailData;
   isFavorite: boolean;
-  options: EntryOption[];
   authorNames?: Record<string, string>;
 }) {
   const area = getArea(entry.area);
@@ -91,7 +89,7 @@ export function EntryDetail({
         <div className="flex flex-wrap items-center gap-2">
           <FavoriteButton entryId={entry.id} initial={isFavorite} />
           {entry.body ? <CopyButton text={entry.body} label="Copiar texto" /> : null}
-          <ButtonLink href={`${entryHref(entry.id)}/editar`} variant="secondary" size="sm">
+          <ButtonLink href={`${entryHref(entry.id)}/editar`} prefetch={false} variant="secondary" size="sm">
             <Pencil className="h-3.5 w-3.5" /> Editar
           </ButtonLink>
           <ArchiveButton entryId={entry.id} area={entry.area} archived={entry.status === "archivado"} />
@@ -118,7 +116,7 @@ export function EntryDetail({
       <Card>
         <CardBody>
           <p className="k-label mb-3">Relacionado</p>
-          <RelationEditor entryId={entry.id} relations={relations} options={options} />
+          <RelationEditor entryId={entry.id} relations={relations} />
         </CardBody>
       </Card>
 

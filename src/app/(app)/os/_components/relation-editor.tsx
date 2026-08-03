@@ -2,15 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { IntentLink } from "@/components/navigation/intent-link";
 import { Select, Input } from "@/components/ui/field";
 import { OS_RELATION_LABEL } from "../_config";
 import { entryHref } from "../_sections";
 import { OS_RELATION_TYPES } from "@/server/validators/os/knowledge";
-import { addRelationAction, removeRelationAction } from "../actions";
+import { addRelationAction, getEntryOptionsAction, removeRelationAction } from "../actions";
 
 export type RelationRow = {
   id: string;
@@ -25,11 +25,9 @@ export type EntryOption = { id: string; title: string; area: string };
 export function RelationEditor({
   entryId,
   relations,
-  options,
 }: {
   entryId: string;
   relations: RelationRow[];
-  options: EntryOption[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -37,6 +35,19 @@ export function RelationEditor({
   const [toId, setToId] = useState("");
   const [type, setType] = useState<string>("relacionado");
   const [note, setNote] = useState("");
+  const [options, setOptions] = useState<EntryOption[] | null>(null);
+
+  const openEditor = () => {
+    if (options) {
+      setOpen(true);
+      return;
+    }
+    start(async () => {
+      const loaded = await getEntryOptionsAction(entryId);
+      setOptions(loaded);
+      setOpen(true);
+    });
+  };
 
   const add = () => {
     if (!toId) {
@@ -82,9 +93,9 @@ export function RelationEditor({
           {relations.map((r) => (
             <li key={r.id} className="flex items-center gap-2 text-sm">
               <span className="text-faint">{OS_RELATION_LABEL[r.type] ?? r.type}</span>
-              <Link href={entryHref(r.otherId)} className="text-lavender hover:underline">
+              <IntentLink href={entryHref(r.otherId)} className="text-lavender hover:underline">
                 {r.otherTitle}
-              </Link>
+              </IntentLink>
               <button
                 type="button"
                 onClick={() => remove(r.id)}
@@ -111,7 +122,7 @@ export function RelationEditor({
             </Select>
             <Select value={toId} onChange={(e) => setToId(e.target.value)} aria-label="Entrada de destino">
               <option value="">Elige una entrada…</option>
-              {options.map((o) => (
+              {(options ?? []).map((o) => (
                 <option key={o.id} value={o.id}>{o.title}</option>
               ))}
             </Select>
@@ -127,7 +138,7 @@ export function RelationEditor({
           </div>
         </div>
       ) : (
-        <Button size="sm" variant="secondary" className="mt-3" onClick={() => setOpen(true)}>
+        <Button size="sm" variant="secondary" className="mt-3" onClick={openEditor} disabled={pending}>
           <Plus className="h-3.5 w-3.5" /> Añadir relación
         </Button>
       )}

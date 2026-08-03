@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { entryHref } from "../_sections";
 import { OS_RELATION_LABEL } from "../_config";
 
@@ -35,7 +35,7 @@ export function RelationshipGraph({ center, relations }: { center: GraphNode; re
           {rels.map((r, i) => {
             const p = pts[i];
             return (
-              <Link key={r.id} href={entryHref(r.otherId)} prefetch={false}>
+              <Link key={r.id} href={entryHref(r.otherId)}>
                 <g>
                   <circle cx={p.x} cy={p.y} r="8" fill="#1e1b24" stroke="rgba(225,232,240,0.22)" />
                   <text x={p.x} y={p.y + (p.y < cy ? -14 : 22)} textAnchor="middle" fontSize="10" fill="#aab2be">{short(r.otherTitle)}</text>

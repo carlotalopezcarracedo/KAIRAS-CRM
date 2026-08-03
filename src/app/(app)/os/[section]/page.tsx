@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
@@ -34,35 +35,58 @@ function render(slug: string, entries: SectionEntry[]) {
 }
 
 export default async function OsSectionPage({ params }: { params: Promise<{ section: string }> }) {
-  const userPromise = requireUser();
   const { section } = await params;
   const canonical = canonicalSectionSlug(section);
   if (canonical && canonical !== section) redirect(`/os/${canonical}`);
   const cfg = getSection(section);
   if (!cfg) notFound();
 
-  const includeHistoric =
-    section === "marca" || section === "visual" || section === "constitucion";
-  const [, entries] = await Promise.all([
-    userPromise,
-    getSectionEntries(
-      { areas: cfg.areas, types: cfg.types },
-      { includeHistoric },
-    ),
-  ]);
-
   return (
     <div>
       <SectionHero
         section={cfg}
-        count={cfg.slug === "estrategia" ? undefined : entries.length}
         actions={
-          <ButtonLink href="/os/nuevo" variant="secondary" size="sm">
+          <ButtonLink href="/os/nuevo" prefetch={false} variant="secondary" size="sm">
             <Plus className="h-3.5 w-3.5" /> Nueva
           </ButtonLink>
         }
       />
-      {render(cfg.slug, entries)}
+      <Suspense fallback={<SectionEntriesFallback />}>
+        <SectionEntries section={section} config={cfg} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function SectionEntries({
+  section,
+  config,
+}: {
+  section: string;
+  config: NonNullable<ReturnType<typeof getSection>>;
+}) {
+  const userPromise = requireUser();
+  const entriesPromise = getSectionEntries(
+    { areas: config.areas, types: config.types },
+    {
+      includeHistoric:
+        section === "marca" || section === "visual" || section === "constitucion",
+    },
+  );
+  const [, entries] = await Promise.all([userPromise, entriesPromise]);
+  return render(config.slug, entries);
+}
+
+function SectionEntriesFallback() {
+  return (
+    <div role="status" aria-label="Cargando contenido de la seccion" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div
+          key={index}
+          className="h-40 animate-pulse rounded-2xl border border-line bg-surface"
+        />
+      ))}
+      <span className="sr-only">Preparando contenido operativo...</span>
     </div>
   );
 }

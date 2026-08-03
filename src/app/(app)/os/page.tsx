@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Suspense, type ComponentProps } from "react";
-import NextLink from "next/link";
+import { Suspense } from "react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -14,6 +13,7 @@ import {
   SwatchBook,
 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { StatusBadge } from "@/components/os/os-badges";
 import { formatDate } from "@/lib/utils";
 import { requireUser } from "@/server/auth";
@@ -28,10 +28,6 @@ import { entryHref, sectionForEntry } from "./_sections";
 import styles from "./_components/os.module.css";
 
 export const metadata: Metadata = { title: "KAIRAS OS" };
-
-function Link({ prefetch = false, ...props }: ComponentProps<typeof NextLink>) {
-  return <NextLink {...props} prefetch={prefetch} />;
-}
 
 const TASK_SHORTCUTS = [
   {
@@ -97,7 +93,6 @@ export default function OsDashboard() {
 
       <Link
         href="/os/estrategia"
-        prefetch
         className={`group mt-4 block overflow-hidden rounded-2xl border border-violet-line bg-violet-soft/35 p-5 sm:p-6 ${styles.lift}`}
       >
         <div className="flex items-start gap-4">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";

@@ -18,6 +18,7 @@ import {
   removeRelation,
   toggleFavorite,
   setEntryTags,
+  listEntryOptions,
 } from "@/server/services/os/knowledge-service";
 import {
   OS_KNOWLEDGE_CACHE_TAG,
@@ -37,6 +38,13 @@ export async function quickSearchAction(q: string): Promise<BaseEntry[]> {
 export async function recordViewAction(entryId: string): Promise<void> {
   const u = await withUser();
   await recordView(entryId, u.ok ? u.userId : undefined);
+}
+
+/** El selector de relaciones se carga solo cuando la usuaria decide abrirlo. */
+export async function getEntryOptionsAction(excludeId: string) {
+  const u = await withUser();
+  if (!u.ok) return [];
+  return listEntryOptions(excludeId);
 }
 
 /** "a, b , c" -> ["a","b","c"] */

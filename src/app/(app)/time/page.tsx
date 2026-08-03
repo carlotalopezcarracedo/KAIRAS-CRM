@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink } from "@/components/navigation/intent-link";
 import {
   Download,
   ChevronLeft,
@@ -29,6 +29,7 @@ import {
   listEntries,
   getTimeSummary,
   getActiveTimer,
+  getTimeEntryExtraOptions,
   type TimeFilters as TimeFiltersType,
 } from "@/server/services/time-service";
 import { HoursBars, DistributionDonut, type DayHours } from "@/components/charts/kairas-charts";
@@ -37,7 +38,6 @@ import { TimeFilters } from "./time-filters";
 import { TimerBar, type TimerBarActive } from "./timer-bar";
 import { WeekGrid, type GridDay, type GridEntry } from "./week-grid";
 import { StartTimerButton } from "./start-timer-button";
-import type { EntrySelectData } from "./entry-form";
 
 export const metadata: Metadata = { title: "Tiempo" };
 
@@ -155,7 +155,15 @@ export default async function TimePage({
     billable: raw.billable === "1" ? true : raw.billable === "0" ? false : undefined,
   };
 
-  const [entries, summary, activeTimer, clients, projects, services, tasks] =
+  const [
+    entries,
+    summary,
+    activeTimer,
+    clients,
+    projects,
+    recentEntry,
+    extraOptions,
+  ] =
     await Promise.all([
       listEntries(user.id, { from, to }, filters),
       getTimeSummary(user.id, { from, to }, filters),
@@ -170,39 +178,30 @@ export default async function TimePage({
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
-      prisma.service.findMany({
-        where: { active: true, deletedAt: null },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
+      prisma.timeEntry.findFirst({
+        where: { userId: user.id, deletedAt: null },
+        orderBy: { startedAt: "desc" },
+        select: {
+          title: true,
+          projectId: true,
+          clientId: true,
+          billable: true,
+        },
       }),
-      prisma.task.findMany({
-        where: { deletedAt: null, status: { in: ["todo", "in_progress", "waiting"] } },
-        orderBy: { updatedAt: "desc" },
-        take: 100,
-        select: { id: true, title: true },
-      }),
+      view === "grid"
+        ? getTimeEntryExtraOptions()
+        : Promise.resolve({ services: [], tasks: [] }),
     ]);
 
-  const selects: EntrySelectData = { clients, projects, services, tasks };
+  const entrySelects = { clients, projects, ...extraOptions };
+
   const timerTooLong = activeTimer && isTimerTooLong(activeTimer.startedAt);
 
   // Timer para la barra estilo Toggl (con nombres)
   let timerBarActive: TimerBarActive = null;
   if (activeTimer) {
-    const [timerProject, timerClient] = await Promise.all([
-      activeTimer.projectId
-        ? prisma.project.findUnique({
-            where: { id: activeTimer.projectId },
-            select: { name: true },
-          })
-        : null,
-      activeTimer.clientId
-        ? prisma.client.findUnique({
-            where: { id: activeTimer.clientId },
-            select: { name: true },
-          })
-        : null,
-    ]);
+    const timerProject = projects.find((item) => item.id === activeTimer.projectId);
+    const timerClient = clients.find((item) => item.id === activeTimer.clientId);
     timerBarActive = {
       startedAt: activeTimer.startedAt.toISOString(),
       accumulatedSeconds: activeTimer.accumulatedSeconds,
@@ -214,20 +213,12 @@ export default async function TimePage({
   }
 
   // Última entrada (para "reanudar" cuando el cronómetro está parado)
-  let lastEntry: {
+  const lastEntry: {
     title: string | null;
     projectId: string | null;
     clientId: string | null;
     billable: boolean;
-  } | null = null;
-  if (!activeTimer) {
-    const recent = await prisma.timeEntry.findFirst({
-      where: { userId: user.id, deletedAt: null },
-      orderBy: { startedAt: "desc" },
-      select: { title: true, projectId: true, clientId: true, billable: true },
-    });
-    if (recent) lastEntry = recent;
-  }
+  } | null = activeTimer ? null : recentEntry;
 
   // Navegación de la vista calendario
   const otherParams = new URLSearchParams();
@@ -327,7 +318,7 @@ export default async function TimePage({
         actions={
           <>
             <div className="flex rounded-full border border-line bg-surface p-0.5">
-              <Link
+              <IntentLink
                 href={listUrl}
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-colors",
@@ -338,8 +329,8 @@ export default async function TimePage({
               >
                 <Rows3 className="h-3.5 w-3.5" />
                 Lista
-              </Link>
-              <Link
+              </IntentLink>
+              <IntentLink
                 href={gridUrl(new Date())}
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold transition-colors",
@@ -350,7 +341,7 @@ export default async function TimePage({
               >
                 <CalendarDays className="h-3.5 w-3.5" />
                 Calendario
-              </Link>
+              </IntentLink>
             </div>
             <a
               href={`/time/export?${exportParams.toString()}`}
@@ -360,7 +351,11 @@ export default async function TimePage({
               <Download className="h-3.5 w-3.5" />
               Extracto
             </a>
-            <ManualEntryDialog selects={selects} />
+            <ManualEntryDialog
+              clients={clients}
+              projects={projects}
+              initialExtras={view === "grid" ? extraOptions : undefined}
+            />
           </>
         }
       />
@@ -385,24 +380,24 @@ export default async function TimePage({
       {/* Navegación semanal (vista calendario) */}
       {view === "grid" ? (
         <div className="mb-4 flex items-center gap-1.5">
-          <Link
+          <IntentLink
             href={gridUrl(addDays(weekFrom, -7))}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-mist hover:text-foam"
           >
             <ChevronLeft className="h-4 w-4" />
-          </Link>
-          <Link
+          </IntentLink>
+          <IntentLink
             href={gridUrl(new Date())}
             className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-xs font-semibold text-mist hover:text-foam"
           >
             Esta semana
-          </Link>
-          <Link
+          </IntentLink>
+          <IntentLink
             href={gridUrl(addDays(weekFrom, 7))}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-mist hover:text-foam"
           >
             <ChevronRight className="h-4 w-4" />
-          </Link>
+          </IntentLink>
         </div>
       ) : null}
 
@@ -430,7 +425,7 @@ export default async function TimePage({
       </div>
 
       {view === "grid" ? (
-        <WeekGrid days={gridDays} entries={gridEntries} selects={selects} />
+        <WeekGrid days={gridDays} entries={gridEntries} selects={entrySelects} />
       ) : (
         <>
           {/* Analítica */}
@@ -499,7 +494,7 @@ export default async function TimePage({
                             key={entry.id}
                             className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 transition-colors hover:border-line-strong"
                           >
-                            <Link
+                            <IntentLink
                               href={`/time/${entry.id}`}
                               className="flex min-w-0 flex-1 items-center gap-3"
                             >
@@ -539,7 +534,7 @@ export default async function TimePage({
                                   ? formatMoney(entry.calculatedAmount?.toString())
                                   : "no fact."}
                               </span>
-                            </Link>
+                            </IntentLink>
                             <StartTimerButton
                               compact
                               title={entry.title ?? undefined}

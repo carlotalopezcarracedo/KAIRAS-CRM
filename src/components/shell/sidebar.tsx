@@ -1,20 +1,20 @@
 "use client";
 
-import Link, { useLinkStatus } from "next/link";
+import { useLinkStatus } from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { IntentLink } from "@/components/navigation/intent-link";
 import { NAV_SECTIONS } from "./nav-items";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const prefetch = pathname.startsWith("/os") ? false : null;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-line bg-surface/60 backdrop-blur lg:flex">
       <div className="px-6 pb-6 pt-7">
-        <Link href="/dashboard" prefetch={prefetch} className="block">
+        <IntentLink href="/dashboard" className="block">
           <Image
             src="/brand/kairas-logo-horizontal.png"
             alt="KAIRAS"
@@ -24,7 +24,7 @@ export function Sidebar() {
             className="h-auto w-32"
           />
           <span className="k-label mt-2 block">os</span>
-        </Link>
+        </IntentLink>
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
@@ -35,12 +35,10 @@ export function Sidebar() {
               {section.items.map((item) => {
                 const active =
                   pathname === item.href || pathname.startsWith(item.href + "/");
-                const isOsEntry = item.href === "/os";
                 return (
                   <li key={item.href}>
-                    <Link
+                    <IntentLink
                       href={item.href}
-                      prefetch={isOsEntry && !pathname.startsWith("/os") ? true : prefetch}
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                         active
@@ -55,8 +53,8 @@ export function Sidebar() {
                         )}
                       />
                       {item.label}
-                      {isOsEntry ? <OsLinkPending /> : null}
-                    </Link>
+                      <NavLinkPending />
+                    </IntentLink>
                   </li>
                 );
               })}
@@ -68,16 +66,17 @@ export function Sidebar() {
   );
 }
 
-function OsLinkPending() {
+function NavLinkPending() {
   const { pending } = useLinkStatus();
   return (
-    <span className="ml-auto grid h-4 w-4 place-items-center" aria-hidden>
-      <LoaderCircle
-        className={cn(
-          "h-3.5 w-3.5 transition-opacity",
-          pending ? "animate-spin opacity-100" : "opacity-0",
-        )}
-      />
+    <span
+      className={cn(
+        "ml-auto grid h-4 w-4 place-items-center transition-opacity",
+        pending ? "animate-spin opacity-100" : "opacity-0",
+      )}
+      aria-hidden
+    >
+      <LoaderCircle className="h-3.5 w-3.5" />
     </span>
   );
 }

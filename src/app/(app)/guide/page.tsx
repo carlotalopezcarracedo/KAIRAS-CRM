@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
 

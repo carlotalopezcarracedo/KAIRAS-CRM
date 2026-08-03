@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
 import { dateKey } from "@/lib/utils";
@@ -18,11 +19,32 @@ const LOCKED_STATUSES: TimeEntryStatus[] = ["queued_for_invoice", "invoiced"];
 // Cronómetro
 // ---------------------------------------------------------------------------
 
-export async function getActiveTimer(userId: string) {
+export const getActiveTimer = cache(async function getActiveTimer(userId: string) {
   return prisma.timerSession.findFirst({
     where: { userId, active: true },
     orderBy: { createdAt: "desc" },
   });
+});
+
+/** Catálogos usados únicamente por el formulario de entrada manual. */
+export async function getTimeEntryExtraOptions() {
+  const [services, tasks] = await Promise.all([
+    prisma.service.findMany({
+      where: { active: true, deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.task.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ["todo", "in_progress", "waiting"] },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+      select: { id: true, title: true },
+    }),
+  ]);
+  return { services, tasks };
 }
 
 /**

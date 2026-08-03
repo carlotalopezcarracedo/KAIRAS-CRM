@@ -1,5 +1,5 @@
 import * as React from "react";
-import Link from "next/link";
+import { IntentLink } from "@/components/navigation/intent-link";
 import { cn } from "@/lib/utils";
 
 export function StatCard({
@@ -38,5 +38,5 @@ export function StatCard({
       {hint ? <p className="mt-1 text-xs text-faint">{hint}</p> : null}
     </div>
   );
-  return href ? <Link href={href}>{inner}</Link> : inner;
+  return href ? <IntentLink href={href}>{inner}</IntentLink> : inner;
 }

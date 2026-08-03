@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

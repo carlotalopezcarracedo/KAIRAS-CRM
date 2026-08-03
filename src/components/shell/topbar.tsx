@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import Image from "next/image";
 import { Plus, LogOut } from "lucide-react";
 import { signOut } from "@/server/auth";
@@ -14,7 +14,19 @@ async function signOutAction() {
 
 async function ActiveTimer({ userId }: { userId: string }) {
   let activeTimer: ActiveTimerData = null;
-  const timer = await getActiveTimer(userId);
+  let timer;
+  try {
+    timer = await getActiveTimer(userId);
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "active_timer_load_failed",
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    return <TimerWidget active={null} />;
+  }
   if (timer) {
     activeTimer = {
       id: timer.id,

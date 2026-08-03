@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { ArrowLeft, Download } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";

@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import {
   FileText, Lightbulb, FlaskConical, Scale, Landmark, Target,
   MessageSquareText, Megaphone, Palette, BookOpen, Package, Building2,
@@ -72,7 +72,6 @@ export function KnowledgeCard({ entry, badge }: { entry: CardEntry; badge?: Reac
   return (
     <Link
       href={entryHref(entry.id)}
-      prefetch={false}
       className={cn(
         "group flex flex-col gap-3 rounded-2xl border border-line bg-surface p-5",
         styles.lift,

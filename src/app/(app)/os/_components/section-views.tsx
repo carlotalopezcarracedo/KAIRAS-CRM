@@ -1,5 +1,3 @@
-import type { ComponentProps } from "react";
-import NextLink from "next/link";
 import Image from "next/image";
 import {
   Check,
@@ -20,6 +18,7 @@ import {
   Repeat2,
 } from "lucide-react";
 import { CopyButton } from "@/components/os/copy-button";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { StatusBadge, AuthorityBadge } from "@/components/os/os-badges";
 import { KnowledgeCard, CardGrid, Empty, TypeIcon } from "./os-ui";
 import { OS_TYPE_LABEL, OS_STATUS } from "../_config";
@@ -30,9 +29,6 @@ import type { SectionEntry } from "@/server/services/os/os-views-service";
 import type { OsEntryType } from "@/types/os";
 
 type E = SectionEntry;
-function Link(props: ComponentProps<typeof NextLink>) {
-  return <NextLink {...props} prefetch={false} />;
-}
 const meta = (e: E) => (e.meta && typeof e.meta === "object" ? (e.meta as Record<string, unknown>) : {});
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 const arr = (v: unknown) => (Array.isArray(v) ? v.map(String) : undefined);

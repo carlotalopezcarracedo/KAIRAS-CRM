@@ -1,5 +1,5 @@
 import * as React from "react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { cn } from "@/lib/utils";
 
 const base =
