@@ -87,15 +87,15 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...   # NUNCA en el frontend
 SUPABASE_STORAGE_BUCKET=kairas-files
 MAX_FILE_MB=4
 META_API_VERSION=v23.0
-ODOO_INTEGRATION_MODE=csv
+ODOO_INTEGRATION_MODE=api
 # Vacías hasta tener credenciales:
 META_PIXEL_ID=
 META_ACCESS_TOKEN=
 META_TEST_EVENT_CODE=
-ODOO_BASE_URL=
-ODOO_DB=
-ODOO_USERNAME=
-ODOO_API_KEY=
+ODOO_BASE_URL=https://tu-instancia.odoo.com
+ODOO_DB=                 # opcional; nombre de BD, nunca una URL
+ODOO_USERNAME=           # usuario bot dedicado (referencia)
+ODOO_API_KEY=            # key del bot con permisos solo Read
 ```
 
 ### Local (`.env`) — sin cambios

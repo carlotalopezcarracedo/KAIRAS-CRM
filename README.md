@@ -69,7 +69,8 @@ Módulos **funcionales** (datos reales, validación Zod, audit log, responsive):
 - ✅ Finanzas: cola de facturación → Odoo (manual/horas/recurrentes),
   snapshots de facturas con estados de cobro, export CSV Odoo
 - ✅ Servicios: catálogo editable
-- ✅ Integraciones: Odoo (CSV operativo, API preparada) y Meta CAPI
+- ✅ Integraciones: Odoo (API JSON-2 financiera de solo lectura + CSV) y
+  Meta CAPI
   (eventos automáticos en cola, envío solo con credenciales y consentimiento)
 - ✅ Ajustes: datos KAIRAS, preferencias, seguridad, tarifas
 

@@ -30,7 +30,7 @@
 | Recurrentes | ✅ | «Facturar ciclo» es manual; no hay cron que lo haga solo |
 | Finanzas / cola | ✅ | Desde manual/horas/recurrente; export CSV Odoo; bloqueo/liberación de horas |
 | Settings | ✅ | Perfil, preferencias, contraseña, tarifas |
-| Integración Odoo | 🟡 | Modo CSV **operativo** (export facturas + contactos con jobs/logs). Cliente API escrito y probado solo contra validación de config 🔌. **Import** de CSVs de Odoo: no construido. Playwright: no implementado a propósito |
+| Integración Odoo | ✅ | API JSON-2 **operativa y de solo lectura**: facturas, cobros, saldos y vencimientos en vivo, sin persistir ni escribir en Odoo. CSV heredado operativo. **Import** de CSVs de Odoo: no construido. Playwright: no implementado a propósito |
 | Integración Meta | 🔌 | Eventos se registran siempre (con consentimiento → hash; sin él → skipped). Envío real: solo con `META_PIXEL_ID`/`META_ACCESS_TOKEN`. El envío HTTP está escrito pero **nunca se ha ejecutado contra Meta real** |
 | Propuestas | ⛔ | Stub. Mientras tanto: oportunidad en etapa «Propuesta enviada» |
 | Campañas | ⛔ | Stub. Los leads ya guardan UTMs y fuente para cuando llegue |

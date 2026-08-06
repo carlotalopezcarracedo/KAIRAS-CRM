@@ -88,7 +88,7 @@ UI (form) → Server Action → requireUser() → Zod.safeParse
 | 3 — CRM | oportunidades, kanban pipeline, ganada/perdida, métricas | ✅ hecha |
 | 4 — Operación | clientes, proyectos, tareas, time tracking + tarifas, calendario, servicios, recurrentes | ✅ hecha |
 | 5 — Finanzas | cola facturación (manual/horas/recurrentes), snapshots, informes | ✅ hecha (propuestas como módulo dedicado: pendiente) |
-| 6 — Integraciones | Odoo CSV operativo + API preparada, Meta CAPI con hooks reales, settings | ✅ hecha (campañas: pendiente) |
+| 6 — Integraciones | Odoo JSON-2 financiero de solo lectura + CSV, Meta CAPI con hooks reales, settings | ✅ hecha (campañas: pendiente) |
 | 7 — Pulido | PWA, tests e2e, deploy a producción | pendiente (deploy documentado en deployment.md) |
 
 Verificación: `scripts/smoke-lead-flow.ts` y `scripts/smoke-operations.ts`

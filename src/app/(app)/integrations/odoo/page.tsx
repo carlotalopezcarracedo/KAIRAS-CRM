@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { IntentLink as Link } from "@/components/navigation/intent-link";
-import { ArrowLeft, Download } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CircleAlert,
+  Cloud,
+  Download,
+  ShieldCheck,
+} from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
 import { prisma } from "@/server/db/prisma";
 import { getOdooConfig } from "@/integrations/odoo/adapter";
+import { getOdooFinancialSnapshot } from "@/integrations/odoo/finance";
 
 export const metadata: Metadata = { title: "Odoo" };
 
@@ -28,6 +37,103 @@ const jobStatusTone = {
   cancelled: "neutral",
 } as const;
 
+async function ApiReadOnlyCard() {
+  const snapshot = await getOdooFinancialSnapshot();
+
+  return (
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>API financiera de Odoo</CardTitle>
+          <p className="mt-1 text-xs text-faint">JSON-2 · account.move</p>
+        </div>
+        <Badge tone="violet">
+          <ShieldCheck className="h-3 w-3" /> Solo lectura
+        </Badge>
+      </CardHeader>
+      <CardBody>
+        {snapshot.ok ? (
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="ok">
+                <Cloud className="h-3 w-3" /> Conexión verificada
+              </Badge>
+              <span className="text-xs text-faint">
+                {snapshot.summary.records} facturas visibles · consultado{" "}
+                {formatDateTime(snapshot.fetchedAt)}
+              </span>
+            </div>
+            <p className="mt-4 text-sm text-mist">
+              KAIRAS consulta facturas, estados de cobro, importes y vencimientos
+              directamente en Odoo. Los datos no se copian ni se modifican.
+            </p>
+            <Link
+              href="/finance#odoo-readonly"
+              className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-violet px-5 text-sm font-semibold text-white transition-colors hover:bg-violet/85"
+            >
+              Ver finanzas de Odoo
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3">
+            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
+            <div>
+              <p className="text-sm font-semibold text-foam">
+                Conexión no disponible
+              </p>
+              <p className="mt-1 text-sm text-mist">{snapshot.message}</p>
+            </div>
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function ApiReadOnlyCardSkeleton() {
+  return (
+    <Card>
+      <CardBody>
+        <div className="h-5 w-48 animate-pulse rounded bg-raise" />
+        <div className="mt-4 h-14 animate-pulse rounded bg-raise" />
+      </CardBody>
+    </Card>
+  );
+}
+
+function CsvOperationsCard({ queueCount }: { queueCount: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Modo CSV</CardTitle>
+      </CardHeader>
+      <CardBody className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <a
+            href="/finance/odoo-export"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-violet px-5 text-sm font-semibold text-white transition-colors hover:bg-violet/85"
+          >
+            <Download className="h-4 w-4" />
+            Exportar cola de facturas ({queueCount})
+          </a>
+          <a
+            href="/integrations/odoo/contacts-export"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 text-sm font-semibold text-foam transition-colors hover:bg-raise"
+          >
+            <Download className="h-4 w-4" />
+            Exportar contactos
+          </a>
+        </div>
+        <p className="text-sm text-mist">
+          Este flujo genera archivos para importación manual. No realiza llamadas
+          de escritura a la API de Odoo.
+        </p>
+      </CardBody>
+    </Card>
+  );
+}
+
 export default async function OdooPage() {
   const config = getOdooConfig();
   const [jobs, queueCount] = await Promise.all([
@@ -48,65 +154,27 @@ export default async function OdooPage() {
       </Link>
       <PageHeader
         title="Odoo"
-        subtitle="Fuente de verdad fiscal. KAIRAS OS prepara; Odoo emite."
+        subtitle="La verdad fiscal se consulta desde Odoo; KAIRAS no la modifica."
       />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
-          {/* Acciones CSV */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Modo CSV (operativo)</CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <a
-                  href="/finance/odoo-export"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-violet px-5 text-sm font-semibold text-white transition-colors hover:bg-violet/85"
-                >
-                  <Download className="h-4 w-4" />
-                  Exportar cola de facturas ({queueCount})
-                </a>
-                <a
-                  href="/integrations/odoo/contacts-export"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 text-sm font-semibold text-foam transition-colors hover:bg-raise"
-                >
-                  <Download className="h-4 w-4" />
-                  Exportar contactos (clientes)
-                </a>
-              </div>
-              <div className="rounded-xl border border-line bg-ink/40 p-4 text-sm text-mist">
-                <p className="k-label mb-2">Cómo importar en Odoo</p>
-                <ol className="list-inside list-decimal space-y-1">
-                  <li>
-                    <strong className="text-foam">Contactos:</strong> Contactos →
-                    ⚙ Importar registros → sube el CSV → Odoo mapea las columnas
-                    automáticamente.
-                  </li>
-                  <li>
-                    <strong className="text-foam">Facturas:</strong> Contabilidad →
-                    Facturas de cliente → Importar. Se crean como{" "}
-                    <em>borrador</em>: revisa y valida en Odoo (ahí ocurre lo
-                    fiscal).
-                  </li>
-                  <li>
-                    Tras emitir, registra el número de factura en Finanzas →
-                    «Registrar factura Odoo» para el control de cobros.
-                  </li>
-                </ol>
-              </div>
-            </CardBody>
-          </Card>
+          {config.mode === "api" ? (
+            <Suspense fallback={<ApiReadOnlyCardSkeleton />}>
+              <ApiReadOnlyCard />
+            </Suspense>
+          ) : (
+            <CsvOperationsCard queueCount={queueCount} />
+          )}
 
-          {/* Historial */}
           <Card>
             <CardHeader>
-              <CardTitle>Sincronizaciones ({jobs.length})</CardTitle>
+              <CardTitle>Historial interno ({jobs.length})</CardTitle>
             </CardHeader>
             <CardBody className="space-y-2">
               {jobs.length === 0 ? (
                 <p className="text-sm text-faint">
-                  Sin sincronizaciones aún. Cada export/import queda registrado aquí.
+                  Sin exportaciones o importaciones registradas en KAIRAS.
                 </p>
               ) : (
                 jobs.map((job) => (
@@ -123,7 +191,9 @@ export default async function OdooPage() {
                       </p>
                       <p className="text-xs text-faint">
                         {formatDateTime(job.createdAt)}
-                        {job.itemsTotal != null ? ` · ${job.itemsTotal} elementos` : ""}
+                        {job.itemsTotal != null
+                          ? ` · ${job.itemsTotal} elementos`
+                          : ""}
                         {job.fileName ? ` · ${job.fileName}` : ""}
                       </p>
                       {job.error ? (
@@ -144,7 +214,6 @@ export default async function OdooPage() {
           </Card>
         </div>
 
-        {/* Estado */}
         <div className="space-y-5">
           <Card>
             <CardHeader>
@@ -156,14 +225,18 @@ export default async function OdooPage() {
                 <Badge tone="violet">{config.mode.toUpperCase()}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-mist">API</span>
-                <Badge tone={config.apiConfigured ? "ok" : "neutral"}>
-                  {config.apiConfigured ? "Credenciales OK" : "Sin credenciales"}
-                </Badge>
+                <span className="text-mist">Protocolo</span>
+                <span className="text-xs font-semibold text-foam">JSON-2</span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-mist">Configuración</span>
+                <Badge tone={config.apiConfigured ? "ok" : "neutral"}>
+                  {config.apiConfigured ? "Completa" : "Incompleta"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between gap-3">
                 <span className="text-mist">Servidor</span>
-                <span className="text-xs text-faint">
+                <span className="truncate text-xs text-faint">
                   {config.baseUrl ?? "no definido"}
                 </span>
               </div>
@@ -172,25 +245,21 @@ export default async function OdooPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Activar el modo API</CardTitle>
+              <CardTitle>Protección de datos</CardTitle>
             </CardHeader>
-            <CardBody className="space-y-2 text-sm text-mist">
+            <CardBody className="space-y-3 text-sm text-mist">
               <p>
-                Cuando tu plan de Odoo permita API externa, rellena en{" "}
-                <code className="text-foam">.env</code>:
+                El cliente de KAIRAS solo contiene una consulta fija a facturas de
+                cliente: <code className="text-foam">search_read</code>.
               </p>
-              <pre className="overflow-x-auto rounded-lg bg-ink px-3 py-2 text-xs text-faint">
-                {`ODOO_BASE_URL=
-ODOO_DB=
-ODOO_USERNAME=
-ODOO_API_KEY=
-ODOO_INTEGRATION_MODE=api`}
-              </pre>
-              <p className="text-xs text-faint">
-                El cliente JSON-RPC (contactos y facturas) ya está preparado en{" "}
-                <code>src/integrations/odoo</code>. El modo Playwright queda
-                deliberadamente sin implementar: requiere autorización explícita
-                y nunca debe tocar datos fiscales sin revisión.
+              <ul className="list-inside list-disc space-y-1 text-xs text-faint">
+                <li>Sin crear, editar, validar ni eliminar facturas.</li>
+                <li>Sin sincronización inversa hacia Odoo.</li>
+                <li>Sin persistir los datos de Odoo en KAIRAS.</li>
+              </ul>
+              <p className="rounded-xl border border-warn/25 bg-warn-soft p-3 text-xs text-warn">
+                Para una garantía completa, la API key debe pertenecer a un usuario
+                dedicado de Odoo con permisos de modelo solo Read.
               </p>
             </CardBody>
           </Card>
