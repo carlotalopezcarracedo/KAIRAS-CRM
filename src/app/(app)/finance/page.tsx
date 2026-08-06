@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { Plus, Download } from "lucide-react";
+import {
+  OdooFinancialPanel,
+  OdooFinancialPanelSkeleton,
+} from "@/components/finance/odoo-financial-panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney, formatDate, formatDuration } from "@/lib/utils";
 import { prisma } from "@/server/db/prisma";
+import { getOdooConfig } from "@/integrations/odoo/adapter";
+import {
+  getOdooFinancialSnapshot,
+  type OdooFinancialSnapshot,
+} from "@/integrations/odoo/finance";
 import {
   getFinanceOverview,
   listDrafts,
@@ -18,7 +28,18 @@ import { RecordDialog } from "./record-dialog";
 
 export const metadata: Metadata = { title: "Finanzas" };
 
+async function OdooFinancialSection({
+  snapshotPromise,
+}: {
+  snapshotPromise: Promise<OdooFinancialSnapshot>;
+}) {
+  const snapshot = await snapshotPromise;
+  return <OdooFinancialPanel snapshot={snapshot} />;
+}
+
 export default async function FinancePage() {
+  const odooSnapshotPromise = getOdooFinancialSnapshot();
+  const odooConfig = getOdooConfig();
   const [overview, drafts, records, clients] = await Promise.all([
     getFinanceOverview(),
     listDrafts(),
@@ -41,16 +62,18 @@ export default async function FinancePage() {
     <div>
       <PageHeader
         title="Finanzas"
-        subtitle="Control interno. La verdad fiscal vive en Odoo."
+        subtitle="Datos reales de Odoo en solo lectura y control interno de KAIRAS."
         actions={
           <>
-            <a
-              href="/finance/odoo-export"
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-mist transition-colors hover:text-foam"
-            >
-              <Download className="h-3.5 w-3.5" />
-              CSV para Odoo
-            </a>
+            {odooConfig.mode !== "api" ? (
+              <a
+                href="/finance/odoo-export"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-mist transition-colors hover:text-foam"
+              >
+                <Download className="h-3.5 w-3.5" />
+                CSV para Odoo
+              </a>
+            ) : null}
             <RecordDialog clients={clients} drafts={linkableDrafts} />
             <ButtonLink href="/finance/queue/new" size="sm">
               <Plus className="h-4 w-4" />
@@ -60,7 +83,20 @@ export default async function FinancePage() {
         }
       />
 
-      {/* KPIs */}
+      <div className="mb-8">
+        <Suspense fallback={<OdooFinancialPanelSkeleton />}>
+          <OdooFinancialSection snapshotPromise={odooSnapshotPromise} />
+        </Suspense>
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-lg font-bold text-foam">Control interno de KAIRAS</h2>
+        <p className="mt-1 text-sm text-mist">
+          Solicitudes, horas y snapshots propios. Estas acciones no escriben en
+          Odoo.
+        </p>
+      </div>
+
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Pendiente de emitir"

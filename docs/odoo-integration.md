@@ -1,51 +1,74 @@
 # Integración con Odoo — KAIRAS OS
 
-**Principio: Odoo es la fuente de verdad fiscal.** KAIRAS OS nunca emite
-facturas legales; prepara solicitudes, exporta datos y guarda snapshots.
+**Principio: Odoo es la fuente de verdad fiscal.** KAIRAS consulta sus datos
+financieros, pero no crea, valida, edita ni elimina registros en Odoo.
 
-## Modos (`ODOO_INTEGRATION_MODE`)
+## API de solo lectura
 
-| Modo | Estado | Qué hace |
-| --- | --- | --- |
-| `csv` | ✅ operativo | Export/import por CSV compatibles con Odoo |
-| `api` | 🔌 preparado, sin credenciales | Cliente JSON-RPC en `src/integrations/odoo/adapter.ts` |
-| `playwright` | ⛔ no implementado a propósito | Solo se implementará con autorización explícita y nunca para emitir facturas |
+La integración operativa usa la API JSON-2 de Odoo 19:
 
-## Flujo de facturación (modo CSV)
+```txt
+POST /json/2/account.move/search_read
+```
 
-1. **Se genera una solicitud** (`InvoiceDraftRequest`) desde:
-   - Finanzas → «Solicitud de factura» (manual),
-   - Finanzas → «Desde horas aprobadas» (agrupa TimeEntries aprobadas),
-   - Recurrentes → «Facturar ciclo» (avanza el próximo ciclo).
-2. **Exportar**: Finanzas → «CSV para Odoo» (o Integraciones → Odoo).
-   Las solicitudes pasan a estado `queued` y se registra un `OdooSyncJob`.
-3. **Importar en Odoo**: Contabilidad → Facturas de cliente → Importar.
-   Las facturas se crean como **borrador**; revisar y validar en Odoo.
-4. **Registrar el resultado**: Finanzas → «Registrar factura Odoo» con el
-   número real, vinculándola a la solicitud. Esto:
-   - marca la solicitud como `created_in_odoo`,
-   - bloquea las horas incluidas (`invoiced` + `lockedAt`),
-   - habilita el seguimiento de cobro (estados sent/paid/overdue).
-5. **Cobro**: cambiar el snapshot a «Cobrada» registra `paidAt` y dispara
-   el evento interno `invoice_paid` (cola Meta).
+El modelo y el método están fijados en el cliente. No existe un ejecutor RPC
+genérico ni métodos `create`, `write`, `unlink` o `action_post`.
 
-## Contactos
+Datos mostrados en `/finance`:
 
-Integraciones → Odoo → «Exportar contactos» genera un CSV `res.partner`
-(name, vat, email, phone, street, city, is_company) importable directamente.
+- facturas y rectificativas de cliente;
+- cliente, fecha y vencimiento;
+- estado contable y estado de cobro;
+- base, impuestos, total y saldo pendiente;
+- resumen facturado, cobrado, pendiente y vencido.
 
-## Qué se enviaría por API cuando se active
+La consulta se hace en vivo. Estos registros no se copian a PostgreSQL ni se
+crean `OdooSyncJob` por cada lectura.
 
-- Leer/crear contactos (`res.partner`).
-- Leer facturas y estados de pago (`account.move`) para sincronizar
-  snapshots automáticamente.
-- Crear facturas **borrador** desde la cola (nunca validar/emitir).
+## Variables
 
-Activación: rellenar `ODOO_BASE_URL`, `ODOO_DB`, `ODOO_USERNAME`,
-`ODOO_API_KEY` y `ODOO_INTEGRATION_MODE=api`. El cliente ya valida
-credenciales y falla claro si faltan.
+```env
+ODOO_BASE_URL=https://tu-instancia.odoo.com
+ODOO_DB=
+ODOO_USERNAME=bot-kairas@tu-dominio.com
+ODOO_API_KEY=
+ODOO_INTEGRATION_MODE=api
+```
 
-## Logs
+- `ODOO_BASE_URL`: origen de la instancia. Aunque se configure una ruta como
+  `/odoo`, KAIRAS la normaliza al origen requerido por JSON-2.
+- `ODOO_DB`: opcional. Solo se envía como `X-Odoo-Database` si contiene un
+  nombre de base válido. Una URL se ignora para evitar seleccionar una base
+  incorrecta.
+- `ODOO_USERNAME`: referencia del usuario bot; JSON-2 autentica con la API key.
+- `ODOO_API_KEY`: secreto de servidor, nunca se expone al navegador.
 
-Todos los exports/imports quedan en `OdooSyncJob` (tipo, modo, estado,
-elementos, errores, archivo) visibles en Integraciones → Odoo.
+## Garantía completa de solo lectura
+
+La aplicación no contiene operaciones de escritura, pero la API key hereda los
+permisos de su usuario en Odoo. Para limitar también la credencial:
+
+1. Crear un usuario bot dedicado para KAIRAS.
+2. Darle acceso de lectura a Contabilidad y al modelo `account.move`.
+3. Desactivar `Write`, `Create` y `Delete` en sus ACL/grupos.
+4. Generar una API key exclusiva para esta integración.
+5. Rotarla antes de que caduque y actualizarla en Vercel.
+
+Los permisos de Odoo son aditivos: si otro grupo del bot concede escritura,
+esa escritura seguirá permitida. Hay que revisar todos sus grupos.
+
+## Modo CSV heredado
+
+El modo `csv` sigue disponible para exportaciones manuales, pero se oculta en
+la interfaz cuando `ODOO_INTEGRATION_MODE=api`. Ninguna exportación CSV llama a
+la API de Odoo.
+
+## Diagnóstico
+
+- `401`: API key inválida o caducada.
+- `403`: el usuario no puede leer Contabilidad.
+- `404`: host/base incorrectos o JSON-2 no disponible.
+- timeout: Odoo no respondió dentro del límite de la consulta.
+
+La pantalla `/integrations/odoo` comprueba la conexión con una lectura real y
+`/finance` muestra los datos financieros.

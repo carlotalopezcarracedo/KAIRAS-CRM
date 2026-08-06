@@ -36,8 +36,8 @@ export default async function IntegrationsPage() {
             <div>
               <h2 className="text-lg font-bold text-foam">Odoo</h2>
               <p className="mt-1 text-sm text-mist">
-                Facturación y contactos. Cola de facturas, export/import CSV y
-                cliente API preparado.
+                Facturas, cobros y vencimientos consultados en vivo mediante una
+                conexión API sin operaciones de escritura.
               </p>
             </div>
             <ArrowRight className="h-5 w-5 text-faint transition-transform group-hover:translate-x-1 group-hover:text-lavender" />
@@ -45,9 +45,14 @@ export default async function IntegrationsPage() {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Badge tone="violet">Modo: {odoo.mode.toUpperCase()}</Badge>
             {odoo.mode === "api" ? (
-              <Badge tone={odoo.apiConfigured ? "ok" : "warn"}>
-                {odoo.apiConfigured ? "API configurada" : "API sin credenciales"}
-              </Badge>
+              <>
+                <Badge tone={odoo.apiConfigured ? "ok" : "warn"}>
+                  {odoo.apiConfigured
+                    ? "API configurada"
+                    : "API sin credenciales"}
+                </Badge>
+                <Badge tone="violet">Solo lectura</Badge>
+              </>
             ) : (
               <Badge tone="ok">CSV operativo</Badge>
             )}
