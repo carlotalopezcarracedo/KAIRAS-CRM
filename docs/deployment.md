@@ -46,9 +46,16 @@ Supabase da tres formas de conexión. Usamos **dos** (la conexión directa
 domésticas — no la uses):
 
 - **Transaction pooler** (puerto **6543**) → `DATABASE_URL` (runtime).
-  Añade `?sslmode=require&pgbouncer=true&connection_limit=1` (PgBouncer en
-  modo transacción no soporta prepared statements; el flag lo desactiva en
-  Prisma).
+  Añade `?sslmode=require&pgbouncer=true` (PgBouncer en modo transacción no
+  soporta prepared statements; el flag lo desactiva en Prisma).
+
+  > **No pongas `connection_limit=1`.** Con un solo enlace Prisma serializa:
+  > el `Promise.all` de 17 consultas del panel deja de ser paralelo y se
+  > ejecuta de una en una, sumando 17 viajes de ida y vuelta. El código
+  > normaliza el valor a 10 en `src/server/db/prisma.ts`, así que una URL
+  > antigua con `connection_limit=1` ya no penaliza; puedes ajustarlo con
+  > `DATABASE_CONNECTION_LIMIT`. El pooler está en modo transacción y
+  > multiplexa: varios enlaces por instancia son justo su caso de uso.
 - **Session pooler** (puerto **5432**, host `...pooler.supabase.com`) →
   `DIRECT_DATABASE_URL` (migraciones), con `?sslmode=require`. Funciona por
   IPv4.
@@ -73,7 +80,7 @@ sesión — `prisma migrate deploy` usará automáticamente la correcta.
 ### Producción (Vercel → Settings → Environment Variables)
 
 ```env
-DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true&connection_limit=1
+DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
 DIRECT_DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require
 AUTH_SECRET=            # NUEVO: npx auth secret (no reutilizar el de dev)
 AUTH_URL=https://TU-DOMINIO.vercel.app
@@ -147,6 +154,12 @@ npx prisma studio   # abre la BD de Supabase: revisa User, Service, Lead…
 1. Repo a GitHub (**privado**) y Add New Project en vercel.com.
 2. Pega las variables del Paso 3 y despliega.
 
+> **Región.** `vercel.json` fija `"regions": ["fra1"]` (Frankfurt) porque la
+> base está en `aws-0-eu-central-1`. Sin eso Vercel despliega por defecto en
+> `iad1` (Washington) y **cada consulta cruza el Atlántico**: unos 90 ms de
+> ida y vuelta multiplicados por todas las consultas de la página. Si algún
+> día mueves la base de región, mueve también esta.
+
 Errores típicos Prisma/Vercel ya resueltos en el código:
 
 | Problema | Resuelto con |
@@ -158,6 +171,9 @@ Errores típicos Prisma/Vercel ya resueltos en el código:
 | Prepared statements + PgBouncer | `pgbouncer=true` en la URL pooled |
 | Migraciones vs pooler | `directUrl` en el datasource de Prisma |
 | Horas desplazadas (UTC) | `TZ=Europe/Madrid` + agrupación Madrid en código |
+| Funciones lejos de la BD | `regions: ["fra1"]` en `vercel.json` |
+| `Promise.all` serializado | pool normalizado a 10 en `src/server/db/prisma.ts` |
+| Una consulta por relación en `include` | `previewFeatures = ["relationJoins"]` |
 
 ## Paso 6 — Checklist post-deploy
 

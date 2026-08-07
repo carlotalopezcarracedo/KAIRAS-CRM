@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "perf": "tsx scripts/perf-bench.ts",
     "smoke": "tsx scripts/smoke-lead-flow.ts && tsx scripts/smoke-operations.ts && tsx scripts/smoke-files.ts",
     "data:export": "tsx scripts/export-data.ts",
     "data:import": "tsx scripts/import-data.ts",

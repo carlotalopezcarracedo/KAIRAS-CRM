@@ -5,6 +5,9 @@ generator client {
   provider = "prisma-client-js"
   // "native" para desarrollo local; rhel para el runtime de Vercel
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  // `include` de N relaciones pasa de N consultas a una sola con LATERAL JOIN.
+  // Decisivo con el pooler: cada viaje de ida y vuelta se paga a precio de red.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
@@ -524,6 +527,12 @@ model Lead {
   @@index([source])
   @@index([temperature])
   @@index([nextActionAt])
+  // Todas las consultas del servicio filtran `deletedAt: null`. Los indices
+  // de una sola columna obligaban a releer filas para descartar borrados;
+  // estos compuestos resuelven filtro y orden dentro del propio indice.
+  @@index([deletedAt, status, nextActionAt]) // seguimientos del panel
+  @@index([deletedAt, createdAt]) // altas recientes y reparto por origen
+  @@index([deletedAt, temperature, status]) // leads calientes
 }
 
 model Interaction {
@@ -618,6 +627,8 @@ model Opportunity {
 
   @@index([stage])
   @@index([expectedCloseAt])
+  @@index([deletedAt, stage]) // pipeline abierto del panel
+  @@index([deletedAt, clientId])
 }
 
 // ---------------------------------------------------------------------------
@@ -662,6 +673,7 @@ model Client {
   tags              Tag[]              @relation("ClientTags")
 
   @@index([status])
+  @@index([deletedAt, status, name]) // listado: filtra, ordena y pagina
 }
 
 model Service {
@@ -721,6 +733,8 @@ model RecurringService {
   invoiceDrafts InvoiceDraftRequest[]
 
   @@index([status, nextInvoiceAt])
+  @@index([deletedAt, status, nextInvoiceAt]) // MRR y ciclos por facturar
+  @@index([deletedAt, clientId, status])
 }
 
 // ---------------------------------------------------------------------------
@@ -763,6 +777,7 @@ model Proposal {
   invoiceDrafts InvoiceDraftRequest[]
 
   @@index([status])
+  @@index([deletedAt, status]) // propuestas pendientes
 }
 
 model Project {
@@ -806,6 +821,8 @@ model Project {
 
   @@index([status])
   @@index([deadline])
+  @@index([deletedAt, status]) // proyectos activos
+  @@index([deletedAt, clientId, status]) // proyectos de la ficha de cliente
 }
 
 // ---------------------------------------------------------------------------
@@ -846,6 +863,9 @@ model Task {
   tags           Tag[]           @relation("TaskTags")
 
   @@index([status, dueAt])
+  @@index([deletedAt, status, dueAt]) // vencidas y de hoy
+  @@index([deletedAt, projectId])
+  @@index([deletedAt, clientId])
 }
 
 // ---------------------------------------------------------------------------
@@ -906,6 +926,10 @@ model TimeEntry {
   @@index([clientId])
   @@index([projectId])
   @@index([status])
+  // El resumen semanal y los listados filtran siempre por usuaria + rango.
+  @@index([userId, deletedAt, startedAt])
+  @@index([clientId, deletedAt]) // totales de la ficha de cliente
+  @@index([projectId, deletedAt]) // totales de la ficha de proyecto
 }
 
 model TimerSession {
@@ -1001,6 +1025,7 @@ model CalendarEvent {
   deletedAt DateTime?
 
   @@index([startAt])
+  @@index([deletedAt, status, startAt]) // agenda del dia
 }
 
 // ---------------------------------------------------------------------------
@@ -1040,6 +1065,8 @@ model InvoiceRecord {
 
   @@index([status])
   @@index([issuedAt])
+  @@index([deletedAt, status, dueAt]) // cobros pendientes y vencidos
+  @@index([deletedAt, clientId, status]) // totales de la ficha de cliente
 }
 
 model InvoiceDraftRequest {
@@ -1073,6 +1100,7 @@ model InvoiceDraftRequest {
   timeEntries TimeEntry[]
 
   @@index([status])
+  @@index([deletedAt, status]) // borradores en cola
 }
 
 model ExpenseRecord {
