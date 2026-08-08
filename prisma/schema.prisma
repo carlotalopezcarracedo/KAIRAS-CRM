@@ -406,6 +406,7 @@ model User {
   timerSessions TimerSession[]
   auditLogs     AuditLog[]
   attachments   Attachment[]
+  expenses      ExpenseRecord[]
 }
 
 model Company {
@@ -1103,19 +1104,57 @@ model InvoiceDraftRequest {
   @@index([deletedAt, status]) // borradores en cola
 }
 
+enum ExpenseKind {
+  mileage // desplazamiento por km, se calcula con la tarifa €/km
+  fuel // repostaje con ticket
+  toll // peaje; llega desde Odoo
+  per_diem // dietas
+  other
+}
+
+enum ExpenseSource {
+  manual
+  odoo
+}
+
 model ExpenseRecord {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
+  kind        ExpenseKind @default(other)
   description String
   category    String? // libre, configurable en settings
   supplier    String?
-  amountNet   Decimal? @db.Decimal(12, 2)
-  vatAmount   Decimal? @db.Decimal(12, 2)
-  amountTotal Decimal  @db.Decimal(12, 2)
-  currency    String   @default("EUR")
+  amountNet   Decimal?    @db.Decimal(12, 2)
+  vatAmount   Decimal?    @db.Decimal(12, 2)
+  amountTotal Decimal     @db.Decimal(12, 2)
+  currency    String      @default("EUR")
   expenseAt   DateTime
   receiptUrl  String?
   odooRef     String?
   notes       String?
+
+  // --- Desplazamiento por kilómetros ---
+  originPlace      String?
+  destinationPlace String?
+  kilometers       Decimal? @db.Decimal(10, 2)
+  ratePerKm        Decimal? @db.Decimal(6, 3)
+  roundTrip        Boolean  @default(false)
+
+  // --- Dietas ---
+  // El importe legal exento cambia si se pernocta; se guarda el desglose
+  // para poder justificarlo, no solo el total.
+  perDiemDays Int?
+  overnight   Boolean @default(false)
+
+  // Repercutible al cliente. Preparado, todavía sin enganchar a facturación.
+  billable Boolean @default(false)
+
+  // --- Origen del apunte ---
+  source     ExpenseSource @default(manual)
+  // id del account.move de Odoo: evita duplicar peajes al reimportar.
+  odooMoveId Int?
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
   clientId  String?
   client    Client?  @relation(fields: [clientId], references: [id])
@@ -1126,7 +1165,12 @@ model ExpenseRecord {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  @@unique([odooMoveId])
   @@index([expenseAt])
+  @@index([deletedAt, expenseAt])
+  @@index([deletedAt, kind, expenseAt])
+  @@index([deletedAt, projectId])
+  @@index([deletedAt, clientId])
 }
 
 // ---------------------------------------------------------------------------

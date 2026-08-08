@@ -406,6 +406,16 @@ export const CAMPAIGN_CHANNEL: LabelMap<
   other: { label: "Otro", tone: "neutral" },
 };
 
+export const EXPENSE_KIND: LabelMap<
+  "mileage" | "fuel" | "toll" | "per_diem" | "other"
+> = {
+  mileage: { label: "Desplazamiento", tone: "violet" },
+  fuel: { label: "Gasolina", tone: "info" },
+  toll: { label: "Peaje", tone: "warn" },
+  per_diem: { label: "Dieta", tone: "ok" },
+  other: { label: "Otro", tone: "neutral" },
+};
+
 /** Convierte un LabelMap en opciones para <select> */
 export function toOptions<T extends string>(
   map: LabelMap<T>,

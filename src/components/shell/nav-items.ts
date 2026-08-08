@@ -11,6 +11,7 @@ import {
   FileText,
   Repeat2,
   Wallet,
+  ReceiptEuro,
   Megaphone,
   Plug,
   Settings,
@@ -55,6 +56,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Sistema",
     items: [
       { href: "/finance", label: "Finanzas", icon: Wallet },
+      { href: "/expenses", label: "Gastos", icon: ReceiptEuro },
       { href: "/reports", label: "Informes", icon: BarChart3 },
       { href: "/integrations", label: "Integraciones", icon: Plug },
       { href: "/settings", label: "Ajustes", icon: Settings },

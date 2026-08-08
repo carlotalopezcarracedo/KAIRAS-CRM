@@ -7,19 +7,22 @@ import { auth } from "@/server/auth";
 import {
   getCompanyProfile,
   getAppDefaults,
+  getExpenseDefaults,
 } from "@/server/services/settings-service";
 import {
   CompanyProfileForm,
   AppDefaultsForm,
+  ExpenseDefaultsForm,
   PasswordForm,
 } from "./settings-forms";
 
 export const metadata: Metadata = { title: "Ajustes" };
 
 export default async function SettingsPage() {
-  const [profile, defaults, session] = await Promise.all([
+  const [profile, defaults, expenseDefaults, session] = await Promise.all([
     getCompanyProfile(),
     getAppDefaults(),
+    getExpenseDefaults(),
     auth(),
   ]);
 
@@ -47,6 +50,15 @@ export default async function SettingsPage() {
             </CardHeader>
             <CardBody>
               <AppDefaultsForm defaults={defaults} />
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Gastos de viaje</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <ExpenseDefaultsForm defaults={expenseDefaults} />
             </CardBody>
           </Card>
 

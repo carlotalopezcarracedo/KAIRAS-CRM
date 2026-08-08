@@ -7,6 +7,7 @@ import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
 import { setSetting } from "@/server/services/settings-service";
+import { expenseDefaultsSchema } from "@/server/validators/expense";
 import type { ActionResult } from "@/lib/action-result";
 
 function formToObject(formData: FormData): Record<string, string> {
@@ -146,6 +147,34 @@ export async function saveAppDefaultsAction(
     metadata: { key: "app.defaults" },
   });
   revalidatePath("/settings");
+  return { ok: true };
+}
+
+export async function saveExpenseDefaultsAction(
+  _prev: ActionResult | undefined,
+  formData: FormData,
+): Promise<ActionResult> {
+  const auth = await withUser();
+  if (!auth.ok) return auth;
+
+  const parsed = expenseDefaultsSchema.safeParse(formToObject(formData));
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Revisa los campos.",
+      fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  await setSetting("expenses.defaults", parsed.data);
+  await audit({
+    actorId: auth.userId,
+    action: "update",
+    entityType: "Settings",
+    metadata: { key: "expenses.defaults" },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/expenses");
   return { ok: true };
 }
 

@@ -5,10 +5,15 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/action-result";
-import type { CompanyProfile, AppDefaults } from "@/server/services/settings-service";
+import type {
+  CompanyProfile,
+  AppDefaults,
+  ExpenseDefaults,
+} from "@/server/services/settings-service";
 import {
   saveCompanyProfileAction,
   saveAppDefaultsAction,
+  saveExpenseDefaultsAction,
   changePasswordAction,
 } from "./actions";
 
@@ -110,6 +115,71 @@ export function AppDefaultsForm({ defaults }: { defaults: AppDefaults }) {
       ) : null}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Guardando…" : "Guardar preferencias"}
+      </Button>
+    </form>
+  );
+}
+
+export function ExpenseDefaultsForm({ defaults }: { defaults: ExpenseDefaults }) {
+  const [state, formAction, pending] = useActionState<
+    ActionResult | undefined,
+    FormData
+  >(saveExpenseDefaultsAction, undefined);
+
+  useEffect(() => {
+    if (state?.ok) toast.success("Tarifas de gastos guardadas");
+  }, [state]);
+
+  const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="€ por kilómetro" error={errors.ratePerKm?.[0]}>
+          <Input
+            name="ratePerKm"
+            type="number"
+            min={0}
+            step="0.001"
+            defaultValue={String(defaults.ratePerKm)}
+          />
+        </Field>
+        <Field label="Dieta sin pernocta (€)" error={errors.perDiemDay?.[0]}>
+          <Input
+            name="perDiemDay"
+            type="number"
+            min={0}
+            step="0.01"
+            defaultValue={String(defaults.perDiemDay)}
+          />
+        </Field>
+        <Field label="Dieta con pernocta (€)" error={errors.perDiemOvernight?.[0]}>
+          <Input
+            name="perDiemOvernight"
+            type="number"
+            min={0}
+            step="0.01"
+            defaultValue={String(defaults.perDiemOvernight)}
+          />
+        </Field>
+      </div>
+      <Field label="Proveedores de peaje en Odoo" error={errors.tollSuppliers?.[0]}>
+        <Input
+          name="tollSuppliers"
+          defaultValue={defaults.tollSuppliers.join(", ")}
+          placeholder="beep, via-t"
+        />
+      </Field>
+      <p className="text-xs text-faint">
+        Separados por comas. Una factura de proveedor de Odoo se importa como
+        peaje si su nombre contiene alguno de estos textos. Los valores por
+        defecto de kilometraje y dietas son los topes exentos de IRPF.
+      </p>
+      {state && !state.ok && !state.fieldErrors ? (
+        <p className="text-sm text-danger">{state.error}</p>
+      ) : null}
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? "Guardando…" : "Guardar tarifas"}
       </Button>
     </form>
   );

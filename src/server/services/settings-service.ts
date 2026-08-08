@@ -51,10 +51,43 @@ export const DEFAULT_APP: AppDefaults = {
   timeRounding: 0,
 };
 
+export type ExpenseDefaults = {
+  /** €/km del desplazamiento en coche propio. */
+  ratePerKm: number;
+  /** Dieta por día sin pernocta. */
+  perDiemDay: number;
+  /** Dieta por día con pernocta. */
+  perDiemOvernight: number;
+  /**
+   * Fragmentos de nombre de proveedor que identifican peajes en Odoo.
+   * Se comparan en minúsculas y sin acentos contra el nombre del proveedor.
+   */
+  tollSuppliers: string[];
+};
+
+/**
+ * Importes exentos de IRPF vigentes en España para desplazamiento en vehículo
+ * propio y dietas nacionales. Son el tope legal, no una obligación: se pueden
+ * cambiar en Ajustes.
+ */
+export const DEFAULT_EXPENSES: ExpenseDefaults = {
+  ratePerKm: 0.26,
+  perDiemDay: 26.67,
+  perDiemOvernight: 53.34,
+  tollSuppliers: ["beep"],
+};
+
 export function getCompanyProfile() {
   return getSetting<CompanyProfile>("company.profile", DEFAULT_COMPANY);
 }
 
 export function getAppDefaults() {
   return getSetting<AppDefaults>("app.defaults", DEFAULT_APP);
+}
+
+export async function getExpenseDefaults(): Promise<ExpenseDefaults> {
+  const stored = await getSetting<Partial<ExpenseDefaults>>("expenses.defaults", {});
+  // Mezcla con los valores por defecto: si mañana se añade un campo nuevo,
+  // los ajustes ya guardados no se quedan sin él.
+  return { ...DEFAULT_EXPENSES, ...stored };
 }

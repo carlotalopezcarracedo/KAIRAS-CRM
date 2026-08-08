@@ -41,6 +41,26 @@ export type OdooInvoicePage = {
   truncated: boolean;
 };
 
+/** Factura de proveedor (compra). Origen de los peajes en KAIRAS. */
+export type OdooVendorBill = {
+  id: number;
+  number: string;
+  isRefund: boolean;
+  state: string;
+  invoiceDate: string | null;
+  supplierName: string;
+  reference: string | null;
+  amountUntaxed: number;
+  amountTax: number;
+  amountTotal: number;
+  currency: string;
+};
+
+export type OdooVendorBillPage = {
+  bills: OdooVendorBill[];
+  truncated: boolean;
+};
+
 export type OdooReadErrorCode =
   | "NOT_CONFIGURED"
   | "INVALID_URL"
@@ -76,7 +96,7 @@ const manyToOne = z
 const invoiceSchema = z.object({
   id: z.number().int(),
   name: falseableString,
-  move_type: z.enum(["out_invoice", "out_refund"]),
+  move_type: z.enum(["out_invoice", "out_refund", "in_invoice", "in_refund"]),
   state: z.string(),
   payment_state: falseableString,
   invoice_date: falseableString,
@@ -176,7 +196,14 @@ export class OdooReadOnlyClient {
   private readonly config = getOdooConfig();
   private readonly apiKey = process.env.ODOO_API_KEY?.trim() || null;
 
-  async listCustomerInvoices(limit = 200): Promise<OdooInvoicePage> {
+  /**
+   * Único punto de acceso: `account.move/search_read` acotado por move_type.
+   * Sigue sin existir un ejecutor RPC genérico ni ninguna vía de escritura.
+   */
+  private async searchReadMoves(
+    moveTypes: readonly string[],
+    limit: number,
+  ): Promise<{ rows: z.infer<typeof invoiceListSchema>; truncated: boolean }> {
     if (!this.config.apiConfigured || !this.config.baseUrl || !this.apiKey) {
       throw new OdooReadOnlyError(
         "NOT_CONFIGURED",
@@ -199,7 +226,7 @@ export class OdooReadOnlyClient {
           method: "POST",
           headers,
           body: JSON.stringify({
-            domain: [["move_type", "in", ["out_invoice", "out_refund"]]],
+            domain: [["move_type", "in", moveTypes]],
             fields: INVOICE_FIELDS,
             limit: safeLimit + 1,
             order: "invoice_date desc, id desc",
@@ -241,8 +268,19 @@ export class OdooReadOnlyClient {
       );
     }
 
-    const truncated = parsed.data.length > safeLimit;
-    const invoices = parsed.data.slice(0, safeLimit).map<OdooInvoice>((invoice) => ({
+    return {
+      rows: parsed.data.slice(0, safeLimit),
+      truncated: parsed.data.length > safeLimit,
+    };
+  }
+
+  async listCustomerInvoices(limit = 200): Promise<OdooInvoicePage> {
+    const { rows, truncated } = await this.searchReadMoves(
+      ["out_invoice", "out_refund"],
+      limit,
+    );
+
+    const invoices = rows.map<OdooInvoice>((invoice) => ({
       id: invoice.id,
       number: invoice.name ?? `Factura ${invoice.id}`,
       type: invoice.move_type === "out_refund" ? "credit_note" : "invoice",
@@ -260,5 +298,33 @@ export class OdooReadOnlyClient {
     }));
 
     return { invoices, truncated };
+  }
+
+  /**
+   * Facturas de proveedor. KAIRAS las usa para traer los peajes, que se
+   * cargan en la cuenta de empresa y por tanto ya entran en Odoo.
+   */
+  async listVendorBills(limit = 200): Promise<OdooVendorBillPage> {
+    const { rows, truncated } = await this.searchReadMoves(
+      ["in_invoice", "in_refund"],
+      limit,
+    );
+
+    const bills = rows.map<OdooVendorBill>((bill) => ({
+      id: bill.id,
+      number: bill.name ?? `Factura ${bill.id}`,
+      // Un abono de proveedor resta: se refleja con el importe en negativo.
+      isRefund: bill.move_type === "in_refund",
+      state: bill.state,
+      invoiceDate: bill.invoice_date,
+      supplierName: bill.partner_id?.[1] ?? "Sin proveedor",
+      reference: bill.ref,
+      amountUntaxed: bill.amount_untaxed,
+      amountTax: bill.amount_tax,
+      amountTotal: bill.amount_total,
+      currency: bill.currency_id?.[1] ?? DEFAULT_CURRENCY,
+    }));
+
+    return { bills, truncated };
   }
 }
