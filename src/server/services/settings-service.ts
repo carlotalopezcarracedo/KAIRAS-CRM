@@ -21,7 +21,18 @@ export type CompanyProfile = {
   vatId: string;
   email: string;
   phone: string;
+  /** Domicilio fiscal: calle, número, piso. */
   address: string;
+  postalCode: string;
+  city: string;
+  province: string;
+  country: string;
+  /** Régimen: autónoma, sociedad… Aparece en documentos administrativos. */
+  taxRegime: string;
+  /** Epígrafe del IAE, útil al presentar modelos. */
+  iaeCode: string;
+  socialSecurityNumber: string;
+  iban: string;
   web: string;
   instagram: string;
 };
@@ -33,9 +44,26 @@ export const DEFAULT_COMPANY: CompanyProfile = {
   email: "",
   phone: "",
   address: "",
+  postalCode: "",
+  city: "",
+  province: "",
+  country: "España",
+  taxRegime: "autonoma",
+  iaeCode: "",
+  socialSecurityNumber: "",
+  iban: "",
   web: "",
   instagram: "",
 };
+
+/** Domicilio fiscal en una línea, para documentos y facturas. */
+export function formatFiscalAddress(profile: CompanyProfile): string {
+  const cityLine = [profile.postalCode, profile.city].filter(Boolean).join(" ");
+  return [profile.address, cityLine, profile.province, profile.country]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+}
 
 export type AppDefaults = {
   currency: string;
@@ -77,8 +105,11 @@ export const DEFAULT_EXPENSES: ExpenseDefaults = {
   tollSuppliers: ["beep"],
 };
 
-export function getCompanyProfile() {
-  return getSetting<CompanyProfile>("company.profile", DEFAULT_COMPANY);
+export async function getCompanyProfile(): Promise<CompanyProfile> {
+  const stored = await getSetting<Partial<CompanyProfile>>("company.profile", {});
+  // Mezcla con los valores por defecto: los perfiles guardados antes de que
+  // existieran los campos fiscales no tienen esas claves.
+  return { ...DEFAULT_COMPANY, ...stored };
 }
 
 export function getAppDefaults() {

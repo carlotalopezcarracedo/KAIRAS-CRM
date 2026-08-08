@@ -53,9 +53,63 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
         <Field label="Instagram" error={errors.instagram?.[0]}>
           <Input name="instagram" defaultValue={profile.instagram} />
         </Field>
-        <Field label="Dirección" error={errors.address?.[0]}>
-          <Input name="address" defaultValue={profile.address} />
-        </Field>
+      </div>
+
+      <div>
+        <p className="k-label mb-3">Domicilio fiscal</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Calle, número y piso"
+            error={errors.address?.[0]}
+            className="sm:col-span-2"
+          >
+            <Input name="address" defaultValue={profile.address} />
+          </Field>
+          <Field label="Código postal" error={errors.postalCode?.[0]}>
+            <Input name="postalCode" defaultValue={profile.postalCode} />
+          </Field>
+          <Field label="Localidad" error={errors.city?.[0]}>
+            <Input name="city" defaultValue={profile.city} />
+          </Field>
+          <Field label="Provincia" error={errors.province?.[0]}>
+            <Input name="province" defaultValue={profile.province} />
+          </Field>
+          <Field label="País" error={errors.country?.[0]}>
+            <Input name="country" defaultValue={profile.country} />
+          </Field>
+        </div>
+      </div>
+
+      <div>
+        <p className="k-label mb-3">Datos administrativos</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Régimen" error={errors.taxRegime?.[0]}>
+            <Select name="taxRegime" defaultValue={profile.taxRegime || "autonoma"}>
+              <option value="autonoma">Autónoma</option>
+              <option value="sociedad">Sociedad</option>
+              <option value="otro">Otro</option>
+            </Select>
+          </Field>
+          <Field label="Epígrafe IAE" error={errors.iaeCode?.[0]}>
+            <Input name="iaeCode" defaultValue={profile.iaeCode} placeholder="763" />
+          </Field>
+          <Field
+            label="Nº afiliación Seguridad Social"
+            error={errors.socialSecurityNumber?.[0]}
+          >
+            <Input
+              name="socialSecurityNumber"
+              defaultValue={profile.socialSecurityNumber}
+            />
+          </Field>
+          <Field label="IBAN" error={errors.iban?.[0]}>
+            <Input name="iban" defaultValue={profile.iban} placeholder="ES00 0000 …" />
+          </Field>
+        </div>
+        <p className="mt-3 text-xs text-faint">
+          Estos datos no salen de KAIRAS. Sirven para tenerlos a mano al
+          presentar modelos y para rellenar tus facturas.
+        </p>
       </div>
       {state && !state.ok && !state.fieldErrors ? (
         <p className="text-sm text-danger">{state.error}</p>

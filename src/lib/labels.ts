@@ -416,6 +416,40 @@ export const EXPENSE_KIND: LabelMap<
   other: { label: "Otro", tone: "neutral" },
 };
 
+export const ADMIN_DOC_CATEGORY: LabelMap<
+  | "alta_censal"
+  | "reta"
+  | "irpf_trimestral"
+  | "iva_trimestral"
+  | "iva_anual"
+  | "retenciones"
+  | "resumen_anual"
+  | "renta"
+  | "seguro"
+  | "contrato"
+  | "certificado_digital"
+  | "banco"
+  | "subvencion"
+  | "licencia"
+  | "otro"
+> = {
+  alta_censal: { label: "Alta censal (036/037)", tone: "violet" },
+  reta: { label: "Autónomos (RETA)", tone: "violet" },
+  irpf_trimestral: { label: "IRPF trimestral (130)", tone: "info" },
+  iva_trimestral: { label: "IVA trimestral (303)", tone: "info" },
+  iva_anual: { label: "IVA anual (390)", tone: "info" },
+  retenciones: { label: "Retenciones (111/115)", tone: "info" },
+  resumen_anual: { label: "Resumen anual (190/180)", tone: "info" },
+  renta: { label: "Renta (100)", tone: "info" },
+  seguro: { label: "Seguro", tone: "ok" },
+  contrato: { label: "Contrato", tone: "neutral" },
+  certificado_digital: { label: "Certificado digital", tone: "warn" },
+  banco: { label: "Banco", tone: "neutral" },
+  subvencion: { label: "Subvención", tone: "ok" },
+  licencia: { label: "Licencia", tone: "neutral" },
+  otro: { label: "Otro", tone: "neutral" },
+};
+
 /** Convierte un LabelMap en opciones para <select> */
 export function toOptions<T extends string>(
   map: LabelMap<T>,

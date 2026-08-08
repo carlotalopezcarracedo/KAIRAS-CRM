@@ -1104,6 +1104,56 @@ model InvoiceDraftRequest {
   @@index([deletedAt, status]) // borradores en cola
 }
 
+/// Documentación administrativa de la actividad (no de clientes).
+enum AdminDocCategory {
+  alta_censal // modelos 036/037
+  reta // alta y cuotas de autónomos
+  irpf_trimestral // modelo 130
+  iva_trimestral // modelo 303
+  iva_anual // modelo 390
+  retenciones // modelos 111/115
+  resumen_anual // modelos 190/180
+  renta // modelo 100
+  seguro // responsabilidad civil, salud
+  contrato // alquiler, proveedores
+  certificado_digital
+  banco
+  subvencion
+  licencia
+  otro
+}
+
+model AdminDocument {
+  id       String           @id @default(cuid())
+  title    String
+  category AdminDocCategory @default(otro)
+
+  /// Ejercicio al que corresponde. Nulo en lo que no es periódico.
+  fiscalYear   Int?
+  /// 1T, 2T, 3T, 4T, anual o un mes. Texto libre a propósito: cada modelo
+  /// tiene su propia periodicidad y no merece un enum por cada caso.
+  fiscalPeriod String?
+
+  issuer    String? // AEAT, Seguridad Social, aseguradora…
+  reference String? // número de justificante o de póliza
+  amount    Decimal? @db.Decimal(12, 2)
+
+  issuedAt DateTime?
+  /// Fecha de caducidad. Es lo que permite avisar del certificado digital
+  /// o de la renovación de un seguro antes de que sea un problema.
+  validUntil DateTime?
+
+  notes String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([deletedAt, category, fiscalYear])
+  @@index([deletedAt, validUntil])
+  @@index([deletedAt, fiscalYear])
+}
+
 enum ExpenseKind {
   mileage // desplazamiento por km, se calcula con la tarifa €/km
   fuel // repostaje con ticket

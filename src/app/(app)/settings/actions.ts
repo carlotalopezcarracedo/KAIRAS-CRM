@@ -26,7 +26,17 @@ const companyProfileSchema = z.object({
   vatId: text,
   email: text,
   phone: text,
+  // Domicilio fiscal desglosado: hace falta por partes para las facturas
+  // y para rellenar modelos de Hacienda.
   address: text,
+  postalCode: text,
+  city: text,
+  province: text,
+  country: z.string().trim().default("España"),
+  taxRegime: text,
+  iaeCode: text,
+  socialSecurityNumber: text,
+  iban: text,
   web: text,
   instagram: text,
 });

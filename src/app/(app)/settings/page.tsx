@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { IntentLink as Link } from "@/components/navigation/intent-link";
+import { THEME_COOKIE, DEFAULT_THEME, isTheme } from "@/lib/theme";
+import { getCalendarFeedToken } from "@/server/services/calendar-feed-service";
+import { ThemeForm } from "./theme-form";
+import { CalendarFeedForm } from "./calendar-feed-form";
 import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,12 +24,19 @@ import {
 export const metadata: Metadata = { title: "Ajustes" };
 
 export default async function SettingsPage() {
-  const [profile, defaults, expenseDefaults, session] = await Promise.all([
-    getCompanyProfile(),
-    getAppDefaults(),
-    getExpenseDefaults(),
-    auth(),
-  ]);
+  const [profile, defaults, expenseDefaults, session, store, feedToken] =
+    await Promise.all([
+      getCompanyProfile(),
+      getAppDefaults(),
+      getExpenseDefaults(),
+      auth(),
+      cookies(),
+      getCalendarFeedToken(),
+    ]);
+  const rawTheme = store.get(THEME_COOKIE)?.value;
+  const theme = isTheme(rawTheme) ? rawTheme : DEFAULT_THEME;
+  // Sin APP_URL configurada el enlace saldría relativo y no serviría.
+  const appUrl = (process.env.APP_URL ?? "").replace(/\/$/, "");
 
   return (
     <div>
@@ -50,6 +62,24 @@ export default async function SettingsPage() {
             </CardHeader>
             <CardBody>
               <AppDefaultsForm defaults={defaults} />
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Apariencia</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <ThemeForm current={theme} />
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Calendario en el móvil</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <CalendarFeedForm initialToken={feedToken} appUrl={appUrl} />
             </CardBody>
           </Card>
 

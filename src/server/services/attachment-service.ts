@@ -15,6 +15,7 @@ export const ATTACHMENT_ENTITY_TYPES = [
   "invoice_draft",
   "proposal",
   "campaign",
+  "admin_document",
 ] as const;
 export type AttachmentEntityType = (typeof ATTACHMENT_ENTITY_TYPES)[number];
 
@@ -46,6 +47,8 @@ async function assertEntityExists(entityType: AttachmentEntityType, entityId: st
       prisma.invoiceDraftRequest.findFirst({ where: { id: entityId, ...notDeleted } }),
     proposal: () => prisma.proposal.findFirst({ where: { id: entityId, ...notDeleted } }),
     campaign: () => prisma.campaign.findFirst({ where: { id: entityId, ...notDeleted } }),
+    admin_document: () =>
+      prisma.adminDocument.findFirst({ where: { id: entityId, ...notDeleted } }),
   };
   const entity = await lookup[entityType]();
   if (!entity) throw new Error("ENTITY_NOT_FOUND");

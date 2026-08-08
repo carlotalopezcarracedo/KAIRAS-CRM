@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { Toaster } from "sonner";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, DEFAULT_THEME, isTheme } from "@/lib/theme";
+import { ThemedToaster } from "@/components/shell/themed-toaster";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -20,24 +22,20 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // El tema se resuelve en el servidor: así el primer HTML ya llega con el
+  // atributo puesto y no hay destello de tema equivocado.
+  const store = await cookies();
+  const raw = store.get(THEME_COOKIE)?.value;
+  const theme = isTheme(raw) ? raw : DEFAULT_THEME;
+
   return (
-    <html lang="es" className={jakarta.variable}>
+    <html lang="es" className={jakarta.variable} data-theme={theme}>
       <body className="min-h-dvh bg-ink text-foam antialiased">
         {children}
-        <Toaster
-          position="top-right"
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: "#18151d",
-              border: "1px solid rgba(225,232,240,0.1)",
-              color: "#e1e8f0",
-            },
-          }}
-        />
+        <ThemedToaster theme={theme} />
       </body>
     </html>
   );
