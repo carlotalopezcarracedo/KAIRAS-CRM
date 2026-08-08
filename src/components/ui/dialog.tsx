@@ -4,6 +4,7 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isFromPopover } from "@/lib/popover-dismiss";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -14,6 +15,9 @@ export function DialogContent({
   children,
   title,
   description,
+  onPointerDownOutside,
+  onInteractOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
   title: string;
@@ -28,6 +32,29 @@ export function DialogContent({
           "max-h-[85dvh] overflow-y-auto rounded-card border border-line bg-surface p-6 shadow-2xl",
           className,
         )}
+        onPointerDownOutside={(event) => {
+          if (isFromPopover(event.target)) {
+            event.preventDefault();
+            return;
+          }
+          onPointerDownOutside?.(event);
+        }}
+        onInteractOutside={(event) => {
+          if (isFromPopover(event.target)) {
+            event.preventDefault();
+            return;
+          }
+          onInteractOutside?.(event);
+        }}
+        onFocusOutside={(event) => {
+          // Al cerrarse el desplegable devuelve el foco; sin esto el diálogo
+          // lo interpreta como que el foco se ha ido fuera.
+          if (isFromPopover(event.target)) {
+            event.preventDefault();
+            return;
+          }
+          onFocusOutside?.(event);
+        }}
         {...props}
       >
         <div className="mb-5 flex items-start justify-between gap-4">

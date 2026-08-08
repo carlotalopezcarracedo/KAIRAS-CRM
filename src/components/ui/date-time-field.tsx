@@ -129,6 +129,9 @@ export function DateTimeField({
     [onChange],
   );
   const [open, setOpen] = React.useState(false);
+  // El panel es más ancho que el campo. Si se abre pegado al borde derecho
+  // (o al final de un diálogo estrecho) se saldría, así que se voltea.
+  const [placement, setPlacement] = React.useState({ right: false, above: false });
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const parsed = parseValue(value);
@@ -138,6 +141,21 @@ export function DateTimeField({
     const base = parsed ?? today;
     return { year: base.year, month: base.month };
   });
+
+  // Decide el lado antes de pintar, para que no se vea saltar.
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const panelWidth = withTime ? 368 : 256;
+    const panelHeight = 320;
+    setPlacement({
+      right: rect.left + panelWidth > window.innerWidth - 8,
+      above:
+        rect.bottom + panelHeight > window.innerHeight - 8 &&
+        rect.top > panelHeight,
+    });
+  }, [open, withTime]);
 
   // Cerrar al pulsar fuera o con Escape: sin esto el panel se queda abierto
   // y tapa el resto del formulario.
@@ -236,7 +254,11 @@ export function DateTimeField({
         <div
           role="dialog"
           aria-label="Calendario"
-          className="absolute left-0 z-50 mt-2 flex gap-0 rounded-2xl border border-line-strong bg-surface shadow-2xl"
+          className={cn(
+            "absolute z-50 flex gap-0 rounded-2xl border border-line-strong bg-surface shadow-2xl",
+            placement.right ? "right-0" : "left-0",
+            placement.above ? "bottom-full mb-2" : "top-full mt-2",
+          )}
         >
           <div className="w-64 p-3">
             <div className="mb-2 flex items-center justify-between">
