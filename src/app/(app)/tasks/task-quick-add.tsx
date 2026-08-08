@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import type { ActionResult } from "@/lib/action-result";
 import { createTaskAction } from "./actions";
 
@@ -62,9 +63,9 @@ export function TaskQuickAdd({
           <p className="mt-1 text-xs text-danger">{errors.title[0]}</p>
         ) : null}
       </div>
-      <Input
+      <DateTimeField withTime={false}
         name="dueAt"
-        type="date"
+       
         aria-label="Fecha límite"
         className="sm:w-40"
       />

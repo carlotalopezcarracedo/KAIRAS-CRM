@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import type { ActionResult } from "@/lib/action-result";
 import {
   OS_AREAS,
@@ -159,7 +160,7 @@ export function EntryForm({
             </Select>
           </Field>
           <Field label="Vigencia (vigente hasta)" error={errors.validUntil?.[0]}>
-            <Input type="date" name="validUntil" defaultValue={defaults.validUntil} />
+            <DateTimeField withTime={false} name="validUntil" defaultValue={defaults.validUntil} />
           </Field>
           <Field label="Línea de negocio" error={errors.businessLine?.[0]}>
             <Select name="businessLine" defaultValue={defaults.businessLine ?? "transversal"}>

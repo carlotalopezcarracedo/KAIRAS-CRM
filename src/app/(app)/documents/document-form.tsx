@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { ADMIN_DOC_CATEGORY, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -128,10 +129,10 @@ export function DocumentForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Fecha de emisión" error={errors.issuedAt?.[0]}>
-          <Input name="issuedAt" type="date" defaultValue={defaults.issuedAt} />
+          <DateTimeField withTime={false} name="issuedAt" defaultValue={defaults.issuedAt} />
         </Field>
         <Field label="Caduca el" error={errors.validUntil?.[0]}>
-          <Input name="validUntil" type="date" defaultValue={defaults.validUntil} />
+          <DateTimeField withTime={false} name="validUntil" defaultValue={defaults.validUntil} />
         </Field>
         <Field label="Referencia" error={errors.reference?.[0]} className="sm:col-span-2">
           <Input

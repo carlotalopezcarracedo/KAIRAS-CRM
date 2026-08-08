@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import type { ActionResult } from "@/lib/action-result";
 import type { EventSelectData } from "@/server/services/calendar-service";
 
@@ -85,15 +86,19 @@ export function EventForm({
           <Input name="location" defaultValue={defaults.location} placeholder="Meet, oficina…" />
         </Field>
         <Field label="Empieza" required error={errors.startAt?.[0]}>
-          <Input
+          <DateTimeField
             name="startAt"
-            type="datetime-local"
             defaultValue={defaults.startAt}
             required
+            aria-label="Fecha y hora de inicio"
           />
         </Field>
         <Field label="Termina" error={errors.endAt?.[0]}>
-          <Input name="endAt" type="datetime-local" defaultValue={defaults.endAt} />
+          <DateTimeField
+            name="endAt"
+            defaultValue={defaults.endAt}
+            aria-label="Fecha y hora de fin"
+          />
         </Field>
       </div>
 

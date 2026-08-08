@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { INTERACTION_CHANNEL, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 import { addInteractionAction } from "../actions";
@@ -71,14 +72,14 @@ export function InteractionDialog({ leadId }: { leadId: string }) {
             <Textarea name="detail" className="min-h-20" />
           </Field>
           <Field label="Cuándo ocurrió" error={errors.occurredAt?.[0]}>
-            <Input name="occurredAt" type="datetime-local" />
+            <DateTimeField name="occurredAt" />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Siguiente acción" error={errors.nextAction?.[0]}>
               <Input name="nextAction" placeholder="Llamar si no responde" />
             </Field>
             <Field label="Fecha siguiente acción" error={errors.nextActionAt?.[0]}>
-              <Input name="nextActionAt" type="datetime-local" />
+              <DateTimeField name="nextActionAt" />
             </Field>
           </div>
           {state && !state.ok && !state.fieldErrors ? (

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { PROJECT_STATUS, PRIORITY, PROJECT_BILLING, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -145,10 +146,10 @@ export function ProjectForm({
             />
           </Field>
           <Field label="Inicio" error={errors.startAt?.[0]}>
-            <Input name="startAt" type="date" defaultValue={defaults.startAt} />
+            <DateTimeField withTime={false} name="startAt" defaultValue={defaults.startAt} />
           </Field>
           <Field label="Deadline" error={errors.deadline?.[0]}>
-            <Input name="deadline" type="date" defaultValue={defaults.deadline} />
+            <DateTimeField withTime={false} name="deadline" defaultValue={defaults.deadline} />
           </Field>
         </div>
         <p className="text-xs text-faint">

@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { TASK_STATUS, TASK_TYPE, PRIORITY, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 import { updateTaskAction } from "../actions";
@@ -102,10 +103,10 @@ export function TaskDetailForm({
           />
         </Field>
         <Field label="Fecha límite" error={errors.dueAt?.[0]}>
-          <Input name="dueAt" type="datetime-local" defaultValue={defaults.dueAt} />
+          <DateTimeField name="dueAt" defaultValue={defaults.dueAt} />
         </Field>
         <Field label="Recordatorio" error={errors.remindAt?.[0]}>
-          <Input name="remindAt" type="datetime-local" defaultValue={defaults.remindAt} />
+          <DateTimeField name="remindAt" defaultValue={defaults.remindAt} />
         </Field>
       </div>
 

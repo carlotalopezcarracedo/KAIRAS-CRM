@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { INVOICE_STATUS, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 import { createRecordAction } from "./actions";
@@ -79,10 +80,10 @@ export function RecordDialog({
           </div>
           <div className="grid grid-cols-3 gap-4">
             <Field label="Emitida" error={errors.issuedAt?.[0]}>
-              <Input name="issuedAt" type="date" />
+              <DateTimeField withTime={false} name="issuedAt" />
             </Field>
             <Field label="Vence" error={errors.dueAt?.[0]}>
-              <Input name="dueAt" type="date" />
+              <DateTimeField withTime={false} name="dueAt" />
             </Field>
             <Field label="Estado" error={errors.status?.[0]}>
               <Select name="status" defaultValue="created_in_odoo">

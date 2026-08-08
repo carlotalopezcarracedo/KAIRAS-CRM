@@ -3,7 +3,8 @@
 import { IntentLink as Link } from "@/components/navigation/intent-link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition } from "react";
-import { Select, Input } from "@/components/ui/field";
+import { Select } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { cn } from "@/lib/utils";
 
 const RANGES = [
@@ -68,19 +69,19 @@ export function TimeFilters({
         ))}
         {range === "custom" ? (
           <span className="flex items-center gap-1.5">
-            <Input
-              type="date"
+            <DateTimeField
+              withTime={false}
               aria-label="Desde"
               defaultValue={searchParams.get("from") ?? ""}
-              onChange={(e) => setParam("from", e.target.value)}
+              onChange={(value) => setParam("from", value)}
               className="h-8 w-36 text-xs"
             />
             <span className="text-faint">→</span>
-            <Input
-              type="date"
+            <DateTimeField
+              withTime={false}
               aria-label="Hasta"
               defaultValue={searchParams.get("to") ?? ""}
-              onChange={(e) => setParam("to", e.target.value)}
+              onChange={(value) => setParam("to", value)}
               className="h-8 w-36 text-xs"
             />
           </span>

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { PROPOSAL_STATUS, toOptions } from "@/lib/labels";
 import { formatMoney } from "@/lib/utils";
 import type { ActionResult } from "@/lib/action-result";
@@ -155,10 +156,10 @@ export function ProposalForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Fecha de envío" error={errors.sentAt?.[0]}>
-          <Input name="sentAt" type="date" defaultValue={defaults.sentAt} />
+          <DateTimeField withTime={false} name="sentAt" defaultValue={defaults.sentAt} />
         </Field>
         <Field label="Válida hasta" error={errors.validUntil?.[0]}>
-          <Input name="validUntil" type="date" defaultValue={defaults.validUntil} />
+          <DateTimeField withTime={false} name="validUntil" defaultValue={defaults.validUntil} />
         </Field>
         <Field label="Enlace al documento" error={errors.documentUrl?.[0]} className="sm:col-span-2">
           <Input

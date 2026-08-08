@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { OPPORTUNITY_STAGE, PRIORITY, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -127,9 +128,9 @@ export function OpportunityForm({
             />
           </Field>
           <Field label="Cierre previsto" error={errors.expectedCloseAt?.[0]}>
-            <Input
+            <DateTimeField withTime={false}
               name="expectedCloseAt"
-              type="date"
+             
               defaultValue={defaults.expectedCloseAt}
             />
           </Field>
@@ -174,9 +175,8 @@ export function OpportunityForm({
             />
           </Field>
           <Field label="Cuándo" error={errors.nextActionAt?.[0]}>
-            <Input
+            <DateTimeField
               name="nextActionAt"
-              type="datetime-local"
               defaultValue={defaults.nextActionAt}
             />
           </Field>

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import type { ActionResult } from "@/lib/action-result";
 import { createRateAction } from "../actions";
 
@@ -91,7 +92,7 @@ export function RateForm({
         <Input name="rate" type="number" min={1} step="0.01" required />
       </Field>
       <Field label="Vigente desde" error={errors.validFrom?.[0]} className="sm:w-40">
-        <Input name="validFrom" type="date" />
+        <DateTimeField withTime={false} name="validFrom" />
       </Field>
       <Button type="submit" disabled={pending}>
         {pending ? "Creando…" : "Añadir tarifa"}

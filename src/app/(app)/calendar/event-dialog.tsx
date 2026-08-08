@@ -8,15 +8,30 @@ import { Button } from "@/components/ui/button";
 import { EventForm, type EventSelectData } from "./event-form";
 import { createEventAction, getEventSelectOptionsAction } from "./actions";
 
-export function EventDialog() {
+/**
+ * `anchorDate` es el día que se está mirando en el calendario (YYYY-MM-DD).
+ * Crear un evento estando en el 15 y que salga con la fecha de hoy obliga a
+ * corregirla a mano cada vez, así que manda el día visible.
+ */
+export function EventDialog({ anchorDate }: { anchorDate?: string }) {
   const [open, setOpen] = useState(false);
   const [selects, setSelects] = useState<EventSelectData | null>(null);
   const [loadingOptions, startLoadingOptions] = useTransition();
-  const now = new Date();
-  now.setMinutes(0, 0, 0);
-  now.setHours(now.getHours() + 1);
+
   const pad = (n: number) => String(n).padStart(2, "0");
-  const startAt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:00`;
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const isToday = !anchorDate || anchorDate === todayKey;
+
+  // En el día de hoy, la hora siguiente en punto. En otro día, las 9:00:
+  // proponer "dentro de una hora" en una fecha futura no significa nada.
+  const nextHour = new Date(now.getTime());
+  nextHour.setMinutes(0, 0, 0);
+  nextHour.setHours(nextHour.getHours() + 1);
+
+  const startAt = isToday
+    ? `${todayKey}T${pad(nextHour.getHours())}:00`
+    : `${anchorDate}T09:00`;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {

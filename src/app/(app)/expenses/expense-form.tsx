@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { EXPENSE_KIND, toOptions } from "@/lib/labels";
 import { formatMoney } from "@/lib/utils";
 import type { ActionResult } from "@/lib/action-result";
@@ -113,7 +114,7 @@ export function ExpenseForm({
           </Select>
         </Field>
         <Field label="Fecha" required error={errors.expenseAt?.[0]}>
-          <Input name="expenseAt" type="date" defaultValue={defaults.expenseAt} required />
+          <DateTimeField withTime={false} name="expenseAt" defaultValue={defaults.expenseAt} required />
         </Field>
         <Field
           label="Descripción"

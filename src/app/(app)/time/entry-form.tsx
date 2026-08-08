@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { WORK_TYPE, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -73,17 +74,15 @@ export function EntryForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Inicio" required error={errors.startedAt?.[0]}>
-          <Input
+          <DateTimeField
             name="startedAt"
-            type="datetime-local"
             defaultValue={defaults.startedAt}
             required
           />
         </Field>
         <Field label="Fin" required error={errors.endedAt?.[0]}>
-          <Input
+          <DateTimeField
             name="endedAt"
-            type="datetime-local"
             defaultValue={defaults.endedAt}
             required
           />

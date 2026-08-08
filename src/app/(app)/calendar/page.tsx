@@ -183,7 +183,7 @@ export default async function CalendarPage({
             ? dayTitle.charAt(0).toUpperCase() + dayTitle.slice(1)
             : monthTitle.charAt(0).toUpperCase() + monthTitle.slice(1)
         }
-        actions={<EventDialog />}
+        actions={<EventDialog anchorDate={toParam(anchor)} />}
       />
 
       {/* Controles */}

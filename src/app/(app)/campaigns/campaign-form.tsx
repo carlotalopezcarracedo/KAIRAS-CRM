@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { CAMPAIGN_CHANNEL, CAMPAIGN_STATUS, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -84,10 +85,10 @@ export function CampaignForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Inicio" error={errors.startAt?.[0]}>
-          <Input name="startAt" type="date" defaultValue={defaults.startAt} />
+          <DateTimeField withTime={false} name="startAt" defaultValue={defaults.startAt} />
         </Field>
         <Field label="Fin" error={errors.endAt?.[0]}>
-          <Input name="endAt" type="date" defaultValue={defaults.endAt} />
+          <DateTimeField withTime={false} name="endAt" defaultValue={defaults.endAt} />
         </Field>
       </div>
 

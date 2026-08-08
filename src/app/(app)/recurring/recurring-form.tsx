@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { RECURRING_STATUS, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -112,10 +113,10 @@ export function RecurringForm({
           </Select>
         </Field>
         <Field label="Inicio" required error={errors.startedAt?.[0]}>
-          <Input name="startedAt" type="date" defaultValue={defaults.startedAt} required />
+          <DateTimeField withTime={false} name="startedAt" defaultValue={defaults.startedAt} required />
         </Field>
         <Field label="Fin (si existe)" error={errors.endsAt?.[0]}>
-          <Input name="endsAt" type="date" defaultValue={defaults.endsAt} />
+          <DateTimeField withTime={false} name="endsAt" defaultValue={defaults.endsAt} />
         </Field>
         <Field label="Día de facturación" error={errors.billingDay?.[0]}>
           <Input
@@ -127,7 +128,7 @@ export function RecurringForm({
           />
         </Field>
         <Field label="Próximo ciclo" error={errors.nextInvoiceAt?.[0]}>
-          <Input name="nextInvoiceAt" type="date" defaultValue={defaults.nextInvoiceAt} />
+          <DateTimeField withTime={false} name="nextInvoiceAt" defaultValue={defaults.nextInvoiceAt} />
         </Field>
         <Field label="Método de cobro" error={errors.paymentMethod?.[0]}>
           <Input

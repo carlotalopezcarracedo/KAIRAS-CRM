@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { DateTimeField } from "@/components/ui/date-time-field";
 import { LEAD_STATUS, TEMPERATURE, LEAD_SOURCE, toOptions } from "@/lib/labels";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -231,9 +232,8 @@ export function LeadForm({
             />
           </Field>
           <Field label="Cuándo" error={errors.nextActionAt?.[0]}>
-            <Input
+            <DateTimeField
               name="nextActionAt"
-              type="datetime-local"
               defaultValue={defaults.nextActionAt}
             />
           </Field>
