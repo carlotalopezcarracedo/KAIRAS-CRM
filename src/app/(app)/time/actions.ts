@@ -174,7 +174,9 @@ export async function updateEntryAction(
   try {
     await updateEntry(auth.userId, id, parsed.data);
   } catch (err) {
-    if (err instanceof Error && err.message === "NOT_FOUND") {
+    // FORBIDDEN se responde igual que NOT_FOUND a propósito: no confirmar
+    // que una entrada ajena existe es parte de no filtrar nada por el ID.
+    if (err instanceof Error && (err.message === "NOT_FOUND" || err.message === "FORBIDDEN")) {
       return { ok: false, error: "Esta entrada ya no existe." };
     }
     if (err instanceof Error && err.message === "LOCKED") {
@@ -206,7 +208,7 @@ export async function setEntryStatusAction(
   try {
     await setEntryStatus(auth.userId, id, status as TimeEntryStatus);
   } catch (err) {
-    if (err instanceof Error && err.message === "NOT_FOUND") {
+    if (err instanceof Error && (err.message === "NOT_FOUND" || err.message === "FORBIDDEN")) {
       return { ok: false, error: "Esta entrada ya no existe." };
     }
     if (err instanceof Error && err.message === "LOCKED") {
@@ -227,7 +229,7 @@ export async function deleteEntryAction(id: string): Promise<ActionResult> {
   try {
     await softDeleteEntry(auth.userId, id);
   } catch (err) {
-    if (err instanceof Error && err.message === "NOT_FOUND") {
+    if (err instanceof Error && (err.message === "NOT_FOUND" || err.message === "FORBIDDEN")) {
       return { ok: false, error: "Esta entrada ya no existe." };
     }
     if (err instanceof Error && err.message === "LOCKED") {

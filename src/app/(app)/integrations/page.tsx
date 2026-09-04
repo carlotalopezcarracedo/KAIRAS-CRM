@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/server/db/prisma";
 import { getOdooConfig } from "@/integrations/odoo/adapter";
 import { getMetaConfig } from "@/integrations/meta/conversions-api";
+import { getTogglConfig } from "@/integrations/toggl/adapter";
+import { getTogglSettings } from "@/server/services/toggl-connection-service";
 import { formatDateTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Integraciones" };
@@ -13,12 +15,16 @@ export const metadata: Metadata = { title: "Integraciones" };
 export default async function IntegrationsPage() {
   const odoo = getOdooConfig();
   const meta = getMetaConfig();
+  const toggl = getTogglConfig();
 
-  const [lastOdooJob, pendingMetaEvents, failedMetaEvents] = await Promise.all([
-    prisma.odooSyncJob.findFirst({ orderBy: { createdAt: "desc" } }),
-    prisma.metaEventLog.count({ where: { status: "pending" } }),
-    prisma.metaEventLog.count({ where: { status: "failed" } }),
-  ]);
+  const [lastOdooJob, pendingMetaEvents, failedMetaEvents, togglSettings, pendingTogglEntries] =
+    await Promise.all([
+      prisma.odooSyncJob.findFirst({ orderBy: { createdAt: "desc" } }),
+      prisma.metaEventLog.count({ where: { status: "pending" } }),
+      prisma.metaEventLog.count({ where: { status: "failed" } }),
+      getTogglSettings(),
+      prisma.timeEntry.count({ where: { syncStatus: { in: ["pending", "error"] } } }),
+    ]);
 
   return (
     <div>
@@ -27,7 +33,7 @@ export default async function IntegrationsPage() {
         subtitle="Odoo es la fuente fiscal. Meta recibe señales de conversión. KAIRAS OS orquesta."
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <Link
           href="/integrations/odoo"
           className="group rounded-card border border-line bg-surface p-6 transition-colors hover:border-line-strong"
@@ -89,6 +95,41 @@ export default async function IntegrationsPage() {
               {pendingMetaEvents} pendientes
               {failedMetaEvents > 0 ? ` · ${failedMetaEvents} fallidos` : ""}
             </span>
+          </div>
+        </Link>
+
+        <Link
+          href="/integrations/toggl"
+          className="group rounded-card border border-line bg-surface p-6 transition-colors hover:border-line-strong"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-foam">Toggl Track</h2>
+              <p className="mt-1 text-sm text-mist">
+                Registro de horas: Kairas es la interfaz principal, Toggl un
+                método alternativo. Importación histórica y sincronización
+                manual del tiempo trabajado.
+              </p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-faint transition-transform group-hover:translate-x-1 group-hover:text-lavender" />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Badge tone={toggl.configured ? "ok" : "neutral"}>
+              {toggl.configured ? "Token configurado" : "Sin configurar"}
+            </Badge>
+            {togglSettings.workspaceName ? (
+              <Badge tone="violet">{togglSettings.workspaceName}</Badge>
+            ) : null}
+            {pendingTogglEntries > 0 ? (
+              <Badge tone="warn">{pendingTogglEntries} por sincronizar</Badge>
+            ) : null}
+            {togglSettings.lastCheckedAt ? (
+              <span className="text-xs text-faint">
+                Última comprobación: {formatDateTime(togglSettings.lastCheckedAt)}
+              </span>
+            ) : (
+              <span className="text-xs text-faint">Sin comprobar aún</span>
+            )}
           </div>
         </Link>
       </div>

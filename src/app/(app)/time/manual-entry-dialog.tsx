@@ -5,7 +5,7 @@ import { LoaderCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { EntryForm, type EntrySelectData } from "./entry-form";
+import { EntryForm, type EntryFormDefaults, type EntrySelectData } from "./entry-form";
 import { createEntryAction, getTimeEntryExtraOptionsAction } from "./actions";
 
 function defaultTimes() {
@@ -21,15 +21,20 @@ export function ManualEntryDialog({
   clients,
   projects,
   initialExtras,
+  extraDefaults,
+  triggerLabel = "Entrada manual",
 }: Pick<EntrySelectData, "clients" | "projects"> & {
   initialExtras?: Pick<EntrySelectData, "services" | "tasks">;
+  /** Valores fijos adicionales, p.ej. proyecto/cliente desde la ficha de proyecto. */
+  extraDefaults?: Partial<EntryFormDefaults>;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [selects, setSelects] = useState<EntrySelectData | null>(() =>
     initialExtras ? { clients, projects, ...initialExtras } : null,
   );
   const [loadingOptions, startLoadingOptions] = useTransition();
-  const times = defaultTimes();
+  const times = { ...defaultTimes(), ...extraDefaults };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -62,7 +67,7 @@ export function ManualEntryDialog({
               <Plus className="h-4 w-4" />
             )}
           </span>
-          {loadingOptions ? "Preparando…" : "Entrada manual"}
+          {loadingOptions ? "Preparando…" : triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent

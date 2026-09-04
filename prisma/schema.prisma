@@ -2,17 +2,17 @@
 // Fuente de verdad comercial/operativa. Odoo es la fuente de verdad fiscal.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   // "native" para desarrollo local; rhel para el runtime de Vercel
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
   // `include` de N relaciones pasa de N consultas a una sola con LATERAL JOIN.
   // Decisivo con el pooler: cada viaje de ida y vuelta se paga a precio de red.
   previewFeatures = ["relationJoins"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL") // runtime: URL pooled (PgBouncer)
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // runtime: URL pooled (PgBouncer)
   directUrl = env("DIRECT_DATABASE_URL") // migraciones: conexión directa
 }
 
@@ -254,6 +254,33 @@ enum TimeEntrySource {
   clockify_import
 }
 
+// Quién manda actualmente sobre el contenido de la fila. KAIRAS es la
+// interfaz principal; TOGGL marca las filas que llegaron por import/reconciliación.
+enum TimeEntryOrigin {
+  kairas
+  toggl
+}
+
+// Estado de sincronización con Toggl. "synced" es también el valor neutro
+// para filas que nunca han tenido nada que sincronizar (ver default en
+// TimeEntry.syncStatus).
+enum TimeSyncStatus {
+  synced
+  pending
+  error
+}
+
+enum TogglSyncKind {
+  historical_import
+  reconciliation
+}
+
+enum TogglSyncRunStatus {
+  running
+  success
+  error
+}
+
 enum RateScope {
   global
   client
@@ -393,14 +420,14 @@ enum AuditAction {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   name         String
   passwordHash String
-  role         String    @default("owner")
-  timezone     String    @default("Europe/Madrid")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  role         String   @default("owner")
+  timezone     String   @default("Europe/Madrid")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   timeEntries   TimeEntry[]
   timerSessions TimerSession[]
@@ -456,7 +483,7 @@ model Person {
 // ---------------------------------------------------------------------------
 
 model Lead {
-  id      String @id @default(cuid())
+  id      String  @id @default(cuid())
   name    String // nombre de contacto o negocio
   contact String? // persona de contacto si name = negocio
 
@@ -515,14 +542,14 @@ model Lead {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  opportunities Opportunity[]
-  interactions  Interaction[]
-  notes         Note[]
-  tasks         Task[]
-  proposals     Proposal[]
+  opportunities  Opportunity[]
+  interactions   Interaction[]
+  notes          Note[]
+  tasks          Task[]
+  proposals      Proposal[]
   calendarEvents CalendarEvent[]
-  metaEvents    MetaEventLog[]
-  tags          Tag[]           @relation("LeadTags")
+  metaEvents     MetaEventLog[]
+  tags           Tag[]           @relation("LeadTags")
 
   @@index([status])
   @@index([source])
@@ -537,12 +564,12 @@ model Lead {
 }
 
 model Interaction {
-  id        String               @id @default(cuid())
-  channel   InteractionChannel
-  direction InteractionDirection @default(outbound)
-  summary   String
-  detail    String?
-  occurredAt DateTime            @default(now())
+  id         String               @id @default(cuid())
+  channel    InteractionChannel
+  direction  InteractionDirection @default(outbound)
+  summary    String
+  detail     String?
+  occurredAt DateTime             @default(now())
 
   leadId        String?
   lead          Lead?        @relation(fields: [leadId], references: [id])
@@ -597,20 +624,20 @@ model Opportunity {
   serviceId String?
   service   Service? @relation(fields: [serviceId], references: [id])
 
-  stage          OpportunityStage @default(discovered)
-  estimatedValue Decimal?         @db.Decimal(12, 2)
-  acceptedValue  Decimal?         @db.Decimal(12, 2)
-  currency       String           @default("EUR")
-  probability    Int              @default(30) // 0-100
+  stage           OpportunityStage @default(discovered)
+  estimatedValue  Decimal?         @db.Decimal(12, 2)
+  acceptedValue   Decimal?         @db.Decimal(12, 2)
+  currency        String           @default("EUR")
+  probability     Int              @default(30) // 0-100
   expectedCloseAt DateTime?
-  priority       Priority         @default(medium)
-  urgencyLevel   Int? // 1-5
-  costOfInaction String?
-  kairasFit      Int? // 1-5
-  lostReason     String?
-  nextAction     String?
-  nextActionAt   DateTime?
-  observations   String?
+  priority        Priority         @default(medium)
+  urgencyLevel    Int? // 1-5
+  costOfInaction  String?
+  kairasFit       Int? // 1-5
+  lostReason      String?
+  nextAction      String?
+  nextActionAt    DateTime?
+  observations    String?
 
   campaignId String?
   campaign   Campaign? @relation(fields: [campaignId], references: [id])
@@ -619,11 +646,11 @@ model Opportunity {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  proposals    Proposal[]
-  tasks        Task[]
-  interactions Interaction[]
-  notes        Note[]
-  timeEntries  TimeEntry[]
+  proposals      Proposal[]
+  tasks          Task[]
+  interactions   Interaction[]
+  notes          Note[]
+  timeEntries    TimeEntry[]
   calendarEvents CalendarEvent[]
 
   @@index([stage])
@@ -637,26 +664,26 @@ model Opportunity {
 // ---------------------------------------------------------------------------
 
 model Client {
-  id          String       @id @default(cuid())
-  name        String
-  status      ClientStatus @default(active)
-  companyId   String?
-  company     Company?     @relation(fields: [companyId], references: [id])
-  vatId       String?
-  billingEmail String?
-  phone       String?
-  address     String?
-  city        String?
-  province    String?
+  id            String       @id @default(cuid())
+  name          String
+  status        ClientStatus @default(active)
+  companyId     String?
+  company       Company?     @relation(fields: [companyId], references: [id])
+  vatId         String?
+  billingEmail  String?
+  phone         String?
+  address       String?
+  city          String?
+  province      String?
   odooPartnerId String? // ID de contacto en Odoo
   satisfaction  Int? // 1-5
-  notes       String?
+  notes         String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  contacts          Person[]           @relation("ClientContacts")
+  contacts          Person[]              @relation("ClientContacts")
   leads             Lead[]
   opportunities     Opportunity[]
   projects          Project[]
@@ -671,28 +698,28 @@ model Client {
   hourlyRates       HourlyRate[]
   calendarEvents    CalendarEvent[]
   expenses          ExpenseRecord[]
-  tags              Tag[]              @relation("ClientTags")
+  tags              Tag[]                 @relation("ClientTags")
 
   @@index([status])
   @@index([deletedAt, status, name]) // listado: filtra, ordena y pagina
 }
 
 model Service {
-  id             String          @id @default(cuid())
-  slug           String          @unique
-  name           String // nombre comercial
-  category       ServiceCategory
-  description    String?
-  basePrice      Decimal?        @db.Decimal(12, 2)
-  priceMin       Decimal?        @db.Decimal(12, 2)
-  priceMax       Decimal?        @db.Decimal(12, 2)
-  vatRate        Decimal         @default(21) @db.Decimal(5, 2)
-  billingUnit    BillingUnit     @default(project)
-  canBeRecurring Boolean         @default(false)
-  deliverables   String?
+  id               String          @id @default(cuid())
+  slug             String          @unique
+  name             String // nombre comercial
+  category         ServiceCategory
+  description      String?
+  basePrice        Decimal?        @db.Decimal(12, 2)
+  priceMin         Decimal?        @db.Decimal(12, 2)
+  priceMax         Decimal?        @db.Decimal(12, 2)
+  vatRate          Decimal         @default(21) @db.Decimal(5, 2)
+  billingUnit      BillingUnit     @default(project)
+  canBeRecurring   Boolean         @default(false)
+  deliverables     String?
   proposalTemplate String?
-  odooProductRef String? // referencia producto/categoría Odoo
-  active         Boolean         @default(true)
+  odooProductRef   String? // referencia producto/categoría Odoo
+  active           Boolean         @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -709,23 +736,23 @@ model Service {
 }
 
 model RecurringService {
-  id          String          @id @default(cuid())
-  clientId    String
-  client      Client          @relation(fields: [clientId], references: [id])
-  serviceId   String
-  service     Service         @relation(fields: [serviceId], references: [id])
-  title       String?
-  amount      Decimal         @db.Decimal(12, 2) // importe por ciclo
-  currency    String          @default("EUR")
-  periodicity Periodicity     @default(monthly)
-  status      RecurringStatus @default(active)
-  startedAt   DateTime
-  endsAt      DateTime?
-  billingDay  Int             @default(1) // día del mes
-  nextInvoiceAt DateTime?
-  paymentMethod String?
-  estimatedMargin Decimal?    @db.Decimal(5, 2) // %
-  notes       String?
+  id              String          @id @default(cuid())
+  clientId        String
+  client          Client          @relation(fields: [clientId], references: [id])
+  serviceId       String
+  service         Service         @relation(fields: [serviceId], references: [id])
+  title           String?
+  amount          Decimal         @db.Decimal(12, 2) // importe por ciclo
+  currency        String          @default("EUR")
+  periodicity     Periodicity     @default(monthly)
+  status          RecurringStatus @default(active)
+  startedAt       DateTime
+  endsAt          DateTime?
+  billingDay      Int             @default(1) // día del mes
+  nextInvoiceAt   DateTime?
+  paymentMethod   String?
+  estimatedMargin Decimal?        @db.Decimal(5, 2) // %
+  notes           String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -753,19 +780,19 @@ model Proposal {
   opportunityId String?
   opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
 
-  status      ProposalStatus @default(draft)
-  amountNet   Decimal?       @db.Decimal(12, 2)
-  vatRate     Decimal        @default(21) @db.Decimal(5, 2)
-  amountTotal Decimal?       @db.Decimal(12, 2)
-  currency    String         @default("EUR")
-  sentAt      DateTime?
-  validUntil  DateTime?
-  acceptedAt  DateTime?
+  status         ProposalStatus @default(draft)
+  amountNet      Decimal?       @db.Decimal(12, 2)
+  vatRate        Decimal        @default(21) @db.Decimal(5, 2)
+  amountTotal    Decimal?       @db.Decimal(12, 2)
+  currency       String         @default("EUR")
+  sentAt         DateTime?
+  validUntil     DateTime?
+  acceptedAt     DateTime?
   rejectedReason String?
-  documentUrl String?
-  conditions  String?
-  version     Int            @default(1)
-  notes       String?
+  documentUrl    String?
+  conditions     String?
+  version        Int            @default(1)
+  notes          String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -790,35 +817,36 @@ model Project {
   proposalId String?
   proposal   Proposal? @relation(fields: [proposalId], references: [id])
 
-  mainServiceId String?
-  mainService   Service?  @relation("ProjectMainService", fields: [mainServiceId], references: [id])
+  mainServiceId     String?
+  mainService       Service?  @relation("ProjectMainService", fields: [mainServiceId], references: [id])
   secondaryServices Service[] @relation("ProjectSecondaryServices")
 
-  status      ProjectStatus      @default(not_started)
-  priority    Priority           @default(medium)
-  billingMode ProjectBillingMode @default(fixed)
-  startAt   DateTime?
-  deadline  DateTime?
-  budget    Decimal?      @db.Decimal(12, 2)
-  estimatedMargin Decimal? @db.Decimal(5, 2)
-  description String?
-  scope       String? // alcance
-  outOfScope  String? // fuera de alcance
-  deliverables String?
-  nextSteps   String?
+  status          ProjectStatus      @default(not_started)
+  priority        Priority           @default(medium)
+  billingMode     ProjectBillingMode @default(fixed)
+  startAt         DateTime?
+  deadline        DateTime?
+  budget          Decimal?           @db.Decimal(12, 2)
+  estimatedMargin Decimal?           @db.Decimal(5, 2)
+  description     String?
+  scope           String? // alcance
+  outOfScope      String? // fuera de alcance
+  deliverables    String?
+  nextSteps       String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  tasks        Task[]
-  interactions Interaction[]
-  notes        Note[]
-  timeEntries  TimeEntry[]
-  hourlyRates  HourlyRate[]
+  tasks          Task[]
+  interactions   Interaction[]
+  notes          Note[]
+  timeEntries    TimeEntry[]
+  hourlyRates    HourlyRate[]
   calendarEvents CalendarEvent[]
-  expenses     ExpenseRecord[]
-  tags         Tag[]           @relation("ProjectTags")
+  expenses       ExpenseRecord[]
+  tags           Tag[]                 @relation("ProjectTags")
+  togglMappings  TogglProjectMapping[]
 
   @@index([status])
   @@index([deadline])
@@ -831,20 +859,20 @@ model Project {
 // ---------------------------------------------------------------------------
 
 model Task {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  type        TaskType   @default(other)
-  status      TaskStatus @default(todo)
-  priority    Priority   @default(medium)
-  dueAt       DateTime?
-  remindAt    DateTime?
-  completedAt DateTime?
-  result      String?
-  checklist   Json? // [{label, done}]
-  recurrence  String? // rrule-like string, opcional
-  estimatedHours Decimal? @db.Decimal(6, 2)
-  billable       Boolean  @default(true)
+  id             String     @id @default(cuid())
+  title          String
+  description    String?
+  type           TaskType   @default(other)
+  status         TaskStatus @default(todo)
+  priority       Priority   @default(medium)
+  dueAt          DateTime?
+  remindAt       DateTime?
+  completedAt    DateTime?
+  result         String?
+  checklist      Json? // [{label, done}]
+  recurrence     String? // rrule-like string, opcional
+  estimatedHours Decimal?   @db.Decimal(6, 2)
+  billable       Boolean    @default(true)
 
   leadId        String?
   lead          Lead?        @relation(fields: [leadId], references: [id])
@@ -889,6 +917,15 @@ model TimeEntry {
   timezone        String    @default("Europe/Madrid")
 
   billable         Boolean         @default(true)
+  // true = el valor de `billable` lo decide Kairas y una sincronización
+  // entrante de Toggl NUNCA lo pisa (ni siquiera al actualizar otros campos).
+  // Se pone a true en cuanto la entrada nace en Kairas o en cuanto alguien la
+  // edita desde aquí; empieza en false para lo que llega importado/creado
+  // desde Toggl, que sigue el valor remoto hasta que una usuaria lo toque.
+  // Necesario porque el plan del workspace de Toggl puede no soportar
+  // "billable" y devolver siempre false, y Kairas es la fuente de verdad de
+  // facturación: sin esto, reconciliar pisaría silenciosamente un true local.
+  billableLocal    Boolean         @default(false)
   hourlyRate       Decimal?        @db.Decimal(10, 2)
   currency         String          @default("EUR")
   calculatedAmount Decimal?        @db.Decimal(12, 2)
@@ -917,6 +954,24 @@ model TimeEntry {
   lockedAt     DateTime?
   lockedReason String?
 
+  // --- Integración Toggl Track ---
+  // origin/syncStatus son la vista Kairas del estado de sync. togglTimeEntryId se
+  // guarda como String (no BigInt/Int) a propósito: los IDs de Toggl no
+  // necesitan aritmética y así se evita cualquier problema de precisión o
+  // de serialización JSON en Server Components.
+  origin            TimeEntryOrigin @default(kairas)
+  togglTimeEntryId  String?         @unique
+  togglWorkspaceId  String?
+  togglProjectId    String? // ID crudo de Toggl aunque no haya mapping todavía
+  togglUpdatedAt    DateTime? // "at" de Toggl, para resolver conflictos
+  syncStatus        TimeSyncStatus  @default(synced)
+  lastSyncedAt      DateTime?
+  lastSyncError     String?
+  // Intentos de push fallidos consecutivos. Sirve para ordenar la cola de
+  // reintentos y para dejar de insistir con lo que falla siempre.
+  syncAttempts      Int             @default(0)
+  lastSyncAttemptAt DateTime?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -930,7 +985,11 @@ model TimeEntry {
   // El resumen semanal y los listados filtran siempre por usuaria + rango.
   @@index([userId, deletedAt, startedAt])
   @@index([clientId, deletedAt]) // totales de la ficha de cliente
+  @@index([syncStatus, deletedAt]) // cola de reintentos de sincronización
   @@index([projectId, deletedAt]) // totales de la ficha de proyecto
+  @@index([startedAt]) // reconciliación e informes que no filtran por usuaria
+  @@index([togglProjectId]) // resolver "sin asignar" al confirmar un mapping
+  @@index([syncStatus]) // cola de pendientes/errores en Integraciones
 }
 
 model TimerSession {
@@ -951,6 +1010,13 @@ model TimerSession {
   taskId       String?
   serviceId    String?
   metadata     Json?
+
+  // Entrada en curso creada en Toggl al arrancar el cronómetro. Al parar, este
+  // id se traspasa a la TimeEntry resultante para que ambos lados apunten a la
+  // misma entrada en lugar de crear una segunda.
+  togglTimeEntryId String?
+  togglWorkspaceId String?
+  togglSyncError   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1075,8 +1141,8 @@ model InvoiceDraftRequest {
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
 
-  proposalId String?
-  proposal   Proposal? @relation(fields: [proposalId], references: [id])
+  proposalId         String?
+  proposal           Proposal?         @relation(fields: [proposalId], references: [id])
   recurringServiceId String?
   recurringService   RecurringService? @relation(fields: [recurringServiceId], references: [id])
 
@@ -1138,7 +1204,7 @@ model AdminDocument {
   reference String? // número de justificante o de póliza
   amount    Decimal? @db.Decimal(12, 2)
 
-  issuedAt DateTime?
+  issuedAt   DateTime?
   /// Fecha de caducidad. Es lo que permite avisar del certificado digital
   /// o de la renovación de un seguro antes de que sea un problema.
   validUntil DateTime?
@@ -1228,23 +1294,23 @@ model ExpenseRecord {
 // ---------------------------------------------------------------------------
 
 model Campaign {
-  id        String          @id @default(cuid())
-  name      String
-  channel   CampaignChannel @default(other)
-  objective String?
-  status    CampaignStatus  @default(draft)
-  startAt   DateTime?
-  endAt     DateTime?
-  budget    Decimal?        @db.Decimal(12, 2)
-  spent     Decimal?        @db.Decimal(12, 2)
-  promotedService String?
-  url       String?
-  utmSource   String?
-  utmMedium   String?
-  utmCampaign String?
-  utmContent  String?
-  manualCostPerLead Decimal? @db.Decimal(10, 2)
-  notes     String?
+  id                String          @id @default(cuid())
+  name              String
+  channel           CampaignChannel @default(other)
+  objective         String?
+  status            CampaignStatus  @default(draft)
+  startAt           DateTime?
+  endAt             DateTime?
+  budget            Decimal?        @db.Decimal(12, 2)
+  spent             Decimal?        @db.Decimal(12, 2)
+  promotedService   String?
+  url               String?
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  utmContent        String?
+  manualCostPerLead Decimal?        @db.Decimal(10, 2)
+  notes             String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1313,6 +1379,57 @@ model OdooSyncJob {
   updatedAt  DateTime  @updatedAt
 
   @@index([status, type])
+}
+
+// Toggl Project ID <-> Kairas Project ID. El nombre solo sirve para sugerir
+// la primera vez; una vez confirmado (confirmedAt no nulo) todo se resuelve
+// por togglProjectId, nunca más por nombre.
+model TogglProjectMapping {
+  id               String    @id @default(cuid())
+  togglProjectId   String    @unique
+  togglProjectName String
+  togglWorkspaceId String
+  kairasProjectId  String? // null = sin decidir, o decidido como "ignorar"
+  project          Project?  @relation(fields: [kairasProjectId], references: [id])
+  matchedByName    Boolean   @default(false)
+  confirmedAt      DateTime? // null = pendiente de revisión humana
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kairasProjectId])
+  @@index([confirmedAt])
+}
+
+// Auditoría de cada ejecución de importación/reconciliación con Toggl.
+// Mismo espíritu que OdooSyncJob, adaptado a los contadores que pide el
+// import idempotente de TimeEntry (recibidas/creadas/actualizadas/...).
+model TogglSyncRun {
+  id     String             @id @default(cuid())
+  kind   TogglSyncKind
+  status TogglSyncRunStatus @default(running)
+
+  windowFrom DateTime?
+  windowTo   DateTime?
+  sinceParam Int? // cursor unix usado en ?since= (reconciliación)
+
+  itemsReceived   Int @default(0)
+  itemsCreated    Int @default(0)
+  itemsUpdated    Int @default(0)
+  itemsUnchanged  Int @default(0)
+  itemsUnassigned Int @default(0)
+  itemsDeleted    Int @default(0)
+  itemsError      Int @default(0)
+
+  error   String?
+  summary Json? // detalle de fallos parciales por ventana/entrada
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([kind, status])
+  @@index([createdAt])
 }
 
 model Attachment {
@@ -1466,7 +1583,7 @@ enum OsRelationType {
 }
 
 model KnowledgeSource {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   label     String
   phase     String?
   path      String?
@@ -1479,36 +1596,36 @@ model KnowledgeSource {
 }
 
 model KnowledgeEntry {
-  id           String  @id @default(cuid())
-  externalKey  String? @unique
-  type         OsEntryType
-  area         String
-  title        String
-  body         String? @db.Text
-  summary      String?
-  status       OsStatus       @default(borrador)
-  authority    OsAuthority    @default(operativo)
-  businessLine OsBusinessLine @default(transversal)
-  messageLayer OsMessageLayer @default(na)
-  sector       String?
-  validUntil   DateTime?
-  hypothesisRef String?
-  funnelStage  String?
+  id             String           @id @default(cuid())
+  externalKey    String?          @unique
+  type           OsEntryType
+  area           String
+  title          String
+  body           String?          @db.Text
+  summary        String?
+  status         OsStatus         @default(borrador)
+  authority      OsAuthority      @default(operativo)
+  businessLine   OsBusinessLine   @default(transversal)
+  messageLayer   OsMessageLayer   @default(na)
+  sector         String?
+  validUntil     DateTime?
+  hypothesisRef  String?
+  funnelStage    String?
   awarenessLevel String?
-  temperature  String?
-  channel      String?
-  targetType   String?
-  targetId     String?
-  meta         Json?
-  embeddingRef String?
-  contentHash  String?
-  ownerId      String?
-  sourceId     String?
-  source       KnowledgeSource? @relation(fields: [sourceId], references: [id])
-  currentVersion Int   @default(1)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime?
+  temperature    String?
+  channel        String?
+  targetType     String?
+  targetId       String?
+  meta           Json?
+  embeddingRef   String?
+  contentHash    String?
+  ownerId        String?
+  sourceId       String?
+  source         KnowledgeSource? @relation(fields: [sourceId], references: [id])
+  currentVersion Int              @default(1)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
 
   tags          KnowledgeEntryTag[]
   versions      KnowledgeVersion[]
@@ -1549,14 +1666,14 @@ model KnowledgeEntryTag {
 }
 
 model KnowledgeRelation {
-  id     String @id @default(cuid())
-  fromId String
-  toId   String
-  type   OsRelationType
-  note   String?
-  from   KnowledgeEntry @relation("OsRelFrom", fields: [fromId], references: [id], onDelete: Cascade)
-  to     KnowledgeEntry @relation("OsRelTo", fields: [toId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id        String         @id @default(cuid())
+  fromId    String
+  toId      String
+  type      OsRelationType
+  note      String?
+  from      KnowledgeEntry @relation("OsRelFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        KnowledgeEntry @relation("OsRelTo", fields: [toId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
 
   @@unique([fromId, toId, type])
   @@index([toId])
@@ -1564,16 +1681,16 @@ model KnowledgeRelation {
 }
 
 model KnowledgeVersion {
-  id                String   @id @default(cuid())
+  id                String         @id @default(cuid())
   entryId           String
   version           Int
   titleSnapshot     String
-  bodySnapshot      String?  @db.Text
+  bodySnapshot      String?        @db.Text
   statusSnapshot    OsStatus
   changeReason      String?
   authorId          String?
   supersedesEntryId String?
-  createdAt         DateTime @default(now())
+  createdAt         DateTime       @default(now())
   entry             KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@unique([entryId, version])
@@ -1581,10 +1698,10 @@ model KnowledgeVersion {
 }
 
 model KnowledgeFavorite {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   entryId   String
   userId    String
-  createdAt DateTime @default(now())
+  createdAt DateTime       @default(now())
   entry     KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@unique([entryId, userId])
@@ -1605,10 +1722,10 @@ model KnowledgePermission {
 // Registro de accesos para "más utilizado" y "actividad de la semana".
 // Solo del módulo; FK interna a os_knowledge_entry.
 model KnowledgeView {
-  id       String   @id @default(cuid())
+  id       String         @id @default(cuid())
   entryId  String
   userId   String?
-  viewedAt DateTime @default(now())
+  viewedAt DateTime       @default(now())
   entry    KnowledgeEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId])

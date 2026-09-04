@@ -370,6 +370,17 @@ export const TIME_ENTRY_STATUS: LabelMap<
   written_off: { label: "Descartada", tone: "neutral" },
 };
 
+export const TIME_ENTRY_ORIGIN: LabelMap<"kairas" | "toggl"> = {
+  kairas: { label: "Kairas", tone: "violet" },
+  toggl: { label: "Toggl", tone: "info" },
+};
+
+export const TIME_SYNC_STATUS: LabelMap<"synced" | "pending" | "error"> = {
+  synced: { label: "Sincronizada", tone: "ok" },
+  pending: { label: "Pendiente", tone: "warn" },
+  error: { label: "Error de sync", tone: "danger" },
+};
+
 export const CAMPAIGN_STATUS: LabelMap<
   "draft" | "active" | "paused" | "finished" | "archived"
 > = {

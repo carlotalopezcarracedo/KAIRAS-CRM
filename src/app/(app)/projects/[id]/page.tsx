@@ -11,11 +11,13 @@ import { EntityNoteForm } from "@/components/entity-note-form";
 import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { PROJECT_STATUS, PRIORITY, PROJECT_BILLING } from "@/lib/labels";
 import { formatMoney, formatDate, formatDateTime, formatDuration } from "@/lib/utils";
+import { prisma } from "@/server/db/prisma";
 import { getProjectFull } from "@/server/services/project-service";
 import { deleteProjectAction, addProjectNoteAction } from "../actions";
 import { TaskQuickAdd } from "../../tasks/task-quick-add";
 import { TaskRow, type TaskRowData } from "../../tasks/task-row";
 import { StartTimerButton } from "../../time/start-timer-button";
+import { ProjectTimePanel } from "./project-time-panel";
 
 export const metadata: Metadata = { title: "Proyecto" };
 
@@ -30,11 +32,26 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  const data = await getProjectFull(id);
+  const [data, raw, clients, projects] = await Promise.all([
+    getProjectFull(id),
+    searchParams,
+    prisma.client.findMany({
+      where: { deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.project.findMany({
+      where: { deletedAt: null, status: { notIn: ["completed", "cancelled"] } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
   if (!data) notFound();
   const {
     project,
@@ -200,6 +217,17 @@ export default async function ProjectDetailPage({
               )}
             </CardBody>
           </Card>
+
+          {/* Tiempo */}
+          <ProjectTimePanel
+            projectId={project.id}
+            clientId={project.clientId}
+            mainServiceId={project.mainServiceId}
+            projectName={project.name}
+            clients={clients}
+            projects={projects}
+            raw={raw}
+          />
 
           {/* Alcance */}
           {(project.description || project.scope || project.outOfScope || project.deliverables) && (

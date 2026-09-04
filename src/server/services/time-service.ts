@@ -2,18 +2,68 @@ import { cache } from "react";
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
 import { dateKey } from "@/lib/utils";
+import { startOfMonthMadrid } from "@/lib/dates";
 import { resolveHourlyRate } from "@/server/services/rate-service";
 import { getAppDefaults } from "@/server/services/settings-service";
 import type {
   TimerStartInput,
   TimeEntryCreateInput,
 } from "@/server/validators/time";
-import type { Prisma, TimeEntryStatus } from "@prisma/client";
+import type { Prisma, TimeEntryStatus, TimeEntryOrigin } from "@prisma/client";
+import {
+  pushTimeEntry,
+  deleteTimeEntryInToggl,
+  deleteRemoteTimerEntry,
+  startRemoteTimer,
+  stopRemoteTimer,
+} from "@/server/services/toggl-push-service";
 
 const notDeleted = { deletedAt: null } as const;
 
-/** Estados en los que una entrada ya no se puede editar sin desbloqueo. */
-const LOCKED_STATUSES: TimeEntryStatus[] = ["queued_for_invoice", "invoiced"];
+/**
+ * Opciones comunes de las mutaciones de tiempo.
+ *
+ * ANTILOOP: `syncToToggl: false` es la vía explícita para que un cambio que
+ * VIENE de Toggl (webhook, reconciliación, importación) no rebote hacia Toggl.
+ * El camino remoto usa además `applyRemoteEntry`, que ni siquiera importa el
+ * servicio de push, así que la separación no depende solo de este flag.
+ */
+export type TimeMutationOptions = { syncToToggl?: boolean };
+
+/**
+ * Lanza el push sin dejar que un fallo de Toggl tumbe la operación local.
+ * El servicio de push ya persiste syncStatus/lastSyncError por su cuenta.
+ */
+async function trySync(run: () => Promise<unknown>) {
+  try {
+    await run();
+  } catch {
+    // Nunca debe romper la acción de la usuaria: el estado de sincronización
+    // queda como "pending"/"error" y se puede reintentar desde la UI.
+  }
+}
+
+/**
+ * Estados en los que una entrada ya no se puede editar sin desbloqueo.
+ * Exportado: la sincronización con Toggl reutiliza esta misma regla para no
+ * dejar que un cambio remoto pise una entrada ya en cola de factura o facturada.
+ */
+export const LOCKED_STATUSES: TimeEntryStatus[] = ["queued_for_invoice", "invoiced"];
+
+/**
+ * Autorización sobre una TimeEntry ya cargada (IDOR): la propietaria
+ * administra todas, cualquier otra usuaria solo las suyas. Nunca debe bastar
+ * con conocer el id -- por eso esto se llama SIEMPRE después de cargar la
+ * fila y ANTES de mirar nada más de su contenido (estado bloqueado incluido),
+ * para no filtrar ni siquiera esa información a quien no tiene permiso.
+ * Reutiliza el mismo criterio que ya usa `retryEntrySyncAction` en las
+ * acciones de Toggl: no se crea ningún sistema de permisos nuevo.
+ */
+async function assertCanManageEntry(userId: string, entry: { userId: string }) {
+  if (entry.userId === userId) return;
+  const actor = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (actor?.role !== "owner") throw new Error("FORBIDDEN");
+}
 
 // ---------------------------------------------------------------------------
 // Cronómetro
@@ -51,7 +101,11 @@ export async function getTimeEntryExtraOptions() {
  * Arranca el cronómetro. Si ya hay uno activo, lo para primero
  * (creando su entrada) — igual que Toggl al iniciar uno nuevo.
  */
-export async function startTimer(userId: string, input: TimerStartInput) {
+export async function startTimer(
+  userId: string,
+  input: TimerStartInput,
+  opts: TimeMutationOptions = {},
+) {
   const existing = await getActiveTimer(userId);
   if (existing) {
     await stopTimer(userId);
@@ -98,6 +152,13 @@ export async function startTimer(userId: string, input: TimerStartInput) {
     entityId: session.id,
     after: { title: input.title ?? null, projectId, clientId },
   });
+
+  // Abre la entrada en curso en Toggl (duration -1). Si falla, el cronómetro
+  // de Kairas sigue funcionando igual.
+  if (opts.syncToToggl !== false) {
+    await trySync(() => startRemoteTimer(session));
+    return (await prisma.timerSession.findUnique({ where: { id: session.id } })) ?? session;
+  }
   return session;
 }
 
@@ -112,7 +173,7 @@ function applyRounding(seconds: number, roundingMinutes: number): number {
 }
 
 /** Para el cronómetro activo y crea la TimeEntry correspondiente. */
-export async function stopTimer(userId: string) {
+export async function stopTimer(userId: string, opts: TimeMutationOptions = {}) {
   const session = await getActiveTimer(userId);
   if (!session) throw new Error("NO_ACTIVE_TIMER");
 
@@ -146,6 +207,11 @@ export async function stopTimer(userId: string) {
         title: session.currentTitle,
         workType: session.workType,
         source: "timer",
+        // Nace en Kairas: billable queda protegido de por vida (nunca lo pisa
+        // una sincronización entrante), y "pending" hasta que el push confirme.
+        origin: "kairas",
+        billableLocal: true,
+        syncStatus: "pending",
         startedAt: session.startedAt,
         endedAt,
         durationSeconds,
@@ -169,13 +235,30 @@ export async function stopTimer(userId: string) {
     entityId: entry.id,
     metadata: { source: "timer", durationSeconds },
   });
+
+  // Cierra en Toggl la MISMA entrada que abrió el arranque: no se crea otra.
+  if (opts.syncToToggl !== false) {
+    await trySync(() =>
+      stopRemoteTimer(session.togglTimeEntryId, session.togglWorkspaceId, entry.id),
+    );
+    return (await prisma.timeEntry.findUnique({ where: { id: entry.id } })) ?? entry;
+  }
   return entry;
 }
 
 /** Descarta el cronómetro activo sin crear entrada. */
-export async function discardTimer(userId: string) {
+export async function discardTimer(userId: string, opts: TimeMutationOptions = {}) {
   const session = await getActiveTimer(userId);
   if (!session) throw new Error("NO_ACTIVE_TIMER");
+
+  // Descartar en Kairas debe descartar también en Toggl: si no, quedaría un
+  // cronómetro remoto corriendo para siempre.
+  if (opts.syncToToggl !== false && session.togglTimeEntryId) {
+    await trySync(() =>
+      deleteRemoteTimerEntry(session.togglTimeEntryId!, session.togglWorkspaceId),
+    );
+  }
+
   await prisma.timerSession.delete({ where: { id: session.id } });
   await audit({
     actorId: userId,
@@ -219,6 +302,7 @@ async function computeAmount(input: {
 export async function createManualEntry(
   userId: string,
   input: TimeEntryCreateInput,
+  opts: TimeMutationOptions = {},
 ) {
   const durationSeconds = Math.round(
     (input.endedAt.getTime() - input.startedAt.getTime()) / 1000,
@@ -250,6 +334,9 @@ export async function createManualEntry(
       description: input.description,
       workType: input.workType,
       source: "manual",
+      origin: "kairas",
+      billableLocal: true,
+      syncStatus: "pending",
       startedAt: input.startedAt,
       endedAt: input.endedAt,
       durationSeconds,
@@ -271,6 +358,11 @@ export async function createManualEntry(
     entityId: entry.id,
     metadata: { source: "manual", durationSeconds },
   });
+
+  if (opts.syncToToggl !== false) {
+    await trySync(() => pushTimeEntry(entry.id));
+    return (await prisma.timeEntry.findUnique({ where: { id: entry.id } })) ?? entry;
+  }
   return entry;
 }
 
@@ -278,9 +370,11 @@ export async function updateEntry(
   userId: string,
   id: string,
   input: TimeEntryCreateInput,
+  opts: TimeMutationOptions = {},
 ) {
   const before = await prisma.timeEntry.findFirst({ where: { id, ...notDeleted } });
   if (!before) throw new Error("NOT_FOUND");
+  await assertCanManageEntry(userId, before);
   if (before.lockedAt || LOCKED_STATUSES.includes(before.status)) {
     throw new Error("LOCKED");
   }
@@ -318,6 +412,9 @@ export async function updateEntry(
       endedAt: input.endedAt,
       durationSeconds,
       billable: input.billable,
+      // Editar desde Kairas -- de cualquier origen -- reclama la propiedad de
+      // billable: a partir de ahora ninguna sincronización entrante lo pisa.
+      billableLocal: true,
       hourlyRate,
       calculatedAmount,
       status: input.billable
@@ -329,6 +426,9 @@ export async function updateEntry(
       projectId,
       taskId: input.taskId || null,
       serviceId: input.serviceId || null,
+      // El contenido acaba de cambiar: hasta que el push confirme, el estado
+      // de sync visible no debe seguir diciendo "synced" de la edición anterior.
+      ...(opts.syncToToggl !== false ? { syncStatus: "pending" as const } : {}),
     },
   });
 
@@ -340,6 +440,12 @@ export async function updateEntry(
     before: { durationSeconds: before.durationSeconds },
     after: { durationSeconds },
   });
+
+  // Actualiza la MISMA entrada de Toggl (pushTimeEntry usa togglTimeEntryId).
+  if (opts.syncToToggl !== false) {
+    await trySync(() => pushTimeEntry(id));
+    return (await prisma.timeEntry.findUnique({ where: { id } })) ?? entry;
+  }
   return entry;
 }
 
@@ -350,6 +456,7 @@ export async function setEntryStatus(
 ) {
   const before = await prisma.timeEntry.findFirst({ where: { id, ...notDeleted } });
   if (!before) throw new Error("NOT_FOUND");
+  await assertCanManageEntry(userId, before);
   if (before.lockedAt && status !== before.status) throw new Error("LOCKED");
 
   const entry = await prisma.timeEntry.update({
@@ -367,13 +474,21 @@ export async function setEntryStatus(
   return entry;
 }
 
-export async function softDeleteEntry(userId: string, id: string) {
+export async function softDeleteEntry(
+  userId: string,
+  id: string,
+  opts: TimeMutationOptions = {},
+) {
   const entry = await prisma.timeEntry.findFirst({ where: { id, ...notDeleted } });
   if (!entry) throw new Error("NOT_FOUND");
+  await assertCanManageEntry(userId, entry);
   if (entry.lockedAt || LOCKED_STATUSES.includes(entry.status)) {
     throw new Error("LOCKED");
   }
-  await prisma.timeEntry.update({ where: { id }, data: { deletedAt: new Date() } });
+  const deleted = await prisma.timeEntry.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
   await audit({
     actorId: userId,
     action: "delete",
@@ -381,6 +496,12 @@ export async function softDeleteEntry(userId: string, id: string) {
     entityId: id,
     before: { durationSeconds: entry.durationSeconds },
   });
+
+  // Soft delete local + DELETE remoto. Se conserva togglTimeEntryId para que
+  // una reconciliación posterior no la reimporte como entrada nueva.
+  if (opts.syncToToggl !== false) {
+    await trySync(() => deleteTimeEntryInToggl(deleted));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -508,5 +629,93 @@ export async function getTimeSummary(
     byWorkType: [...byWorkType.entries()]
       .map(([workType, seconds]) => ({ workType, seconds }))
       .sort((a, b) => b.seconds - a.seconds),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Horas por proyecto (sección "Tiempo" de la ficha de proyecto)
+// ---------------------------------------------------------------------------
+
+export type ProjectTimeFilters = {
+  from?: Date;
+  to?: Date;
+  billable?: boolean;
+  origin?: TimeEntryOrigin;
+  q?: string;
+};
+
+function projectFiltersToWhere(
+  projectId: string,
+  filters: ProjectTimeFilters,
+): Prisma.TimeEntryWhereInput {
+  return {
+    projectId,
+    ...notDeleted,
+    ...(filters.from || filters.to
+      ? {
+          startedAt: {
+            ...(filters.from ? { gte: filters.from } : {}),
+            ...(filters.to ? { lte: filters.to } : {}),
+          },
+        }
+      : {}),
+    ...(filters.billable !== undefined ? { billable: filters.billable } : {}),
+    ...(filters.origin ? { origin: filters.origin } : {}),
+    ...(filters.q
+      ? {
+          OR: [
+            { title: { contains: filters.q, mode: "insensitive" } },
+            { description: { contains: filters.q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+}
+
+/**
+ * Horas de un proyecto concreto, sin filtrar por usuaria: la ficha de
+ * proyecto ya muestra "de quién" no importa en una app de una sola usuaria,
+ * y así una entrada importada de Toggl (sin cronómetro Kairas de por medio)
+ * también aparece.
+ */
+export async function listEntriesForProject(
+  projectId: string,
+  filters: ProjectTimeFilters = {},
+) {
+  return prisma.timeEntry.findMany({
+    where: projectFiltersToWhere(projectId, filters),
+    orderBy: { startedAt: "desc" },
+    take: 500,
+  });
+}
+
+/** Resumen de horas del proyecto: total, mes en curso, facturable/no facturable. */
+export async function getProjectTimeSummary(projectId: string) {
+  const monthStart = startOfMonthMadrid(0, new Date());
+
+  const [total, billable, month] = await Promise.all([
+    prisma.timeEntry.aggregate({
+      where: { projectId, deletedAt: null },
+      _sum: { durationSeconds: true },
+    }),
+    prisma.timeEntry.aggregate({
+      where: { projectId, deletedAt: null, billable: true },
+      _sum: { durationSeconds: true, calculatedAmount: true },
+    }),
+    prisma.timeEntry.aggregate({
+      where: { projectId, deletedAt: null, startedAt: { gte: monthStart } },
+      _sum: { durationSeconds: true },
+    }),
+  ]);
+
+  const totalSeconds = total._sum.durationSeconds ?? 0;
+  const billableSeconds = billable._sum.durationSeconds ?? 0;
+
+  return {
+    totalSeconds,
+    monthSeconds: month._sum.durationSeconds ?? 0,
+    billableSeconds,
+    nonBillableSeconds: totalSeconds - billableSeconds,
+    billableAmount: Number(billable._sum.calculatedAmount ?? 0),
   };
 }
