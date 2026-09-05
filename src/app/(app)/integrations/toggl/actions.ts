@@ -8,7 +8,11 @@ import {
   selectTogglWorkspace,
   type ConnectionCheckResult,
 } from "@/server/services/toggl-connection-service";
-import { runHistoricalImport, runReconciliation } from "@/server/services/toggl-sync-service";
+import {
+  runHistoricalImport,
+  runReconciliation,
+  continueHistoricalImport,
+} from "@/server/services/toggl-sync-service";
 import {
   refreshProjectMappings,
   confirmProjectMapping,
@@ -72,6 +76,12 @@ function friendlyServiceError(err: unknown): string {
     if (err.message === "INVALID_RANGE") return "El rango de fechas no es válido.";
     if (err.message === "NOT_FOUND") return "Ese mapeo ya no existe.";
     if (err.message === "PROJECT_NOT_FOUND") return "Ese proyecto de Kairas ya no existe.";
+    if (err.message === "NO_RESUMABLE_IMPORT") {
+      return "No hay ninguna importación histórica pausada para continuar.";
+    }
+    if (err.message === "NOTHING_TO_RESUME") {
+      return "La importación pausada ya no tiene ventanas pendientes de reintentar.";
+    }
   }
   return "Algo ha fallado. Inténtalo de nuevo.";
 }
@@ -135,6 +145,22 @@ export async function importHistoricalAction(
     await runHistoricalImport(auth.userId, { from, to });
   } catch (err) {
     console.error("[importHistoricalAction]", err);
+    return { ok: false, error: friendlyServiceError(err) };
+  }
+
+  revalidateTogglPaths();
+  return { ok: true };
+}
+
+/** Reanuda el import histórico parcial más reciente (solo ventanas pendientes/con error). */
+export async function continueImportAction(): Promise<ActionResult> {
+  const auth = await withOwner();
+  if (!auth.ok) return auth;
+
+  try {
+    await continueHistoricalImport(auth.userId);
+  } catch (err) {
+    console.error("[continueImportAction]", err);
     return { ok: false, error: friendlyServiceError(err) };
   }
 

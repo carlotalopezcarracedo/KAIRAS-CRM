@@ -2,7 +2,13 @@ import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
 import { addDays } from "@/lib/dates";
 import { LOCKED_STATUSES } from "@/server/services/time-service";
-import { TogglClient, isTogglQuotaLow, type TogglTimeEntry } from "@/integrations/toggl/adapter";
+import {
+  TogglClient,
+  TogglApiError,
+  isTogglQuotaLow,
+  getLastTogglQuota,
+  type TogglTimeEntry,
+} from "@/integrations/toggl/adapter";
 import {
   getTogglSettings,
   patchTogglSettings,
@@ -368,7 +374,37 @@ export type TogglSyncRunSummary = {
   error: string | null;
   startedAt: Date;
   finishedAt: Date | null;
+  /** Solo relevante en historical_import: hay ventanas que se pueden reintentar. */
+  resumable: boolean;
+  /** Ventanas fuera del histórico que permite la cuenta/plan de Toggl (permanente, no se reintentan). */
+  unreachableWindows: number;
+  /** Ventanas nunca intentadas (se paró antes de llegar) + con error puntual. */
+  pendingWindows: number;
+  quotaResetsInSeconds: number | null;
+  quotaObservedAt: string | null;
 } & Totals;
+
+type WindowState = {
+  from: string; // YYYY-MM-DD
+  to: string; // YYYY-MM-DD
+  status: "pending" | "success" | "error" | "unreachable";
+  reason?: "quota" | "other";
+  error?: string;
+  itemsReceived?: number;
+};
+
+type ImportRunSummary = {
+  windows: WindowState[];
+  quota?: { remaining: number; resetsInSeconds: number; observedAt: string } | null;
+};
+
+function isImportRunSummary(value: unknown): value is ImportRunSummary {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    Array.isArray((value as { windows?: unknown }).windows)
+  );
+}
 
 function mapRun(run: {
   id: string;
@@ -384,9 +420,14 @@ function mapRun(run: {
   itemsDeleted: number;
   itemsError: number;
   error: string | null;
+  summary: unknown;
   startedAt: Date;
   finishedAt: Date | null;
 }): TogglSyncRunSummary {
+  const parsed = isImportRunSummary(run.summary) ? run.summary : null;
+  const windows = parsed?.windows ?? [];
+  const pendingWindows = windows.filter((w) => w.status === "pending" || w.status === "error").length;
+  const unreachableWindows = windows.filter((w) => w.status === "unreachable").length;
   return {
     id: run.id,
     kind: run.kind,
@@ -403,6 +444,11 @@ function mapRun(run: {
     error: run.error,
     startedAt: run.startedAt,
     finishedAt: run.finishedAt,
+    resumable: pendingWindows > 0,
+    unreachableWindows,
+    pendingWindows,
+    quotaResetsInSeconds: parsed?.quota?.resetsInSeconds ?? null,
+    quotaObservedAt: parsed?.quota?.observedAt ?? null,
   };
 }
 
@@ -417,115 +463,193 @@ const IMPORT_WINDOW_DAYS = 31;
  */
 const RECONCILE_OVERLAP_SECONDS = 5 * 60;
 
-/**
- * Importación histórica por ventanas (por defecto mensuales) desde
- * `GET /me/time_entries`. Totalmente idempotente: repetirla no duplica nada
- * (upsert por togglTimeEntryId). Si una ventana falla, se registra el error
- * y se continúa con la siguiente — lo ya importado no se pierde.
- */
-export async function runHistoricalImport(
-  actorId: string,
-  range: { from: Date; to: Date },
-): Promise<TogglSyncRunSummary> {
-  const settings = await getTogglSettings();
-  if (!settings.workspaceId) throw new Error("NO_WORKSPACE");
-  if (range.to < range.from) throw new Error("INVALID_RANGE");
-
-  const run = await prisma.togglSyncRun.create({
-    data: {
-      kind: "historical_import",
-      status: "running",
-      windowFrom: range.from,
-      windowTo: range.to,
-    },
-  });
-
-  const client = new TogglClient();
-  const totals = zeroTotals();
-  const windowErrors: { from: string; to: string; error: string }[] = [];
-
-  let cursor = new Date(range.from);
-  while (cursor <= range.to) {
+function buildWindows(from: Date, to: Date): WindowState[] {
+  const windows: WindowState[] = [];
+  let cursor = new Date(from);
+  while (cursor <= to) {
     const windowEnd = new Date(
-      Math.min(addDays(cursor, IMPORT_WINDOW_DAYS - 1).getTime(), range.to.getTime()),
+      Math.min(addDays(cursor, IMPORT_WINDOW_DAYS - 1).getTime(), to.getTime()),
     );
+    windows.push({ from: toDateParam(cursor), to: toDateParam(windowEnd), status: "pending" });
+    cursor = addDays(windowEnd, 1);
+  }
+  return windows;
+}
 
-    try {
-      const entries = await client.getTimeEntries({
-        startDate: toDateParam(cursor),
-        endDate: toDateParam(windowEnd),
-      });
-      totals.itemsReceived += entries.length;
-
-      for (const entry of entries) {
-        try {
-          const result = await applyRemoteEntry(entry, actorId);
-          bump(totals, result);
-        } catch (err) {
-          totals.itemsError += 1;
-          windowErrors.push({
-            from: toDateParam(cursor),
-            to: toDateParam(windowEnd),
-            error: err instanceof Error ? err.message : "Error al aplicar una entrada",
-          });
-        }
+/**
+ * Descarga y aplica una ventana. Nunca lanza: el resultado clasifica el
+ * motivo del fallo para que el bucle de arriba decida qué hacer (parar,
+ * marcar como no alcanzable, o seguir con la siguiente).
+ */
+async function processWindow(
+  client: TogglClient,
+  actorId: string,
+  win: { from: string; to: string },
+  totals: Totals,
+): Promise<{ outcome: "success" | "quota" | "unreachable" | "error"; message?: string; itemsReceived: number }> {
+  try {
+    const entries = await client.getTimeEntries({ startDate: win.from, endDate: win.to });
+    for (const entry of entries) {
+      try {
+        const result = await applyRemoteEntry(entry, actorId);
+        bump(totals, result);
+      } catch {
+        totals.itemsError += 1;
       }
-    } catch (err) {
-      totals.itemsError += 1;
-      windowErrors.push({
-        from: toDateParam(cursor),
-        to: toDateParam(windowEnd),
-        error: describeTogglError(err),
-      });
-      // Se continúa con la siguiente ventana: lo ya importado se conserva.
+    }
+    totals.itemsReceived += entries.length;
+    return { outcome: "success", itemsReceived: entries.length };
+  } catch (err) {
+    if (err instanceof TogglApiError && err.code === "RATE_LIMITED") {
+      return { outcome: "quota", message: err.message, itemsReceived: 0 };
+    }
+    if (err instanceof TogglApiError && err.code === "RANGE_TOO_OLD") {
+      return { outcome: "unreachable", message: err.message, itemsReceived: 0 };
+    }
+    return { outcome: "error", message: describeTogglError(err), itemsReceived: 0 };
+  }
+}
+
+/**
+ * Recorre las ventanas pendientes/con error (nunca las ya resueltas:
+ * "success" y "unreachable" no se vuelven a pedir). Muta `windows` in place.
+ *
+ * Cuota agotada (429/402 real, o el aviso preventivo de `isTogglQuotaLow()`):
+ * para inmediatamente. Las ventanas todavía no intentadas quedan tal cual (no
+ * se cuentan como error una a una) para poder reanudar después.
+ *
+ * El aviso preventivo SOLO se aplica a partir de la segunda ventana de ESTA
+ * misma ejecución: `isTogglQuotaLow()` lee un estado en memoria del proceso
+ * que puede venir de una operación anterior ya vieja (otra importación, un
+ * push, etc.). Fiarse de esa lectura para la primera ventana bloquearía para
+ * siempre la primera ventana de cada reanudación aunque la cuota de Toggl ya
+ * se hubiera restablecido -- por eso la primera ventana de cada ejecución
+ * SIEMPRE se intenta de verdad; si de verdad sigue agotada, la propia
+ * respuesta (429/402) lo confirma y pausa igualmente, sin gastar más de una
+ * llamada de más.
+ */
+async function runImportWindows(
+  actorId: string,
+  windows: WindowState[],
+  totals: Totals,
+): Promise<{ stoppedByQuota: boolean }> {
+  const client = new TogglClient();
+  let stoppedByQuota = false;
+  let madeRealCallThisRun = false;
+
+  for (const w of windows) {
+    if (w.status === "success" || w.status === "unreachable") continue;
+
+    // Ninguna llamada adicional solo para consultar cuota: esto reutiliza la
+    // que ya devolvió la última petición real DE ESTA MISMA ejecución.
+    if (madeRealCallThisRun && isTogglQuotaLow()) {
+      stoppedByQuota = true;
+      break;
     }
 
-    cursor = addDays(windowEnd, 1);
-
-    // No hace ninguna llamada extra: aprovecha la cuota que ya devolvió la
-    // última petición real. Parar aquí es mejor que seguir y que la próxima
-    // ventana falle a medias por un 429.
-    if (cursor <= range.to && isTogglQuotaLow()) {
-      windowErrors.push({
-        from: toDateParam(cursor),
-        to: toDateParam(range.to),
-        error: "Detenido por cuota de Toggl casi agotada. Vuelve a intentarlo cuando se reinicie.",
-      });
+    const result = await processWindow(client, actorId, { from: w.from, to: w.to }, totals);
+    madeRealCallThisRun = true;
+    if (result.outcome === "success") {
+      w.status = "success";
+      w.itemsReceived = result.itemsReceived;
+      w.error = undefined;
+      w.reason = undefined;
+    } else if (result.outcome === "unreachable") {
+      w.status = "unreachable";
+      w.error = result.message;
+    } else if (result.outcome === "quota") {
+      w.status = "error";
+      w.reason = "quota";
+      w.error = result.message;
+      stoppedByQuota = true;
       break;
+    } else {
+      w.status = "error";
+      w.reason = "other";
+      w.error = result.message;
+      // Error puntual de esta ventana: se sigue con la siguiente.
     }
   }
 
-  const status: TogglSyncRunStatus = windowErrors.length > 0 ? "error" : "success";
-  // El mensaje de nivel superior distingue "cuota agotada" (parada
-  // deliberada, se reanuda sola en el próximo intento) de errores reales de
-  // ventana, en vez de un genérico "N ventana(s) con error" para ambos casos.
-  const stoppedByQuota = windowErrors.some((w) => w.error.includes("cuota"));
-  const errorMessage = stoppedByQuota
-    ? windowErrors[windowErrors.length - 1]!.error
-    : windowErrors.length
-      ? `${windowErrors.length} ventana(s) con error`
-      : null;
+  return { stoppedByQuota };
+}
+
+/**
+ * Estado semántico del run:
+ * - success: todas las ventanas se completaron limpias.
+ * - partial: hubo progreso real (al menos una ventana con éxito) pero queda
+ *   algo sin resolver (pendiente/con error reintentable) o permanentemente
+ *   fuera de alcance. No es un fallo: parte de lo pedido SÍ se importó.
+ * - error: ninguna ventana llegó a completarse -- puede seguir siendo
+ *   reanudable (ver `resumable` en `mapRun`), pero no hay progreso que mostrar
+ *   como "parcial".
+ */
+function summarizeImportRun(windows: WindowState[]): {
+  status: TogglSyncRunStatus;
+  message: string | null;
+} {
+  const successCount = windows.filter((w) => w.status === "success").length;
+  const unreachableCount = windows.filter((w) => w.status === "unreachable").length;
+  const pendingCount = windows.filter((w) => w.status === "pending").length;
+  const errorWindows = windows.filter((w) => w.status === "error");
+  const quotaErrorCount = errorWindows.filter((w) => w.reason === "quota").length;
+  const otherErrorCount = errorWindows.length - quotaErrorCount;
+
+  if (successCount === windows.length) {
+    return { status: "success", message: null };
+  }
+
+  const parts: string[] = [];
+  if (pendingCount + quotaErrorCount > 0) {
+    parts.push(
+      `Importación pausada por límite de cuota de Toggl. Quedan ${pendingCount + quotaErrorCount} ventana(s) por reintentar.`,
+    );
+  }
+  if (otherErrorCount > 0) {
+    parts.push(`${otherErrorCount} ventana(s) con error (no relacionado con cuota); se pueden reintentar.`);
+  }
+  if (unreachableCount > 0) {
+    parts.push(
+      `${unreachableCount} ventana(s) fuera del histórico que permite tu cuenta de Toggl (no se reintentan).`,
+    );
+  }
+  if (parts.length === 0) parts.push("No se ha podido importar nada.");
+
+  return { status: successCount > 0 ? "partial" : "error", message: parts.join(" ") };
+}
+
+/** Cierra el run: aplica ventanas pendientes/con error, persiste y avanza el cursor si procede. */
+async function finishImportRun(
+  actorId: string,
+  runId: string,
+  windowFrom: Date | null,
+  windows: WindowState[],
+  totals: Totals,
+): Promise<TogglSyncRunSummary> {
+  await runImportWindows(actorId, windows, totals);
+  const { status, message } = summarizeImportRun(windows);
+  const quota = getLastTogglQuota();
+
+  const summary: ImportRunSummary = {
+    windows,
+    quota: quota
+      ? { remaining: quota.remaining, resetsInSeconds: quota.resetsInSeconds, observedAt: quota.observedAt.toISOString() }
+      : null,
+  };
+
   const finished = await prisma.togglSyncRun.update({
-    where: { id: run.id },
-    data: {
-      status,
-      finishedAt: new Date(),
-      ...totals,
-      error: errorMessage,
-      summary: windowErrors.length ? { windowErrors } : undefined,
-    },
+    where: { id: runId },
+    data: { status, finishedAt: new Date(), ...totals, error: message, summary },
   });
 
+  // El cursor de reconciliación solo avanza con una importación totalmente
+  // limpia (success puro): un run parcial podría dejar huecos que la
+  // reconciliación ya no volvería a cubrir si el cursor avanzara igual.
   const importSettingsPatch: Parameters<typeof patchTogglSettings>[0] = {
     lastImportAt: new Date().toISOString(),
   };
-  // Deja el cursor de reconciliación coherente con lo que ya se acaba de
-  // importar, sin romperlo: solo avanza (nunca hacia atrás, por si el rango
-  // importado es antiguo) y solo si la importación entera fue limpia -- una
-  // ventana en error podría dejar huecos sin traer, y avanzar el cursor
-  // haría que la reconciliación ya no los cubriera nunca.
-  if (status === "success") {
-    const importEndUnix = Math.floor(range.to.getTime() / 1000);
+  if (status === "success" && windowFrom && finished.windowTo) {
+    const importEndUnix = Math.floor(finished.windowTo.getTime() / 1000);
     const settingsNow = await getTogglSettings();
     if (!settingsNow.lastReconciledAt || importEndUnix > settingsNow.lastReconciledAt) {
       importSettingsPatch.lastReconciledAt = importEndUnix;
@@ -537,11 +661,80 @@ export async function runHistoricalImport(
     actorId,
     action: "import",
     entityType: "TogglSyncRun",
-    entityId: run.id,
+    entityId: runId,
     metadata: totals,
   });
 
   return mapRun(finished);
+}
+
+/**
+ * Importación histórica por ventanas (por defecto mensuales) desde
+ * `GET /me/time_entries`. Totalmente idempotente: repetirla no duplica nada
+ * (upsert por togglTimeEntryId).
+ *
+ * Cada ventana se clasifica al fallar: cuota agotada (pausa el run entero,
+ * reanudable), fuera del histórico que permite la cuenta/plan de Toggl (esa
+ * ventana concreta nunca se reintenta, es un límite permanente), o un error
+ * puntual (se reintenta más tarde). Lo ya importado nunca se pierde.
+ */
+export async function runHistoricalImport(
+  actorId: string,
+  range: { from: Date; to: Date },
+): Promise<TogglSyncRunSummary> {
+  const settings = await getTogglSettings();
+  if (!settings.workspaceId) throw new Error("NO_WORKSPACE");
+  if (range.to < range.from) throw new Error("INVALID_RANGE");
+
+  const windows = buildWindows(range.from, range.to);
+  const run = await prisma.togglSyncRun.create({
+    data: {
+      kind: "historical_import",
+      status: "running",
+      windowFrom: range.from,
+      windowTo: range.to,
+    },
+  });
+
+  return finishImportRun(actorId, run.id, range.from, windows, zeroTotals());
+}
+
+/**
+ * Reanuda el import histórico parcial más reciente: solo reintenta las
+ * ventanas "pending" (nunca intentadas, se paró por cuota) o "error"
+ * (fallo puntual). Las "success" y "unreachable" no se vuelven a pedir.
+ */
+export async function continueHistoricalImport(actorId: string): Promise<TogglSyncRunSummary> {
+  const settings = await getTogglSettings();
+  if (!settings.workspaceId) throw new Error("NO_WORKSPACE");
+
+  // Reanudable no depende del enum de estado: un run que no importó NADA
+  // (status "error") es tan reanudable como uno "partial" con progreso real.
+  const run = await prisma.togglSyncRun.findFirst({
+    where: { kind: "historical_import", status: { in: ["error", "partial"] } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!run) throw new Error("NO_RESUMABLE_IMPORT");
+
+  const parsed = isImportRunSummary(run.summary) ? run.summary : null;
+  const windows = parsed?.windows ?? [];
+  if (!windows.some((w) => w.status === "pending" || w.status === "error")) {
+    throw new Error("NOTHING_TO_RESUME");
+  }
+
+  const totals: Totals = {
+    itemsReceived: run.itemsReceived,
+    itemsCreated: run.itemsCreated,
+    itemsUpdated: run.itemsUpdated,
+    itemsUnchanged: run.itemsUnchanged,
+    itemsUnassigned: run.itemsUnassigned,
+    itemsDeleted: run.itemsDeleted,
+    itemsError: run.itemsError,
+  };
+
+  await prisma.togglSyncRun.update({ where: { id: run.id }, data: { status: "running" } });
+
+  return finishImportRun(actorId, run.id, run.windowFrom, windows, totals);
 }
 
 /**

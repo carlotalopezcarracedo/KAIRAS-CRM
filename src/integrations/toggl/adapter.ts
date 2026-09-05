@@ -25,6 +25,11 @@ export type TogglErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "RATE_LIMITED"
+  // Límite de histórico de la cuenta/plan (p.ej. "start_date must not be
+  // earlier than X"): a diferencia de RATE_LIMITED, reintentar esta MISMA
+  // ventana nunca tendrá éxito -- el límite es una fecha móvil que solo se
+  // aleja con el tiempo, nunca se acerca.
+  | "RANGE_TOO_OLD"
   | "INVALID_RESPONSE"
   | "TIMEOUT"
   | "UNAVAILABLE";
@@ -149,8 +154,15 @@ export type CreateTimeEntryInput = {
 
 export type UpdateTimeEntryInput = Partial<CreateTimeEntryInput>;
 
+/** Detecta el mensaje textual de límite de histórico ("start_date must not be earlier than ..."). */
+const RANGE_TOO_OLD_PATTERN = /start_date must not be earlier than/i;
+
+function sanitizeBody(body: string | undefined): string {
+  return (body ?? "").trim().replace(/^"|"$/g, "");
+}
+
 /** Errores por código de estado. Nunca incluye el token ni cabeceras. */
-function errorForStatus(status: number): TogglApiError {
+function errorForStatus(status: number, body?: string): TogglApiError {
   if (status === 401) {
     return new TogglApiError(
       "UNAUTHORIZED",
@@ -166,10 +178,19 @@ function errorForStatus(status: number): TogglApiError {
   if (status === 404) {
     return new TogglApiError("NOT_FOUND", "Toggl no ha encontrado el recurso solicitado.");
   }
-  if (status === 429) {
+  // 400 con este mensaje concreto no es una petición mal formada: es la cuenta
+  // de Toggl rechazando un `start_date` más allá de lo que su plan permite
+  // consultar por este endpoint. Es un límite de fecha móvil (~ahora - X días),
+  // así que reintentar la MISMA ventana nunca lo resuelve.
+  if (status === 400 && RANGE_TOO_OLD_PATTERN.test(body ?? "")) {
+    return new TogglApiError("RANGE_TOO_OLD", sanitizeBody(body));
+  }
+  // 402 (cuota de la cuenta agotada, visto en algunos planes) se trata igual
+  // que 429: es un problema de cuota, no del dato pedido.
+  if (status === 429 || status === 402) {
     return new TogglApiError(
       "RATE_LIMITED",
-      "Toggl ha limitado las peticiones (rate limit). Se puede reintentar en un momento.",
+      "Toggl ha limitado las peticiones (cuota agotada). Se puede reintentar más tarde.",
     );
   }
   if (status >= 500) {
@@ -262,9 +283,9 @@ export class TogglClient {
     // cabeceras siempre, incluido un 429.
     captureQuota(response.headers);
 
-    if (!response.ok) throw errorForStatus(response.status);
-
     const text = await response.text();
+    if (!response.ok) throw errorForStatus(response.status, text);
+
     let payload: unknown = null;
     if (text) {
       try {

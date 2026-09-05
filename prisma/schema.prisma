@@ -278,6 +278,10 @@ enum TogglSyncKind {
 enum TogglSyncRunStatus {
   running
   success
+  // Import histórico con progreso real pero incompleto: ventanas pendientes
+  // de reintentar (pausado por cuota) y/o fuera del histórico que permite la
+  // cuenta de Toggl (permanente). No es un fallo puro: algo se importó bien.
+  partial
   error
 }
 

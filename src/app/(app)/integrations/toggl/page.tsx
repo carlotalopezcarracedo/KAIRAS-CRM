@@ -21,6 +21,7 @@ import { ConnectionPanel } from "./connection-panel";
 import { WebhookPanel } from "./webhook-panel";
 import { RetryPendingButton } from "./retry-pending-button";
 import { ImportHistoricalForm } from "./import-form";
+import { ContinueImportButton } from "./continue-import-button";
 import { SyncNowButton } from "./sync-now-button";
 import { MappingTable } from "./mapping-table";
 
@@ -34,8 +35,23 @@ const runKindLabel: Record<string, string> = {
 const runStatusTone = {
   running: "info",
   success: "ok",
+  partial: "warn",
   error: "danger",
 } as const;
+
+const runStatusLabel: Record<string, string> = {
+  running: "En curso",
+  success: "OK",
+  partial: "Parcial",
+  error: "Error",
+};
+
+/** Minutos aproximados hasta que se reinicie la cuota de Toggl, desde el momento en que se observó. */
+function minutesRemaining(resetsInSeconds: number, observedAt: string | null): number {
+  const observedMs = observedAt ? new Date(observedAt).getTime() : Date.now();
+  const elapsedSeconds = Math.max(0, (Date.now() - observedMs) / 1000);
+  return Math.max(0, Math.ceil((resetsInSeconds - elapsedSeconds) / 60));
+}
 
 export default async function TogglIntegrationPage() {
   const config = getTogglConfig();
@@ -69,6 +85,10 @@ export default async function TogglIntegrationPage() {
       .then((u) => u?.role ?? "member"),
     getImportedEntriesSummary(),
   ]);
+
+  const latestResumableImport = runs.find(
+    (r) => r.kind === "historical_import" && r.resumable,
+  );
 
   return (
     <div>
@@ -201,14 +221,34 @@ export default async function TogglIntegrationPage() {
                         {run.itemsUnassigned} · eliminadas {run.itemsDeleted}
                         {run.itemsError > 0 ? ` · errores ${run.itemsError}` : ""}
                       </p>
-                      {run.error ? <p className="mt-1 text-xs text-danger">{run.error}</p> : null}
+                      {run.error ? (
+                        <p className={`mt-1 text-xs ${run.status === "error" ? "text-danger" : "text-warn"}`}>
+                          {run.error}
+                          {run.resumable && run.quotaResetsInSeconds != null
+                            ? ` Podrás continuar en ~${minutesRemaining(run.quotaResetsInSeconds, run.quotaObservedAt)} min.`
+                            : ""}
+                        </p>
+                      ) : null}
+                      {run.resumable ? (
+                        <p className="mt-1 text-xs text-faint">
+                          {run.pendingWindows} ventana(s) pendiente(s) de reintentar
+                          {run.unreachableWindows > 0
+                            ? ` · ${run.unreachableWindows} fuera de alcance (no se reintentan)`
+                            : ""}
+                        </p>
+                      ) : null}
                     </div>
                     <Badge tone={runStatusTone[run.status]}>
-                      {run.status === "success" ? "OK" : run.status === "error" ? "Error" : "En curso"}
+                      {runStatusLabel[run.status] ?? run.status}
                     </Badge>
                   </div>
                 ))
               )}
+              {latestResumableImport && role === "owner" ? (
+                <div className="pt-1">
+                  <ContinueImportButton />
+                </div>
+              ) : null}
             </CardBody>
           </Card>
         </div>

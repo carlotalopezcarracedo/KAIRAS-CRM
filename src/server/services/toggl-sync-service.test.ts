@@ -10,6 +10,7 @@ import { getSetting, setSetting } from "@/server/services/settings-service";
 import {
   applyRemoteEntry,
   runHistoricalImport,
+  continueHistoricalImport,
   runReconciliation,
 } from "./toggl-sync-service";
 import { getTogglSettings, patchTogglSettings } from "./toggl-connection-service";
@@ -596,10 +597,231 @@ describe("runHistoricalImport (idempotencia)", () => {
     const run = await runHistoricalImport(userId, range);
     createdRunIds.push(run.id);
 
-    expect(run.status).toBe("error"); // incompleto: hace falta reintentarlo
+    // Parcial, no "error" puro: la primera ventana SÍ se completó (hubo
+    // progreso real), solo queda pausado por cuota, y es reanudable.
+    expect(run.status).toBe("partial");
     expect(run.error).toContain("cuota");
+    expect(run.resumable).toBe(true);
+    expect(run.pendingWindows).toBe(2);
     // Se paró tras la primera ventana en vez de agotar la cuota en las 3.
     expect(fetchMock.mock.calls.length).toBe(1);
+  });
+});
+
+/**
+ * Encadena una respuesta distinta por cada llamada real a `fetch` (la última
+ * de la lista se repite si se piden más). Permite simular "la ventana N falla
+ * de una forma concreta, la N+1 tiene éxito" sin depender de la URL exacta.
+ */
+function fetchSequence(factories: Array<() => Response>) {
+  // Restaura antes de espiar de nuevo: si `fetch` ya estaba espiado (llamada
+  // anterior dentro del mismo test, p.ej. antes de una reanudación), `vi.spyOn`
+  // reutilizaría el mismo mock y su `.mock.calls` acumulado, en vez de
+  // devolver un contador limpio para ESTA fase.
+  vi.restoreAllMocks();
+  let i = 0;
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+    const factory = factories[Math.min(i, factories.length - 1)]!;
+    i++;
+    return factory();
+  });
+}
+
+function quotaResponse() {
+  return new Response(JSON.stringify({ error: "quota exhausted" }), {
+    status: 429,
+    headers: { "x-toggl-quota-remaining": "0", "x-toggl-quota-resets-in": "600" },
+  });
+}
+
+function rangeTooOldResponse() {
+  return new Response('"start_date must not be earlier than 2026-06-05"', {
+    status: 400,
+    headers: { "x-toggl-quota-remaining": "50", "x-toggl-quota-resets-in": "3600" },
+  });
+}
+
+// Cabeceras de cuota "sana" por defecto: Toggl las manda en TODAS las
+// respuestas, con éxito o no. Sin esto, un `lastQuota` bajo dejado por un test
+// anterior (singleton a nivel de módulo, ver adapter.test.ts) contaminaría
+// los siguientes -- igual que en la API real, una respuesta buena lo corrige.
+function entriesResponse(ids: number[]) {
+  return new Response(JSON.stringify(ids.map((id) => toRaw(entry({ id })))), {
+    status: 200,
+    headers: { "x-toggl-quota-remaining": "50", "x-toggl-quota-resets-in": "3600" },
+  });
+}
+
+describe("runHistoricalImport y continueHistoricalImport (resumible)", () => {
+  beforeEach(() => {
+    vi.stubEnv("TOGGL_API_TOKEN", "test-token");
+  });
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    if (dbUp) {
+      await prisma.timeEntry.deleteMany({ where: { userId } });
+      // TogglSyncRun no tiene userId (es un singleton de workspace, como en
+      // producción): sin este borrado, un run "partial" que un test deja sin
+      // resolver sería recogido por la consulta "más reciente reanudable" de
+      // un test posterior, contaminando su resultado.
+      await prisma.togglSyncRun.deleteMany({ where: { kind: "historical_import" } });
+    }
+  });
+
+  // Rango de 65 días: a 31 días por ventana, son 3 ventanas (31 + 31 + 3).
+  const threeWindowRange = {
+    from: new Date("2026-01-01T00:00:00Z"),
+    to: new Date("2026-03-07T00:00:00Z"),
+  };
+
+  it("importa varias ventanas y termina SUCCESS cuando todas tienen éxito", async () => {
+    if (!dbUp) return;
+    const fetchMock = fetchSequence([
+      () => entriesResponse([401]),
+      () => entriesResponse([402]),
+      () => entriesResponse([403]),
+    ]);
+
+    const run = await runHistoricalImport(userId, threeWindowRange);
+    createdRunIds.push(run.id);
+
+    expect(run.status).toBe("success");
+    expect(run.itemsCreated).toBe(3);
+    expect(run.resumable).toBe(false);
+    expect(fetchMock.mock.calls.length).toBe(3);
+  });
+
+  it("cuota agotada a mitad: detiene inmediatamente y no llama a las ventanas siguientes", async () => {
+    if (!dbUp) return;
+    const fetchMock = fetchSequence([() => entriesResponse([411]), () => quotaResponse()]);
+
+    const run = await runHistoricalImport(userId, threeWindowRange);
+    createdRunIds.push(run.id);
+
+    expect(run.status).toBe("partial");
+    expect(run.resumable).toBe(true);
+    expect(run.pendingWindows).toBe(2); // la que falló por cuota + la que ni se intentó
+    // 2 llamadas: la 1ª (éxito) y la 2ª (429). La 3ª ventana no se intenta.
+    expect(fetchMock.mock.calls.length).toBe(2);
+
+    const stored = await prisma.togglSyncRun.findUniqueOrThrow({ where: { id: run.id } });
+    const summary = stored.summary as { windows: { status: string; reason?: string }[] };
+    expect(summary.windows.map((w) => w.status)).toEqual(["success", "error", "pending"]);
+    expect(summary.windows[1]?.reason).toBe("quota");
+  });
+
+  it("conserva las entradas ya creadas cuando el import se pausa a mitad", async () => {
+    if (!dbUp) return;
+    fetchSequence([() => entriesResponse([421]), () => quotaResponse()]);
+    const run = await runHistoricalImport(userId, threeWindowRange);
+    createdRunIds.push(run.id);
+    expect(run.status).toBe("partial");
+
+    const row = await prisma.timeEntry.findUnique({ where: { togglTimeEntryId: "421" } });
+    expect(row).not.toBeNull();
+    expect(row?.deletedAt).toBeNull();
+  });
+
+  it("continueHistoricalImport reanuda desde la ventana fallida sin repetir las ya completadas", async () => {
+    if (!dbUp) return;
+    fetchSequence([() => entriesResponse([431]), () => quotaResponse()]);
+    const first = await runHistoricalImport(userId, threeWindowRange);
+    createdRunIds.push(first.id);
+    expect(first.status).toBe("partial");
+
+    const resumeFetch = fetchSequence([() => entriesResponse([432]), () => entriesResponse([433])]);
+    const resumed = await continueHistoricalImport(userId);
+
+    expect(resumed.id).toBe(first.id); // mismo run, no uno nuevo
+    expect(resumed.status).toBe("success");
+    expect(resumed.itemsCreated).toBe(3); // 1 de antes + 2 nuevas
+    // Solo 2 llamadas: las 2 ventanas pendientes. La ya completada no se repite.
+    expect(resumeFetch.mock.calls.length).toBe(2);
+
+    const rows = await prisma.timeEntry.findMany({
+      where: { togglTimeEntryId: { in: ["431", "432", "433"] } },
+    });
+    expect(rows).toHaveLength(3);
+  });
+
+  it("dos reintentos seguidos no duplican nada: el segundo no tiene nada que reanudar", async () => {
+    if (!dbUp) return;
+    fetchSequence([() => entriesResponse([441]), () => quotaResponse()]);
+    const first = await runHistoricalImport(userId, threeWindowRange);
+    createdRunIds.push(first.id);
+
+    fetchSequence([() => entriesResponse([442]), () => entriesResponse([443])]);
+    const resumed = await continueHistoricalImport(userId);
+    expect(resumed.status).toBe("success");
+
+    await expect(continueHistoricalImport(userId)).rejects.toThrow("NO_RESUMABLE_IMPORT");
+
+    const rows = await prisma.timeEntry.findMany({
+      where: { togglTimeEntryId: { in: ["441", "442", "443"] } },
+    });
+    expect(rows).toHaveLength(3); // ninguna duplicada
+  });
+
+  it("la cuota puede agotarse otra vez durante la reanudación y volver a pausarse", async () => {
+    if (!dbUp) return;
+    fetchSequence([() => entriesResponse([451]), () => quotaResponse()]);
+    const first = await runHistoricalImport(userId, threeWindowRange);
+    createdRunIds.push(first.id);
+    expect(first.pendingWindows).toBe(2);
+
+    // Al reanudar, la 1ª ventana pendiente vuelve a toparse con cuota.
+    fetchSequence([() => quotaResponse()]);
+    const resumedOnceMore = await continueHistoricalImport(userId);
+    expect(resumedOnceMore.status).toBe("partial");
+    expect(resumedOnceMore.resumable).toBe(true);
+    expect(resumedOnceMore.id).toBe(first.id);
+
+    // Y una tercera vez, ya sin cuota agotada, termina.
+    fetchSequence([() => entriesResponse([452]), () => entriesResponse([453])]);
+    const finalRun = await continueHistoricalImport(userId);
+    expect(finalRun.status).toBe("success");
+  });
+
+  it("un error genérico (no cuota) queda distinguido y también se puede reintentar", async () => {
+    if (!dbUp) return;
+    fetchSequence([
+      () => entriesResponse([461]),
+      () => new Response("{}", { status: 500 }),
+    ]);
+    const first = await runHistoricalImport(userId, threeWindowRange);
+    createdRunIds.push(first.id);
+    expect(first.status).toBe("partial");
+    expect(first.error).toContain("no relacionado con cuota");
+
+    const stored = await prisma.togglSyncRun.findUniqueOrThrow({ where: { id: first.id } });
+    const summary = stored.summary as { windows: { status: string; reason?: string }[] };
+    expect(summary.windows[1]?.status).toBe("error");
+    expect(summary.windows[1]?.reason).toBe("other");
+
+    fetchSequence([() => entriesResponse([462]), () => entriesResponse([463])]);
+    const resumed = await continueHistoricalImport(userId);
+    expect(resumed.status).toBe("success");
+  });
+
+  it("una ventana fuera del histórico permitido por la cuenta de Toggl se marca no-alcanzable y no se reintenta", async () => {
+    if (!dbUp) return;
+    // Rango de 2 ventanas: la más antigua está "fuera de alcance", la reciente tiene éxito.
+    const twoWindowRange = {
+      from: new Date("2026-01-01T00:00:00Z"),
+      to: new Date("2026-02-05T00:00:00Z"),
+    };
+    fetchSequence([() => rangeTooOldResponse(), () => entriesResponse([471])]);
+    const run = await runHistoricalImport(userId, twoWindowRange);
+    createdRunIds.push(run.id);
+
+    expect(run.status).toBe("partial"); // hubo progreso real en la ventana reciente
+    expect(run.unreachableWindows).toBe(1);
+    expect(run.resumable).toBe(false); // nada que reintentar: es permanente
+    expect(run.error).toContain("fuera del histórico");
+
+    // No hay nada reanudable para ESTE run concreto.
+    await expect(continueHistoricalImport(userId)).rejects.toThrow("NOTHING_TO_RESUME");
   });
 });
 
