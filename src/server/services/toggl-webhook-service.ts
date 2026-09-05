@@ -26,11 +26,44 @@ export type WebhookStatusView = {
   expectedCallbackUrl: string | null;
   validatedAt: string | null;
   lastEventAt: string | null;
+  /** Última entrega que se aplicó sin error; null si la más reciente falló. */
+  lastSuccessAt: string | null;
+  /** "time_entry.updated", etc. Se extrae del sobre guardado, nunca se expone el payload. */
+  lastEventType: string | null;
   lastError: string | null;
-  lastEnvelope: string | null;
   secretConfigured: boolean;
   appUrlConfigured: boolean;
+  /** Fijos por construcción: son los que `createSubscription` siempre pide. */
+  eventFilters: string[];
 };
+
+/** Filtros que `TogglWebhookClient.createSubscription` solicita siempre. */
+const CONFIGURED_EVENT_FILTERS = [
+  "time_entry.created",
+  "time_entry.updated",
+  "time_entry.deleted",
+];
+
+/**
+ * Extrae solo el tipo de evento del último sobre guardado (p.ej.
+ * "time_entry.updated"). Nunca devuelve el payload: ni descripción, ni
+ * cliente, ni ningún dato de negocio.
+ */
+function lastEventTypeFrom(envelope: string | null): string | null {
+  if (!envelope) return null;
+  try {
+    const data = JSON.parse(envelope) as {
+      metadata?: { model?: string; action?: string };
+      event_type?: string;
+    };
+    const model = data.metadata?.model ?? data.event_type?.split(".")[0];
+    const action = data.metadata?.action ?? data.event_type?.split(".")[1];
+    if (!model && !action) return null;
+    return [model, action].filter(Boolean).join(".");
+  } catch {
+    return null;
+  }
+}
 
 /** El secreto vive solo en el servidor y jamás se devuelve a la UI. */
 function webhookSecret(): string | undefined {
@@ -62,10 +95,12 @@ export async function getWebhookStatus(): Promise<WebhookStatusView> {
     expectedCallbackUrl: webhookCallbackUrl(),
     validatedAt: s.webhookValidatedAt,
     lastEventAt: s.webhookLastEventAt,
+    lastSuccessAt: s.webhookLastError ? null : s.webhookLastEventAt,
+    lastEventType: lastEventTypeFrom(s.webhookLastEnvelope),
     lastError: s.webhookLastError,
-    lastEnvelope: s.webhookLastEnvelope,
     secretConfigured: !!webhookSecret(),
     appUrlConfigured: !!webhookCallbackUrl(),
+    eventFilters: CONFIGURED_EVENT_FILTERS,
   };
 }
 

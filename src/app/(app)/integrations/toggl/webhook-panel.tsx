@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, Radio, Trash2, PlugZap } from "lucide-react";
 import { toast } from "sonner";
@@ -23,10 +23,12 @@ export type WebhookPanelProps = {
   expectedCallbackUrl: string | null;
   validatedAt: string | null;
   lastEventAt: string | null;
+  lastSuccessAt: string | null;
+  lastEventType: string | null;
   lastError: string | null;
-  lastEnvelope: string | null;
   secretConfigured: boolean;
   appUrlConfigured: boolean;
+  eventFilters: string[];
   canManage: boolean;
 };
 
@@ -46,7 +48,6 @@ const TONE: Record<WebhookStatus, "ok" | "info" | "warn" | "danger"> = {
 
 export function WebhookPanel(props: WebhookPanelProps) {
   const [pending, startTransition] = useTransition();
-  const [showEnvelope, setShowEnvelope] = useState(false);
   const router = useRouter();
 
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, okMessage: string) =>
@@ -114,9 +115,20 @@ export function WebhookPanel(props: WebhookPanelProps) {
           </dd>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <dt className="text-mist">Último evento</dt>
+          <dt className="text-mist">Filtros configurados</dt>
+          <dd className="text-right text-xs text-faint">{props.eventFilters.join(", ")}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-mist">Última recepción</dt>
           <dd className="text-xs text-faint">
-            {props.lastEventAt ? formatDateTime(new Date(props.lastEventAt)) : "Ninguno todavía"}
+            {props.lastEventAt ? formatDateTime(new Date(props.lastEventAt)) : "Ninguna todavía"}
+            {props.lastEventType ? ` (${props.lastEventType})` : ""}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-mist">Último éxito</dt>
+          <dd className="text-xs text-faint">
+            {props.lastSuccessAt ? formatDateTime(new Date(props.lastSuccessAt)) : "—"}
           </dd>
         </div>
       </dl>
@@ -168,23 +180,6 @@ export function WebhookPanel(props: WebhookPanelProps) {
       ) : (
         <p className="text-xs text-faint">Solo la propietaria puede configurar el webhook.</p>
       )}
-
-      {props.lastEnvelope ? (
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setShowEnvelope((v) => !v)}
-            className="text-xs font-semibold text-faint transition-colors hover:text-foam"
-          >
-            {showEnvelope ? "Ocultar" : "Ver"} el último evento recibido
-          </button>
-          {showEnvelope ? (
-            <pre className="mt-2 max-h-64 overflow-auto rounded-xl border border-line bg-ink/60 p-3 text-[11px] leading-relaxed text-mist">
-              {props.lastEnvelope}
-            </pre>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }
