@@ -21,6 +21,7 @@ import {
   startOfMonthMadrid,
   parseMadridLocal,
   toDateTimeLocalInput,
+  toDateOnlyInput,
   addDays,
 } from "@/lib/dates";
 import { requireUser } from "@/server/auth";
@@ -302,8 +303,8 @@ export default async function TimePage({
   }
 
   const exportParams = new URLSearchParams({
-    from: from.toISOString(),
-    to: to.toISOString(),
+    from: toDateOnlyInput(from),
+    to: toDateOnlyInput(to),
   });
   if (filters.clientId) exportParams.set("clientId", filters.clientId);
   if (filters.projectId) exportParams.set("projectId", filters.projectId);
@@ -343,14 +344,14 @@ export default async function TimePage({
                 Calendario
               </IntentLink>
             </div>
-            <a
+            <IntentLink
               href={`/time/export?${exportParams.toString()}`}
               className="inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-xs font-semibold text-mist transition-colors hover:text-foam"
-              title="Extracto CSV del periodo y filtros actuales"
+              title="Exportar el periodo y filtros actuales en Excel, CSV o PDF"
             >
               <Download className="h-3.5 w-3.5" />
-              Extracto
-            </a>
+              Exportar
+            </IntentLink>
             <ManualEntryDialog
               clients={clients}
               projects={projects}

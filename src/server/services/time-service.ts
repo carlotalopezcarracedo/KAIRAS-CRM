@@ -549,6 +549,29 @@ export async function listEntries(
   });
 }
 
+/**
+ * Igual que `listEntries`, pero sin el límite de 500: la vista en pantalla
+ * puede permitirse recortar, un extracto exportado no. El tope de 20 000 es
+ * solo una salvaguarda contra un rango descomunal, no un límite esperado.
+ */
+export async function listEntriesForExport(
+  userId: string,
+  range: TimeRange,
+  filters: TimeFilters = {},
+) {
+  return prisma.timeEntry.findMany({
+    where: filtersToWhere(userId, range, filters),
+    orderBy: { startedAt: "asc" },
+    take: 20_000,
+    include: {
+      client: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true } },
+      task: { select: { id: true, title: true } },
+      service: { select: { id: true, name: true } },
+    },
+  });
+}
+
 export async function getTimeSummary(
   userId: string,
   range: TimeRange,
