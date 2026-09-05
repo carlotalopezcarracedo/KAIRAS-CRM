@@ -226,7 +226,12 @@ export function isTogglQuotaLow(): boolean {
   return lastQuota !== null && lastQuota.remaining <= LOW_TOGGL_QUOTA_THRESHOLD;
 }
 
-function captureQuota(headers: Headers): void {
+/**
+ * Exportada para que `reports-adapter.ts` (mismo token, misma cuota de
+ * cuenta) alimente el mismo singleton en memoria -- `isTogglQuotaLow()` debe
+ * reflejar el uso combinado de Track API y Reports API, no solo uno de los dos.
+ */
+export function captureQuota(headers: Headers): void {
   const remaining = headers.get("x-toggl-quota-remaining");
   const resetsIn = headers.get("x-toggl-quota-resets-in");
   if (remaining === null || resetsIn === null) return;

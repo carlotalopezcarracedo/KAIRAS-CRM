@@ -44,7 +44,8 @@ export function ImportHistoricalForm() {
         <p className="text-xs text-danger">{state.error}</p>
       ) : null}
       <p className="text-xs text-faint sm:ml-2">
-        Se descarga por ventanas de ~31 días. Repetirlo es seguro: nunca duplica.
+        Se descarga por ventanas de ~31 días vía el Reports API de Toggl, sin
+        límite artificial de antigüedad. Repetirlo es seguro: nunca duplica.
       </p>
     </form>
   );

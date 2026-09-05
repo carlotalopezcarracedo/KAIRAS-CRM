@@ -4,11 +4,11 @@ import { addDays } from "@/lib/dates";
 import { LOCKED_STATUSES } from "@/server/services/time-service";
 import {
   TogglClient,
-  TogglApiError,
   isTogglQuotaLow,
   getLastTogglQuota,
   type TogglTimeEntry,
 } from "@/integrations/toggl/adapter";
+import { TogglReportsClient, TogglReportsError } from "@/integrations/toggl/reports-adapter";
 import {
   getTogglSettings,
   patchTogglSettings,
@@ -480,15 +480,29 @@ function buildWindows(from: Date, to: Date): WindowState[] {
  * Descarga y aplica una ventana. Nunca lanza: el resultado clasifica el
  * motivo del fallo para que el bucle de arriba decida qué hacer (parar,
  * marcar como no alcanzable, o seguir con la siguiente).
+ *
+ * Usa el Reports API (no Track API) para TODO el rango del import histórico:
+ * Track API v9 rechaza con HTTP 400 cualquier `start_date` anterior a un
+ * límite de cuenta/plan que avanza con el tiempo (visto en producción), y
+ * partir una ventana justo en esa frontera móvil es frágil. El Reports API no
+ * mostró ese límite en las pruebas reales (rangos recientes y de más de un
+ * año, ver auditoría), así que usarlo de forma uniforme elimina el problema
+ * de raíz en vez de parchearlo. Track API sigue siendo la única vía para
+ * reconciliación, webhooks, cronómetro y push -- aquí no cambia nada de eso.
  */
 async function processWindow(
-  client: TogglClient,
+  client: TogglReportsClient,
+  workspaceId: number,
   actorId: string,
   win: { from: string; to: string },
   totals: Totals,
 ): Promise<{ outcome: "success" | "quota" | "unreachable" | "error"; message?: string; itemsReceived: number }> {
   try {
-    const entries = await client.getTimeEntries({ startDate: win.from, endDate: win.to });
+    const entries = await client.getDetailedTimeEntries({
+      workspaceId,
+      startDate: win.from,
+      endDate: win.to,
+    });
     for (const entry of entries) {
       try {
         const result = await applyRemoteEntry(entry, actorId);
@@ -500,10 +514,12 @@ async function processWindow(
     totals.itemsReceived += entries.length;
     return { outcome: "success", itemsReceived: entries.length };
   } catch (err) {
-    if (err instanceof TogglApiError && err.code === "RATE_LIMITED") {
+    if (err instanceof TogglReportsError && err.code === "RATE_LIMITED") {
       return { outcome: "quota", message: err.message, itemsReceived: 0 };
     }
-    if (err instanceof TogglApiError && err.code === "RANGE_TOO_OLD") {
+    // El plan de Toggl no admite Reports API para este workspace: no es
+    // transitorio, reintentar la misma ventana no lo va a resolver.
+    if (err instanceof TogglReportsError && err.code === "FORBIDDEN") {
       return { outcome: "unreachable", message: err.message, itemsReceived: 0 };
     }
     return { outcome: "error", message: describeTogglError(err), itemsReceived: 0 };
@@ -530,10 +546,11 @@ async function processWindow(
  */
 async function runImportWindows(
   actorId: string,
+  workspaceId: number,
   windows: WindowState[],
   totals: Totals,
 ): Promise<{ stoppedByQuota: boolean }> {
-  const client = new TogglClient();
+  const client = new TogglReportsClient();
   let stoppedByQuota = false;
   let madeRealCallThisRun = false;
 
@@ -547,7 +564,7 @@ async function runImportWindows(
       break;
     }
 
-    const result = await processWindow(client, actorId, { from: w.from, to: w.to }, totals);
+    const result = await processWindow(client, workspaceId, actorId, { from: w.from, to: w.to }, totals);
     madeRealCallThisRun = true;
     if (result.outcome === "success") {
       w.status = "success";
@@ -610,7 +627,7 @@ function summarizeImportRun(windows: WindowState[]): {
   }
   if (unreachableCount > 0) {
     parts.push(
-      `${unreachableCount} ventana(s) fuera del histórico que permite tu cuenta de Toggl (no se reintentan).`,
+      `${unreachableCount} ventana(s) que tu plan de Toggl no permite consultar por Reports API (no se reintentan).`,
     );
   }
   if (parts.length === 0) parts.push("No se ha podido importar nada.");
@@ -621,12 +638,13 @@ function summarizeImportRun(windows: WindowState[]): {
 /** Cierra el run: aplica ventanas pendientes/con error, persiste y avanza el cursor si procede. */
 async function finishImportRun(
   actorId: string,
+  workspaceId: number,
   runId: string,
   windowFrom: Date | null,
   windows: WindowState[],
   totals: Totals,
 ): Promise<TogglSyncRunSummary> {
-  await runImportWindows(actorId, windows, totals);
+  await runImportWindows(actorId, workspaceId, windows, totals);
   const { status, message } = summarizeImportRun(windows);
   const quota = getLastTogglQuota();
 
@@ -669,13 +687,15 @@ async function finishImportRun(
 }
 
 /**
- * Importación histórica por ventanas (por defecto mensuales) desde
- * `GET /me/time_entries`. Totalmente idempotente: repetirla no duplica nada
- * (upsert por togglTimeEntryId).
+ * Importación histórica por ventanas (por defecto mensuales), vía el Reports
+ * API (ver `reports-adapter.ts`) para TODO el rango pedido -- no solo la
+ * parte "antigua". Totalmente idempotente: repetirla no duplica nada (upsert
+ * por togglTimeEntryId, misma `applyRemoteEntry` que usan reconciliación y
+ * webhooks).
  *
  * Cada ventana se clasifica al fallar: cuota agotada (pausa el run entero,
- * reanudable), fuera del histórico que permite la cuenta/plan de Toggl (esa
- * ventana concreta nunca se reintenta, es un límite permanente), o un error
+ * reanudable), plan de Toggl sin acceso a Reports API (esa ventana concreta
+ * nunca se reintenta, es un límite permanente de la cuenta), o un error
  * puntual (se reintenta más tarde). Lo ya importado nunca se pierde.
  */
 export async function runHistoricalImport(
@@ -696,7 +716,7 @@ export async function runHistoricalImport(
     },
   });
 
-  return finishImportRun(actorId, run.id, range.from, windows, zeroTotals());
+  return finishImportRun(actorId, settings.workspaceId, run.id, range.from, windows, zeroTotals());
 }
 
 /**
@@ -734,7 +754,7 @@ export async function continueHistoricalImport(actorId: string): Promise<TogglSy
 
   await prisma.togglSyncRun.update({ where: { id: run.id }, data: { status: "running" } });
 
-  return finishImportRun(actorId, run.id, run.windowFrom, windows, totals);
+  return finishImportRun(actorId, settings.workspaceId, run.id, run.windowFrom, windows, totals);
 }
 
 /**

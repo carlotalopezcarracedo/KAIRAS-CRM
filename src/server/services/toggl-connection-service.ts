@@ -6,6 +6,7 @@ import {
   getTogglConfig,
   type TogglWorkspace,
 } from "@/integrations/toggl/adapter";
+import { TogglReportsError } from "@/integrations/toggl/reports-adapter";
 
 /**
  * Estado de la conexión con Toggl: mismo patrón que `calendar-feed-service.ts`
@@ -82,6 +83,7 @@ export async function patchTogglSettings(
 
 export function describeTogglError(error: unknown): string {
   if (error instanceof TogglApiError) return error.message;
+  if (error instanceof TogglReportsError) return error.message;
   return "No se ha podido conectar con Toggl.";
 }
 

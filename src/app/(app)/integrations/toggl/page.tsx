@@ -338,6 +338,12 @@ export default async function TogglIntegrationPage() {
                 Si el envío automático falla, la hora queda &quot;Pendiente&quot;
                 en Kairas sin perderse — se puede reintentar arriba.
               </p>
+              <p>
+                El import histórico usa el Reports API de Toggl (cubre todo tu
+                histórico real, sin límite artificial de antigüedad). La
+                sincronización del día a día (reconciliación y webhook) sigue
+                usando la API de seguimiento normal.
+              </p>
             </CardBody>
           </Card>
         </div>

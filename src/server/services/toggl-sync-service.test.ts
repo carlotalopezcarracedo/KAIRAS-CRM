@@ -514,7 +514,7 @@ describe("runHistoricalImport (idempotencia)", () => {
 
   it("importar el mismo rango dos veces no duplica nada", async () => {
     if (!dbUp) return;
-    const fixture = [entry({ id: 201 }), entry({ id: 202 })].map(toRaw);
+    const fixture = [toReportGroup({ id: 201 }), toReportGroup({ id: 202 })];
     vi.spyOn(globalThis, "fetch").mockImplementation(
       async () => new Response(JSON.stringify(fixture), { status: 200 }),
     );
@@ -539,7 +539,7 @@ describe("runHistoricalImport (idempotencia)", () => {
     if (!dbUp) return;
     await patchTogglSettings({ lastReconciledAt: null });
     vi.spyOn(globalThis, "fetch").mockImplementation(
-      async () => new Response(JSON.stringify([entry({ id: 301 })].map(toRaw)), { status: 200 }),
+      async () => new Response(JSON.stringify([toReportGroup({ id: 301 })]), { status: 200 }),
     );
 
     const range = { from: new Date("2026-08-01T00:00:00Z"), to: new Date("2026-08-05T00:00:00Z") };
@@ -570,7 +570,7 @@ describe("runHistoricalImport (idempotencia)", () => {
     const recentCursor = Math.floor(new Date("2026-08-10T00:00:00Z").getTime() / 1000);
     await patchTogglSettings({ lastReconciledAt: recentCursor });
     vi.spyOn(globalThis, "fetch").mockImplementation(
-      async () => new Response(JSON.stringify([entry({ id: 302 })].map(toRaw)), { status: 200 }),
+      async () => new Response(JSON.stringify([toReportGroup({ id: 302 })]), { status: 200 }),
     );
 
     const oldRange = { from: new Date("2026-01-01T00:00:00Z"), to: new Date("2026-01-05T00:00:00Z") };
@@ -634,9 +634,15 @@ function quotaResponse() {
   });
 }
 
-function rangeTooOldResponse() {
-  return new Response('"start_date must not be earlier than 2026-06-05"', {
-    status: 400,
+/**
+ * El import histórico ahora usa el Reports API para TODO el rango (ver
+ * toggl-sync-service.ts): un 403 en ESE endpoint significa que el plan de
+ * Toggl no permite usarlo para este workspace -- el equivalente, para
+ * historical import, de lo que antes era el 400 "start_date..." de Track API.
+ */
+function forbiddenResponse() {
+  return new Response('"reports api not available for this plan"', {
+    status: 403,
     headers: { "x-toggl-quota-remaining": "50", "x-toggl-quota-resets-in": "3600" },
   });
 }
@@ -645,8 +651,10 @@ function rangeTooOldResponse() {
 // respuestas, con éxito o no. Sin esto, un `lastQuota` bajo dejado por un test
 // anterior (singleton a nivel de módulo, ver adapter.test.ts) contaminaría
 // los siguientes -- igual que en la API real, una respuesta buena lo corrige.
+// Nunca incluye cabeceras de "siguiente página": cada entrada de prueba es
+// una sola página, salvo que el test de paginación las añada explícitamente.
 function entriesResponse(ids: number[]) {
-  return new Response(JSON.stringify(ids.map((id) => toRaw(entry({ id })))), {
+  return new Response(JSON.stringify(ids.map((id) => toReportGroup({ id }))), {
     status: 200,
     headers: { "x-toggl-quota-remaining": "50", "x-toggl-quota-resets-in": "3600" },
   });
@@ -804,24 +812,92 @@ describe("runHistoricalImport y continueHistoricalImport (resumible)", () => {
     expect(resumed.status).toBe("success");
   });
 
-  it("una ventana fuera del histórico permitido por la cuenta de Toggl se marca no-alcanzable y no se reintenta", async () => {
+  it("un 403 del Reports API (plan sin acceso) marca la ventana no-alcanzable y no se reintenta", async () => {
     if (!dbUp) return;
-    // Rango de 2 ventanas: la más antigua está "fuera de alcance", la reciente tiene éxito.
+    // Rango de 2 ventanas: la primera "no alcanzable" (403), la segunda con éxito.
     const twoWindowRange = {
       from: new Date("2026-01-01T00:00:00Z"),
       to: new Date("2026-02-05T00:00:00Z"),
     };
-    fetchSequence([() => rangeTooOldResponse(), () => entriesResponse([471])]);
+    fetchSequence([() => forbiddenResponse(), () => entriesResponse([471])]);
     const run = await runHistoricalImport(userId, twoWindowRange);
     createdRunIds.push(run.id);
 
-    expect(run.status).toBe("partial"); // hubo progreso real en la ventana reciente
+    expect(run.status).toBe("partial"); // hubo progreso real en la segunda ventana
     expect(run.unreachableWindows).toBe(1);
     expect(run.resumable).toBe(false); // nada que reintentar: es permanente
-    expect(run.error).toContain("fuera del histórico");
+    expect(run.error).toContain("Reports API");
 
     // No hay nada reanudable para ESTE run concreto.
     await expect(continueHistoricalImport(userId)).rejects.toThrow("NOTHING_TO_RESUME");
+  });
+
+  it("Reports API recupera un rango de más de 90 días de antigüedad (fuera del alcance de Track API)", async () => {
+    if (!dbUp) return;
+    // Rango de una sola ventana, muy anterior a "hoy": esto es exactamente lo
+    // que Track API rechazaría con HTTP 400 en producción.
+    const oldRange = { from: new Date("2024-05-31T00:00:00Z"), to: new Date("2024-06-30T00:00:00Z") };
+    fetchSequence([() => entriesResponse([501])]);
+
+    const run = await runHistoricalImport(userId, oldRange);
+    createdRunIds.push(run.id);
+
+    expect(run.status).toBe("success");
+    expect(run.itemsCreated).toBe(1);
+    const row = await prisma.timeEntry.findUnique({ where: { togglTimeEntryId: "501" } });
+    expect(row).not.toBeNull();
+  });
+
+  it("una ventana que abarca tanto fechas antiguas como recientes se recupera entera en una sola llamada (no hay frontera que cruzar)", async () => {
+    if (!dbUp) return;
+    // Una sola ventana con entradas de ambos "lados" del antiguo límite de
+    // Track API: al venir del Reports API, no hace falta partirla.
+    fetchSequence([() => entriesResponse([511, 512])]);
+
+    const range = { from: new Date("2026-05-14T00:00:00Z"), to: new Date("2026-06-13T00:00:00Z") };
+    const run = await runHistoricalImport(userId, range);
+    createdRunIds.push(run.id);
+
+    expect(run.status).toBe("success");
+    expect(run.itemsCreated).toBe(2);
+    expect(run.unreachableWindows).toBe(0);
+    const rows = await prisma.timeEntry.findMany({
+      where: { togglTimeEntryId: { in: ["511", "512"] } },
+    });
+    expect(rows).toHaveLength(2); // ambos lados recuperados, ninguno perdido
+  });
+
+  it("pagina de verdad dentro de una ventana del import histórico (2 páginas, misma ventana)", async () => {
+    if (!dbUp) return;
+    const fetchMock = fetchSequence([
+      () =>
+        new Response(JSON.stringify([toReportGroup({ id: 521 })]), {
+          status: 200,
+          headers: {
+            "x-toggl-quota-remaining": "50",
+            "x-toggl-quota-resets-in": "3600",
+            "x-next-id": "521",
+            "x-next-row-number": "2",
+          },
+        }),
+      () =>
+        new Response(JSON.stringify([toReportGroup({ id: 522 })]), {
+          status: 200,
+          headers: { "x-toggl-quota-remaining": "50", "x-toggl-quota-resets-in": "3600" },
+        }),
+    ]);
+
+    const range = { from: new Date("2026-08-01T00:00:00Z"), to: new Date("2026-08-05T00:00:00Z") };
+    const run = await runHistoricalImport(userId, range);
+    createdRunIds.push(run.id);
+
+    expect(run.status).toBe("success");
+    expect(run.itemsCreated).toBe(2);
+    expect(fetchMock.mock.calls.length).toBe(2); // 2 páginas para 1 sola ventana
+    const rows = await prisma.timeEntry.findMany({
+      where: { togglTimeEntryId: { in: ["521", "522"] } },
+    });
+    expect(rows).toHaveLength(2);
   });
 });
 
@@ -839,5 +915,30 @@ function toRaw(e: TogglTimeEntry) {
     billable: e.billable,
     at: e.updatedAt,
     server_deleted_at: e.deletedAt,
+  };
+}
+
+/**
+ * Construye un "grupo" del Reports API v3 con una sola ocurrencia, en la
+ * forma real observada contra la cuenta (ver auditoría 2026-09-05): grupo por
+ * usuaria+proyecto+descripción+facturable, con las ocurrencias reales en
+ * `time_entries[]`. El `id` de la ocurrencia es el mismo id global que usa
+ * Track API (comprobado cruzando una entrada real entre ambas APIs).
+ */
+function toReportGroup(overrides: Partial<TogglTimeEntry> = {}) {
+  const e = entry(overrides);
+  return {
+    project_id: e.projectId,
+    billable: e.billable,
+    description: e.description,
+    time_entries: [
+      {
+        id: e.id,
+        seconds: e.durationSeconds,
+        start: e.start,
+        stop: e.stop,
+        at: e.updatedAt,
+      },
+    ],
   };
 }

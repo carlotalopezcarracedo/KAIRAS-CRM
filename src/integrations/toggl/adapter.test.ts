@@ -115,6 +115,25 @@ describe("TogglClient", () => {
     expect(entries[1]).toMatchObject({ id: 2, running: true, stop: null });
   });
 
+  it("getTimeEntries() clasifica el 400 'start_date must not be earlier than X' como RANGE_TOO_OLD, no como error genérico", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('"start_date must not be earlier than 2026-06-05"', { status: 400 }),
+    );
+    await expect(
+      new TogglClient().getTimeEntries({ startDate: "2024-01-01", endDate: "2024-01-31" }),
+    ).rejects.toMatchObject({ code: "RANGE_TOO_OLD" });
+  });
+
+  it("getTimeEntries() con un 400 sin ese mensaje concreto sigue siendo un error genérico (no RANGE_TOO_OLD)", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response('"invalid parameter"', { status: 400 }),
+    );
+    const result = await new TogglClient()
+      .getTimeEntries({ startDate: "2024-01-01", endDate: "2024-01-31" })
+      .catch((e) => e);
+    expect(result.code).not.toBe("RANGE_TOO_OLD");
+  });
+
   it("getCurrentTimeEntry() devuelve null si no hay cronómetro activo en Toggl", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("null", { status: 200 }));
     await expect(new TogglClient().getCurrentTimeEntry()).resolves.toBeNull();
