@@ -9,11 +9,13 @@ import type {
   CompanyProfile,
   AppDefaults,
   ExpenseDefaults,
+  NotificationDefaults,
 } from "@/server/services/settings-service";
 import {
   saveCompanyProfileAction,
   saveAppDefaultsAction,
   saveExpenseDefaultsAction,
+  saveNotificationDefaultsAction,
   changePasswordAction,
 } from "./actions";
 
@@ -234,6 +236,67 @@ export function ExpenseDefaultsForm({ defaults }: { defaults: ExpenseDefaults })
       ) : null}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Guardando…" : "Guardar tarifas"}
+      </Button>
+    </form>
+  );
+}
+
+export function NotificationDefaultsForm({ defaults }: { defaults: NotificationDefaults }) {
+  const [state, formAction, pending] = useActionState<
+    ActionResult | undefined,
+    FormData
+  >(saveNotificationDefaultsAction, undefined);
+
+  useEffect(() => {
+    if (state?.ok) toast.success("Preferencias de notificación guardadas");
+  }, [state]);
+
+  const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-ink/40 p-3 has-[:checked]:border-violet-line has-[:checked]:bg-violet-soft">
+        <input
+          type="checkbox"
+          name="enabled"
+          defaultChecked={defaults.enabled}
+          className="mt-0.5"
+        />
+        <span>
+          <span className="block text-sm font-medium text-foam">
+            Recibir recordatorios
+          </span>
+          <span className="block text-xs text-faint">
+            Avisos de tareas y seguimientos de leads vencidos. Si lo apagas,
+            el cron no manda ningún push aunque tengas un dispositivo
+            activado.
+          </span>
+        </span>
+      </label>
+      <Field
+        label="Avisar con antelación"
+        error={errors.reminderLeadMinutes?.[0]}
+        className="sm:w-60"
+      >
+        <Select name="reminderLeadMinutes" defaultValue={String(defaults.reminderLeadMinutes)}>
+          <option value="0">En el momento exacto</option>
+          <option value="15">15 minutos antes</option>
+          <option value="30">30 minutos antes</option>
+          <option value="60">1 hora antes</option>
+          <option value="120">2 horas antes</option>
+          <option value="1440">1 día antes</option>
+        </Select>
+      </Field>
+      <p className="text-xs text-faint">
+        Se aplica a la hora de recordatorio de las tareas y a la fecha de
+        siguiente acción de los leads. El chequeo corre cada 15 min, así que
+        el aviso puede llegar con hasta ese margen de retraso.
+      </p>
+      {state && !state.ok && !state.fieldErrors ? (
+        <p className="text-sm text-danger">{state.error}</p>
+      ) : null}
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? "Guardando…" : "Guardar preferencias"}
       </Button>
     </form>
   );

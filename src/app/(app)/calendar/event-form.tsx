@@ -72,7 +72,7 @@ export function EventForm({
           minLength={2}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Tipo" error={errors.type?.[0]}>
           <Select name="type" defaultValue={defaults.type ?? "meeting"}>
             {typeOptions.map((o) => (

@@ -98,7 +98,7 @@ export default async function OpportunityDetailPage({
       </div>
 
       {/* Dinero */}
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-card border border-line bg-surface p-4">
           <p className="k-label">Valor estimado</p>
           <p className="mt-1 text-xl font-extrabold text-foam">{formatMoney(value)}</p>

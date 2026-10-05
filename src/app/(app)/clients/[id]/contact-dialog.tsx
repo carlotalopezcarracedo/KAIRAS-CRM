@@ -36,7 +36,7 @@ export function ContactDialog({ clientId }: { clientId: string }) {
       </DialogTrigger>
       <DialogContent title="Añadir contacto">
         <form action={formAction} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Nombre" required error={errors.firstName?.[0]}>
               <Input name="firstName" required minLength={2} />
             </Field>
@@ -47,7 +47,7 @@ export function ContactDialog({ clientId }: { clientId: string }) {
           <Field label="Cargo" error={errors.role?.[0]}>
             <Input name="role" placeholder="Gerente" />
           </Field>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Teléfono" error={errors.phone?.[0]}>
               <Input name="phone" type="tel" />
             </Field>

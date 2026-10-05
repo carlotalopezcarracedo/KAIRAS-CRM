@@ -40,7 +40,7 @@ export function ManualDraftForm({
           minLength={2}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Base imponible (€)" required error={errors.amountNet?.[0]}>
           <Input name="amountNet" type="number" min={0} step="0.01" required />
         </Field>

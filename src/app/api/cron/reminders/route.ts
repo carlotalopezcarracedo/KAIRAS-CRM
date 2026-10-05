@@ -4,12 +4,15 @@
  * el plan Hobby, Vercel Cron solo admite una ejecución al día. Revisa tareas
  * con `remindAt` vencido y leads con seguimiento (`nextActionAt`) vencido, y
  * manda un push a todas las suscripciones activas. `remindedAt` evita
- * reenviar el mismo aviso en la siguiente pasada.
+ * reenviar el mismo aviso en la siguiente pasada. Respeta las preferencias
+ * de Ajustes → Notificaciones: el interruptor general y la antelación
+ * (`reminderLeadMinutes`) con la que avisar antes de la hora exacta.
  */
 import { NextResponse } from "next/server";
 import type { LeadStatus, TaskStatus } from "@prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { broadcastPush } from "@/server/services/push-service";
+import { getNotificationDefaults } from "@/server/services/settings-service";
 
 export const dynamic = "force-dynamic";
 
@@ -26,13 +29,21 @@ export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
   if (auth !== `Bearer ${secret}`) return unauthorized();
 
+  const prefs = await getNotificationDefaults();
+  if (!prefs.enabled) {
+    return NextResponse.json({ ok: true, skipped: "notifications_disabled" });
+  }
+
   const now = new Date();
+  // "Avisar con antelación": el aviso dispara cuando falten <= X minutos
+  // para remindAt/nextActionAt, no solo cuando ya haya pasado.
+  const threshold = new Date(now.getTime() + prefs.reminderLeadMinutes * 60_000);
 
   const [dueTasks, dueLeads] = await Promise.all([
     prisma.task.findMany({
       where: {
         deletedAt: null,
-        remindAt: { lte: now },
+        remindAt: { lte: threshold },
         remindedAt: null,
         status: { in: OPEN_TASK_STATUSES },
       },
@@ -42,7 +53,7 @@ export async function GET(request: Request) {
     prisma.lead.findMany({
       where: {
         deletedAt: null,
-        nextActionAt: { lte: now },
+        nextActionAt: { lte: threshold },
         remindedAt: null,
         status: { notIn: CLOSED_LEAD_STATUSES },
       },

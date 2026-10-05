@@ -13,11 +13,13 @@ import {
   getCompanyProfile,
   getAppDefaults,
   getExpenseDefaults,
+  getNotificationDefaults,
 } from "@/server/services/settings-service";
 import {
   CompanyProfileForm,
   AppDefaultsForm,
   ExpenseDefaultsForm,
+  NotificationDefaultsForm,
   PasswordForm,
 } from "./settings-forms";
 import { PushNotificationsForm } from "./push-notifications-form";
@@ -25,15 +27,23 @@ import { PushNotificationsForm } from "./push-notifications-form";
 export const metadata: Metadata = { title: "Ajustes" };
 
 export default async function SettingsPage() {
-  const [profile, defaults, expenseDefaults, session, store, feedToken] =
-    await Promise.all([
-      getCompanyProfile(),
-      getAppDefaults(),
-      getExpenseDefaults(),
-      auth(),
-      cookies(),
-      getCalendarFeedToken(),
-    ]);
+  const [
+    profile,
+    defaults,
+    expenseDefaults,
+    notificationDefaults,
+    session,
+    store,
+    feedToken,
+  ] = await Promise.all([
+    getCompanyProfile(),
+    getAppDefaults(),
+    getExpenseDefaults(),
+    getNotificationDefaults(),
+    auth(),
+    cookies(),
+    getCalendarFeedToken(),
+  ]);
   const rawTheme = store.get(THEME_COOKIE)?.value;
   const theme = isTheme(rawTheme) ? rawTheme : DEFAULT_THEME;
   // Sin APP_URL configurada el enlace saldría relativo y no serviría.
@@ -86,10 +96,13 @@ export default async function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Notificaciones push</CardTitle>
+              <CardTitle>Notificaciones</CardTitle>
             </CardHeader>
-            <CardBody>
+            <CardBody className="space-y-5">
               <PushNotificationsForm />
+              <div className="border-t border-line pt-5">
+                <NotificationDefaultsForm defaults={notificationDefaults} />
+              </div>
             </CardBody>
           </Card>
 

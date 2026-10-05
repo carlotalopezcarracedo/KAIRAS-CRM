@@ -49,7 +49,7 @@ export function RecordDialog({
         className="max-w-xl"
       >
         <form action={formAction} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Cliente" error={errors.clientId?.[0]}>
               <Select name="clientId" defaultValue="">
                 <option value="">Sin cliente</option>
@@ -67,7 +67,7 @@ export function RecordDialog({
           <Field label="Concepto" required error={errors.concept?.[0]}>
             <Input name="concept" required minLength={2} />
           </Field>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Base (€)" error={errors.amountNet?.[0]}>
               <Input name="amountNet" type="number" min={0} step="0.01" />
             </Field>
@@ -78,7 +78,7 @@ export function RecordDialog({
               <Input name="amountTotal" type="number" min={0} step="0.01" required />
             </Field>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Emitida" error={errors.issuedAt?.[0]}>
               <DateTimeField withTime={false} name="issuedAt" />
             </Field>

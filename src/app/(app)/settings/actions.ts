@@ -60,6 +60,22 @@ const appDefaultsSchema = z.object({
     }),
 });
 
+const LEAD_MINUTES = [0, 15, 30, 60, 120, 1440] as const;
+
+const notificationDefaultsSchema = z.object({
+  enabled: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
+  reminderLeadMinutes: z
+    .string()
+    .trim()
+    .transform((v) => Number(v))
+    .refine((v) => (LEAD_MINUTES as readonly number[]).includes(v), {
+      message: "Antelación no válida",
+    }),
+});
+
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Introduce tu contraseña actual"),
@@ -185,6 +201,33 @@ export async function saveExpenseDefaultsAction(
   });
   revalidatePath("/settings");
   revalidatePath("/expenses");
+  return { ok: true };
+}
+
+export async function saveNotificationDefaultsAction(
+  _prev: ActionResult | undefined,
+  formData: FormData,
+): Promise<ActionResult> {
+  const auth = await withUser();
+  if (!auth.ok) return auth;
+
+  const parsed = notificationDefaultsSchema.safeParse(formToObject(formData));
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Revisa los campos.",
+      fieldErrors: z.flattenError(parsed.error).fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  await setSetting("notifications.defaults", parsed.data);
+  await audit({
+    actorId: auth.userId,
+    action: "update",
+    entityType: "Settings",
+    metadata: { key: "notifications.defaults" },
+  });
+  revalidatePath("/settings");
   return { ok: true };
 }
 

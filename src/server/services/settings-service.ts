@@ -122,3 +122,20 @@ export async function getExpenseDefaults(): Promise<ExpenseDefaults> {
   // los ajustes ya guardados no se quedan sin él.
   return { ...DEFAULT_EXPENSES, ...stored };
 }
+
+export type NotificationDefaults = {
+  /** Interruptor general: si está apagado, el cron no manda ningún push. */
+  enabled: boolean;
+  /** Minutos de antelación con los que avisar antes de `remindAt`/`nextActionAt`. */
+  reminderLeadMinutes: number;
+};
+
+export const DEFAULT_NOTIFICATIONS: NotificationDefaults = {
+  enabled: true,
+  reminderLeadMinutes: 0,
+};
+
+export async function getNotificationDefaults(): Promise<NotificationDefaults> {
+  const stored = await getSetting<Partial<NotificationDefaults>>("notifications.defaults", {});
+  return { ...DEFAULT_NOTIFICATIONS, ...stored };
+}

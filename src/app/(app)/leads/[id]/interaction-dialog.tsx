@@ -43,7 +43,7 @@ export function InteractionDialog({ leadId }: { leadId: string }) {
         description="Llamada, WhatsApp, reunión… lo que haya pasado con este lead."
       >
         <form action={formAction} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Canal" error={errors.channel?.[0]}>
               <Select name="channel" defaultValue="whatsapp">
                 {channelOptions.map((o) => (
