@@ -21,10 +21,13 @@ export default async function TimeExportPage({
   const raw = await searchParams;
   const str = (key: string) => (typeof raw[key] === "string" ? (raw[key] as string) : "");
 
+  const list = (key: string) =>
+    typeof raw[key] === "string" ? [raw[key] as string] : Array.isArray(raw[key]) ? (raw[key] as string[]) : [];
+
   const defaultFrom = str("from") || toDateOnlyInput(startOfMonthMadrid(0));
   const defaultTo = str("to") || toDateOnlyInput(new Date());
-  const defaultClientId = str("clientId");
-  const defaultProjectId = str("projectId");
+  const defaultClientIds = list("clientId");
+  const defaultProjectIds = list("projectId");
   const defaultBillable = str("billable");
 
   const [clients, projects] = await Promise.all([
@@ -70,25 +73,55 @@ export default async function TimeExportPage({
                 </Field>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Cliente">
-                  <Select name="clientId" defaultValue={defaultClientId} aria-label="Cliente">
-                    <option value="">Todos</option>
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
+                <Field label="Clientes">
+                  <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-line bg-ink/40 p-2">
+                    {clients.length === 0 ? (
+                      <p className="px-1.5 py-1 text-xs text-faint">No hay clientes.</p>
+                    ) : (
+                      clients.map((c) => (
+                        <label
+                          key={c.id}
+                          className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm text-mist hover:bg-raise has-[:checked]:text-foam"
+                        >
+                          <input
+                            type="checkbox"
+                            name="clientId"
+                            value={c.id}
+                            defaultChecked={defaultClientIds.includes(c.id)}
+                          />
+                          {c.name}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <span className="block text-xs text-faint">
+                    Sin marcar ninguno = todos los clientes.
+                  </span>
                 </Field>
-                <Field label="Proyecto">
-                  <Select name="projectId" defaultValue={defaultProjectId} aria-label="Proyecto">
-                    <option value="">Todos</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </Select>
+                <Field label="Proyectos">
+                  <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-line bg-ink/40 p-2">
+                    {projects.length === 0 ? (
+                      <p className="px-1.5 py-1 text-xs text-faint">No hay proyectos.</p>
+                    ) : (
+                      projects.map((p) => (
+                        <label
+                          key={p.id}
+                          className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm text-mist hover:bg-raise has-[:checked]:text-foam"
+                        >
+                          <input
+                            type="checkbox"
+                            name="projectId"
+                            value={p.id}
+                            defaultChecked={defaultProjectIds.includes(p.id)}
+                          />
+                          {p.name}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                  <span className="block text-xs text-faint">
+                    Sin marcar ninguno = todos los proyectos.
+                  </span>
                 </Field>
               </div>
               <Field label="Facturable" className="sm:w-60">
@@ -99,8 +132,9 @@ export default async function TimeExportPage({
                 </Select>
               </Field>
               <p className="text-xs text-faint">
-                Los filtros se combinan entre sí: periodo + cliente + proyecto +
-                facturable se aplican todos a la vez.
+                Los filtros se combinan entre sí: periodo + clientes + proyectos +
+                facturable se aplican todos a la vez. Puedes marcar varios
+                clientes o proyectos a la vez.
               </p>
             </CardBody>
           </Card>

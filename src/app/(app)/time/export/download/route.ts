@@ -85,29 +85,34 @@ export async function GET(request: NextRequest) {
   const formatParam = params.get("format");
   const format: Format = formatParam === "xlsx" || formatParam === "pdf" ? formatParam : "csv";
 
+  const clientIds = params.getAll("clientId").filter(Boolean);
+  const projectIds = params.getAll("projectId").filter(Boolean);
   const filters = {
-    clientId: params.get("clientId") || undefined,
-    projectId: params.get("projectId") || undefined,
+    clientId: clientIds.length ? clientIds : undefined,
+    projectId: projectIds.length ? projectIds : undefined,
     billable:
       params.get("billable") === "1" ? true : params.get("billable") === "0" ? false : undefined,
   };
 
-  // Nombre de cliente/proyecto para el subtítulo del informe (solo lectura,
-  // no cambia el filtrado): si se pidió uno concreto, se resuelve su nombre.
-  const [clientName, projectName] = await Promise.all([
+  // Nombres de cliente/proyecto para el subtítulo del informe (solo lectura,
+  // no cambia el filtrado): si se pidieron concretos, se resuelven sus nombres.
+  const [clientNames, projectNames] = await Promise.all([
     filters.clientId
-      ? prisma.client.findUnique({ where: { id: filters.clientId }, select: { name: true } })
-      : null,
+      ? prisma.client.findMany({ where: { id: { in: filters.clientId } }, select: { name: true } })
+      : [],
     filters.projectId
-      ? prisma.project.findUnique({ where: { id: filters.projectId }, select: { name: true } })
-      : null,
+      ? prisma.project.findMany({
+          where: { id: { in: filters.projectId } },
+          select: { name: true },
+        })
+      : [],
   ]);
 
   const periodLabel = `${csvDate(from)} – ${csvDate(to)}`;
   const filterLines = [
     `Periodo: ${periodLabel}`,
-    `Cliente: ${clientName?.name ?? "Todos"}`,
-    `Proyecto: ${projectName?.name ?? "Todos"}`,
+    `Cliente: ${clientNames.length ? clientNames.map((c) => c.name).join(", ") : "Todos"}`,
+    `Proyecto: ${projectNames.length ? projectNames.map((p) => p.name).join(", ") : "Todos"}`,
     `Facturable: ${filters.billable === true ? "Solo facturable" : filters.billable === false ? "Solo no facturable" : "Todas"}`,
   ];
 

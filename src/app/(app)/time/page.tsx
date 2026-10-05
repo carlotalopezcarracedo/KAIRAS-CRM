@@ -150,9 +150,9 @@ export default async function TimePage({
   }
 
   const filters: TimeFiltersType = {
-    clientId: typeof raw.clientId === "string" && raw.clientId ? raw.clientId : undefined,
+    clientId: typeof raw.clientId === "string" && raw.clientId ? [raw.clientId] : undefined,
     projectId:
-      typeof raw.projectId === "string" && raw.projectId ? raw.projectId : undefined,
+      typeof raw.projectId === "string" && raw.projectId ? [raw.projectId] : undefined,
     billable: raw.billable === "1" ? true : raw.billable === "0" ? false : undefined,
   };
 
@@ -223,8 +223,8 @@ export default async function TimePage({
 
   // Navegación de la vista calendario
   const otherParams = new URLSearchParams();
-  if (filters.clientId) otherParams.set("clientId", filters.clientId);
-  if (filters.projectId) otherParams.set("projectId", filters.projectId);
+  if (filters.clientId?.[0]) otherParams.set("clientId", filters.clientId[0]);
+  if (filters.projectId?.[0]) otherParams.set("projectId", filters.projectId[0]);
   if (filters.billable !== undefined)
     otherParams.set("billable", filters.billable ? "1" : "0");
   const gridUrl = (anchor: Date) =>
@@ -306,8 +306,8 @@ export default async function TimePage({
     from: toDateOnlyInput(from),
     to: toDateOnlyInput(to),
   });
-  if (filters.clientId) exportParams.set("clientId", filters.clientId);
-  if (filters.projectId) exportParams.set("projectId", filters.projectId);
+  if (filters.clientId?.[0]) exportParams.set("clientId", filters.clientId[0]);
+  if (filters.projectId?.[0]) exportParams.set("projectId", filters.projectId[0]);
   if (filters.billable !== undefined)
     exportParams.set("billable", filters.billable ? "1" : "0");
 

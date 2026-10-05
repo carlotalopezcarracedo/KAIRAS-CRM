@@ -122,6 +122,11 @@ export async function updateTask(
           : input.status
             ? null
             : undefined,
+      // Si se cambia la hora del recordatorio, vuelve a estar pendiente de avisar.
+      remindedAt:
+        input.remindAt !== undefined && input.remindAt?.getTime() !== before.remindAt?.getTime()
+          ? null
+          : undefined,
     },
   });
   await audit({

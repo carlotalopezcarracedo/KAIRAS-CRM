@@ -511,8 +511,8 @@ export async function softDeleteEntry(
 export type TimeRange = { from: Date; to: Date };
 
 export type TimeFilters = {
-  clientId?: string;
-  projectId?: string;
+  clientId?: string[];
+  projectId?: string[];
   billable?: boolean;
 };
 
@@ -525,8 +525,8 @@ function filtersToWhere(
     userId,
     ...notDeleted,
     startedAt: { gte: range.from, lte: range.to },
-    ...(filters.clientId ? { clientId: filters.clientId } : {}),
-    ...(filters.projectId ? { projectId: filters.projectId } : {}),
+    ...(filters.clientId?.length ? { clientId: { in: filters.clientId } } : {}),
+    ...(filters.projectId?.length ? { projectId: { in: filters.projectId } } : {}),
     ...(filters.billable !== undefined ? { billable: filters.billable } : {}),
   };
 }

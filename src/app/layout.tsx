@@ -14,6 +14,7 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: { default: "KAIRAS OS", template: "%s · KAIRAS OS" },
   description: "Sistema operativo interno de KAIRAS",
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {

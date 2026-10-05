@@ -20,6 +20,7 @@ import {
   ExpenseDefaultsForm,
   PasswordForm,
 } from "./settings-forms";
+import { PushNotificationsForm } from "./push-notifications-form";
 
 export const metadata: Metadata = { title: "Ajustes" };
 
@@ -80,6 +81,15 @@ export default async function SettingsPage() {
             </CardHeader>
             <CardBody>
               <CalendarFeedForm initialToken={feedToken} appUrl={appUrl} />
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Notificaciones push</CardTitle>
+            </CardHeader>
+            <CardBody>
+              <PushNotificationsForm />
             </CardBody>
           </Card>
 

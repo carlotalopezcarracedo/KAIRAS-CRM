@@ -433,11 +433,29 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  timeEntries   TimeEntry[]
-  timerSessions TimerSession[]
-  auditLogs     AuditLog[]
-  attachments   Attachment[]
-  expenses      ExpenseRecord[]
+  timeEntries       TimeEntry[]
+  timerSessions     TimerSession[]
+  auditLogs         AuditLog[]
+  attachments       Attachment[]
+  expenses          ExpenseRecord[]
+  pushSubscriptions PushSubscription[]
+}
+
+// ---------------------------------------------------------------------------
+// Notificaciones push (recordatorios de tareas y seguimientos de leads)
+// ---------------------------------------------------------------------------
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Company {
@@ -537,6 +555,7 @@ model Lead {
   lastContactAt  DateTime?
   nextAction     String?
   nextActionAt   DateTime?
+  remindedAt     DateTime? // notificación push ya enviada para este `nextActionAt`
   lostReason     String?
 
   clientId String? // si se convierte
@@ -871,6 +890,7 @@ model Task {
   priority       Priority   @default(medium)
   dueAt          DateTime?
   remindAt       DateTime?
+  remindedAt     DateTime? // notificación push ya enviada para este `remindAt`
   completedAt    DateTime?
   result         String?
   checklist      Json? // [{label, done}]

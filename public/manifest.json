@@ -1,0 +1,17 @@
+{
+  "name": "KAIRAS OS",
+  "short_name": "KAIRAS",
+  "description": "Sistema operativo interno de KAIRAS",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D090B",
+  "theme_color": "#0D090B",
+  "icons": [
+    {
+      "src": "/brand/kairas-mark.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

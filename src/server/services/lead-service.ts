@@ -108,6 +108,12 @@ export async function updateLead(
       serviceId: input.serviceId === undefined ? undefined : input.serviceId || null,
       campaignId:
         input.campaignId === undefined ? undefined : input.campaignId || null,
+      // Si se cambia la fecha de seguimiento, vuelve a estar pendiente de avisar.
+      remindedAt:
+        input.nextActionAt !== undefined &&
+        input.nextActionAt?.getTime() !== before.nextActionAt?.getTime()
+          ? null
+          : undefined,
     },
   });
   await audit({
@@ -207,7 +213,11 @@ export async function addLeadInteraction(
       firstContactAt: lead.firstContactAt ?? interaction.occurredAt,
       ...(input.nextAction !== undefined ? { nextAction: input.nextAction } : {}),
       ...(input.nextActionAt !== undefined
-        ? { nextActionAt: input.nextActionAt }
+        ? {
+            nextActionAt: input.nextActionAt,
+            remindedAt:
+              input.nextActionAt.getTime() !== lead.nextActionAt?.getTime() ? null : undefined,
+          }
         : {}),
     },
   });
