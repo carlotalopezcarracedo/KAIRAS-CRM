@@ -13,8 +13,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || "KAIRAS", {
       body: data.body || "",
-      icon: "/brand/kairas-mark.png",
-      badge: "/brand/kairas-mark.png",
+      icon: "/brand/kairas-favicon-512.png",
+      badge: "/brand/kairas-favicon-512.png",
       tag: data.tag,
       data: { url: data.url || "/" },
     }),

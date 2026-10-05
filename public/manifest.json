@@ -8,10 +8,16 @@
   "theme_color": "#0D090B",
   "icons": [
     {
-      "src": "/brand/kairas-mark.png",
+      "src": "/brand/kairas-favicon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

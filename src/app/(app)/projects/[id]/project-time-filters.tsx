@@ -30,28 +30,28 @@ export function ProjectTimeFilters() {
         aria-label="Desde"
         defaultValue={searchParams.get("tFrom") ?? ""}
         onChange={(v) => setParam("tFrom", v)}
-        className="h-8 w-36 text-xs"
+        className="h-8 w-full text-xs sm:w-36"
       />
-      <span className="text-faint">→</span>
+      <span className="hidden text-faint sm:inline">→</span>
       <DateTimeField
         withTime={false}
         aria-label="Hasta"
         defaultValue={searchParams.get("tTo") ?? ""}
         onChange={(v) => setParam("tTo", v)}
-        className="h-8 w-36 text-xs"
+        className="h-8 w-full text-xs sm:w-36"
       />
       <Input
         aria-label="Buscar en descripción"
         placeholder="Buscar…"
         defaultValue={searchParams.get("tQ") ?? ""}
         onChange={(e) => setParam("tQ", e.target.value)}
-        className="h-8 w-40 text-xs"
+        className="h-8 w-full text-xs sm:w-40"
       />
       <Select
         aria-label="Filtrar por facturable"
         value={searchParams.get("tBillable") ?? ""}
         onChange={(e) => setParam("tBillable", e.target.value)}
-        className="h-8 w-36 text-xs"
+        className="h-8 w-full text-xs sm:w-36"
       >
         <option value="">Todo</option>
         <option value="1">Solo facturable</option>
@@ -61,7 +61,7 @@ export function ProjectTimeFilters() {
         aria-label="Filtrar por origen"
         value={searchParams.get("tOrigin") ?? ""}
         onChange={(e) => setParam("tOrigin", e.target.value)}
-        className="h-8 w-36 text-xs"
+        className="h-8 w-full text-xs sm:w-36"
       >
         <option value="">Origen: todos</option>
         <option value="kairas">Kairas</option>

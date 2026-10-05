@@ -68,21 +68,21 @@ export function TimeFilters({
           </Link>
         ))}
         {range === "custom" ? (
-          <span className="flex items-center gap-1.5">
+          <span className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
             <DateTimeField
               withTime={false}
               aria-label="Desde"
               defaultValue={searchParams.get("from") ?? ""}
               onChange={(value) => setParam("from", value)}
-              className="h-8 w-36 text-xs"
+              className="h-8 w-full text-xs sm:w-36"
             />
-            <span className="text-faint">→</span>
+            <span className="hidden text-faint sm:inline">→</span>
             <DateTimeField
               withTime={false}
               aria-label="Hasta"
               defaultValue={searchParams.get("to") ?? ""}
               onChange={(value) => setParam("to", value)}
-              className="h-8 w-36 text-xs"
+              className="h-8 w-full text-xs sm:w-36"
             />
           </span>
         ) : null}
@@ -93,7 +93,7 @@ export function TimeFilters({
           aria-label="Filtrar por cliente"
           value={searchParams.get("clientId") ?? ""}
           onChange={(e) => setParam("clientId", e.target.value)}
-          className="h-8 w-44 text-xs"
+          className="h-8 w-full text-xs sm:w-44"
         >
           <option value="">Cliente: todos</option>
           {clients.map((c) => (
@@ -106,7 +106,7 @@ export function TimeFilters({
           aria-label="Filtrar por proyecto"
           value={searchParams.get("projectId") ?? ""}
           onChange={(e) => setParam("projectId", e.target.value)}
-          className="h-8 w-44 text-xs"
+          className="h-8 w-full text-xs sm:w-44"
         >
           <option value="">Proyecto: todos</option>
           {projects.map((p) => (
@@ -119,7 +119,7 @@ export function TimeFilters({
           aria-label="Filtrar por facturable"
           value={searchParams.get("billable") ?? ""}
           onChange={(e) => setParam("billable", e.target.value)}
-          className="h-8 w-40 text-xs"
+          className="h-8 w-full text-xs sm:w-40"
         >
           <option value="">Todo el tiempo</option>
           <option value="1">Solo facturable</option>
