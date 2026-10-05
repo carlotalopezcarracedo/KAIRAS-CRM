@@ -1,8 +1,10 @@
 /**
- * Cron de recordatorios (Vercel Cron -> aquí). Revisa tareas con `remindAt`
- * vencido y leads con seguimiento (`nextActionAt`) vencido, y manda un push a
- * todas las suscripciones activas. `remindedAt` evita reenviar el mismo
- * aviso en la siguiente pasada del cron.
+ * Cron de recordatorios. Disparado por un GitHub Action programado
+ * (.github/workflows/reminders-cron.yml) cada 15 min, no por Vercel Cron: en
+ * el plan Hobby, Vercel Cron solo admite una ejecución al día. Revisa tareas
+ * con `remindAt` vencido y leads con seguimiento (`nextActionAt`) vencido, y
+ * manda un push a todas las suscripciones activas. `remindedAt` evita
+ * reenviar el mismo aviso en la siguiente pasada.
  */
 import { NextResponse } from "next/server";
 import type { LeadStatus, TaskStatus } from "@prisma/client";

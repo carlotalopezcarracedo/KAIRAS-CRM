@@ -1,0 +1,20 @@
+name: Recordatorios (push)
+
+# Vercel Cron en el plan Hobby solo admite una ejecución al día, así que este
+# chequeo (cada 15 min) vive como GitHub Action y llama al endpoint de
+# producción. Necesita el secret CRON_SECRET en este repo (Settings ->
+# Secrets and variables -> Actions), con el mismo valor que en Vercel.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a /api/cron/reminders
+        run: |
+          curl -sf -X GET "https://kairas-crm.vercel.app/api/cron/reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
