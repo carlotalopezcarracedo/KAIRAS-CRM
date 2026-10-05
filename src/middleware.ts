@@ -18,6 +18,6 @@ export const config = {
   // el webhook no funciona nunca. La autenticación de esa ruta es la firma,
   // no la cookie de sesión.
   matcher: [
-    "/((?!api/auth|api/calendar|api/webhooks|_next/static|_next/image|brand/|favicon.ico|icon|manifest|robots).*)",
+    "/((?!api/auth|api/calendar|api/webhooks|_next/static|_next/image|brand/|favicon|apple-icon|icon|manifest|robots).*)",
   ],
 };
