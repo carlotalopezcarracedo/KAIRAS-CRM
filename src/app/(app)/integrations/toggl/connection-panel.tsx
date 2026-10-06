@@ -90,7 +90,7 @@ export function ConnectionPanel({ configured }: { configured: boolean }) {
                 value={state.selectedWorkspaceId ? String(state.selectedWorkspaceId) : ""}
                 onChange={(e) => chooseWorkspace(Number(e.target.value))}
                 disabled={savingWorkspace}
-                className="h-8 w-56 text-xs"
+                className="h-9 w-56 text-base sm:h-8 sm:text-xs"
               >
                 <option value="">Elige uno…</option>
                 {state.workspaces.map((w) => (

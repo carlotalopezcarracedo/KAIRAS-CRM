@@ -37,7 +37,7 @@ export function DraftStatusSelect({
         });
       }}
       aria-label="Estado de la solicitud"
-      className="h-8 w-40 text-xs"
+      className="h-9 w-40 text-base sm:h-8 sm:text-xs"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>

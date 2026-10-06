@@ -74,7 +74,7 @@ export function TimeFilters({
               aria-label="Desde"
               defaultValue={searchParams.get("from") ?? ""}
               onChange={(value) => setParam("from", value)}
-              className="h-8 w-full text-xs sm:w-36"
+              className="h-9 w-full text-base sm:h-8 sm:w-36 sm:text-xs"
             />
             <span className="hidden text-faint sm:inline">→</span>
             <DateTimeField
@@ -82,7 +82,7 @@ export function TimeFilters({
               aria-label="Hasta"
               defaultValue={searchParams.get("to") ?? ""}
               onChange={(value) => setParam("to", value)}
-              className="h-8 w-full text-xs sm:w-36"
+              className="h-9 w-full text-base sm:h-8 sm:w-36 sm:text-xs"
             />
           </span>
         ) : null}
@@ -93,7 +93,7 @@ export function TimeFilters({
           aria-label="Filtrar por cliente"
           value={searchParams.get("clientId") ?? ""}
           onChange={(e) => setParam("clientId", e.target.value)}
-          className="h-8 w-full text-xs sm:w-44"
+          className="h-9 w-full text-base sm:h-8 sm:w-44 sm:text-xs"
         >
           <option value="">Cliente: todos</option>
           {clients.map((c) => (
@@ -106,7 +106,7 @@ export function TimeFilters({
           aria-label="Filtrar por proyecto"
           value={searchParams.get("projectId") ?? ""}
           onChange={(e) => setParam("projectId", e.target.value)}
-          className="h-8 w-full text-xs sm:w-44"
+          className="h-9 w-full text-base sm:h-8 sm:w-44 sm:text-xs"
         >
           <option value="">Proyecto: todos</option>
           {projects.map((p) => (
@@ -119,7 +119,7 @@ export function TimeFilters({
           aria-label="Filtrar por facturable"
           value={searchParams.get("billable") ?? ""}
           onChange={(e) => setParam("billable", e.target.value)}
-          className="h-8 w-full text-xs sm:w-40"
+          className="h-9 w-full text-base sm:h-8 sm:w-40 sm:text-xs"
         >
           <option value="">Todo el tiempo</option>
           <option value="1">Solo facturable</option>

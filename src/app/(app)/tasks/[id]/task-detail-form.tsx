@@ -161,7 +161,7 @@ export function TaskDetailForm({
           name="checklist"
           defaultValue={defaults.checklist}
           placeholder={"Diseñar wireframe\nRevisar con cliente\nPublicar"}
-          className="min-h-24 font-mono text-xs"
+          className="min-h-24 font-mono text-base sm:text-xs"
         />
       </Field>
 

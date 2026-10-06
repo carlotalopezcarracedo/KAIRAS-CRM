@@ -27,7 +27,7 @@ export function ProposalStatusMenu({
       value={status}
       disabled={pending}
       aria-label="Cambiar estado"
-      className="h-8 w-36 text-xs"
+      className="h-9 w-36 text-base sm:h-8 sm:text-xs"
       onChange={(e) => {
         const next = e.target.value;
         if (next === status) return;

@@ -183,7 +183,7 @@ export function EntryForm({
         <summary className="cursor-pointer text-sm font-medium text-mist">Campos avanzados (meta JSON)</summary>
         <div className="mt-3">
           <Field label="Meta (JSON)" error={errors.meta?.[0]}>
-            <Textarea name="meta" defaultValue={defaults.meta} rows={6} spellCheck={false} placeholder='{"clave": "valor"}' className="font-mono text-xs" />
+            <Textarea name="meta" defaultValue={defaults.meta} rows={6} spellCheck={false} placeholder='{"clave": "valor"}' className="font-mono text-base sm:text-xs" />
           </Field>
         </div>
       </details>
