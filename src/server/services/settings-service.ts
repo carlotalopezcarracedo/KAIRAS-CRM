@@ -1,5 +1,7 @@
 import { prisma } from "@/server/db/prisma";
 import type { Prisma } from "@prisma/client";
+import type { PriorityValue } from "@/lib/notification-options";
+import { NOTIFICATION_PRIORITIES } from "@/lib/notification-options";
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const row = await prisma.settings.findUnique({ where: { key } });
@@ -126,16 +128,64 @@ export async function getExpenseDefaults(): Promise<ExpenseDefaults> {
 export type NotificationDefaults = {
   /** Interruptor general: si está apagado, el cron no manda ningún push. */
   enabled: boolean;
-  /** Minutos de antelación con los que avisar antes de `remindAt`/`nextActionAt`. */
-  reminderLeadMinutes: number;
+
+  /** Tareas: avisar de las tareas (recordatorio y fecha límite). */
+  tasksEnabled: boolean;
+  /** Avisos (varios) antes de la hora de recordatorio (`remindAt`). */
+  taskRemindOffsets: number[];
+  /** Avisos (varios) antes de la fecha límite (`dueAt`). Vacío = no avisar por fecha límite. */
+  taskDueOffsets: number[];
+  /** Solo avisar de tareas con estas prioridades. */
+  taskPriorities: PriorityValue[];
+
+  /** Leads: avisar de los seguimientos (`nextActionAt`). */
+  leadsEnabled: boolean;
+  leadFollowUpOffsets: number[];
+
+  /** Resumen diario: tareas vencidas, tareas de hoy y seguimientos. */
+  summaryEnabled: boolean;
+  /** Hora local (0-23) a la que llega el resumen. */
+  summaryHour: number;
+  summaryIncludeOverdue: boolean;
+  summaryIncludeToday: boolean;
+  summaryIncludeLeads: boolean;
+
+  /** Modo silencio: no se manda nada entre estas horas (se envía al terminar). */
+  quietEnabled: boolean;
+  quietStartHour: number;
+  quietEndHour: number;
+  /** Las tareas urgentes ignoran el modo silencio. */
+  quietAllowUrgent: boolean;
 };
 
 export const DEFAULT_NOTIFICATIONS: NotificationDefaults = {
   enabled: true,
-  reminderLeadMinutes: 0,
+  tasksEnabled: true,
+  taskRemindOffsets: [0],
+  taskDueOffsets: [],
+  taskPriorities: [...NOTIFICATION_PRIORITIES],
+  leadsEnabled: true,
+  leadFollowUpOffsets: [0],
+  summaryEnabled: false,
+  summaryHour: 9,
+  summaryIncludeOverdue: true,
+  summaryIncludeToday: true,
+  summaryIncludeLeads: true,
+  quietEnabled: false,
+  quietStartHour: 22,
+  quietEndHour: 8,
+  quietAllowUrgent: true,
 };
 
 export async function getNotificationDefaults(): Promise<NotificationDefaults> {
-  const stored = await getSetting<Partial<NotificationDefaults>>("notifications.defaults", {});
-  return { ...DEFAULT_NOTIFICATIONS, ...stored };
+  const stored = await getSetting<
+    Partial<NotificationDefaults> & { reminderLeadMinutes?: number }
+  >("notifications.defaults", {});
+  const merged = { ...DEFAULT_NOTIFICATIONS, ...stored };
+  // Compatibilidad: antes había una única antelación para todo.
+  if (stored.reminderLeadMinutes !== undefined && stored.taskRemindOffsets === undefined) {
+    merged.taskRemindOffsets = [stored.reminderLeadMinutes];
+    merged.leadFollowUpOffsets = [stored.reminderLeadMinutes];
+  }
+  return merged;
 }

@@ -1,18 +1,18 @@
 /**
  * Cron de recordatorios. Disparado por un GitHub Action programado
  * (.github/workflows/reminders-cron.yml) cada 15 min, no por Vercel Cron: en
- * el plan Hobby, Vercel Cron solo admite una ejecución al día. Revisa tareas
- * con `remindAt` vencido y leads con seguimiento (`nextActionAt`) vencido, y
- * manda un push a todas las suscripciones activas. `remindedAt` evita
- * reenviar el mismo aviso en la siguiente pasada. Respeta las preferencias
- * de Ajustes → Notificaciones: el interruptor general y la antelación
- * (`reminderLeadMinutes`) con la que avisar antes de la hora exacta.
+ * el plan Hobby, Vercel Cron solo admite una ejecución al día. Carga tareas y
+ * leads abiertos, deja que `planReminders` decida qué toca avisar según
+ * Ajustes → Notificaciones (varias antelaciones, filtros, modo silencio,
+ * resumen diario) y manda un push a todas las suscripciones activas. Los
+ * avisos entregados se anotan en `ReminderLog` para no repetirse.
  */
 import { NextResponse } from "next/server";
 import type { LeadStatus, TaskStatus } from "@prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { broadcastPush, isPushConfigured } from "@/server/services/push-service";
-import { getNotificationDefaults } from "@/server/services/settings-service";
+import { GRACE_MS, planReminders } from "@/server/services/reminder-planner";
+import { getAppDefaults, getNotificationDefaults } from "@/server/services/settings-service";
 
 export const dynamic = "force-dynamic";
 
@@ -35,86 +35,78 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  // "Avisar con antelación": el aviso dispara cuando falten <= X minutos
-  // para remindAt/nextActionAt, no solo cuando ya haya pasado.
-  const threshold = new Date(now.getTime() + prefs.reminderLeadMinutes * 60_000);
-  // Si un aviso no pudo entregarse (sin dispositivos suscritos o fallo del
-  // servicio push) se reintenta en la siguiente pasada, pero solo durante 24 h
-  // para no soltar avisos viejísimos al activar las notificaciones.
-  const oldest = new Date(now.getTime() - 24 * 60 * 60_000);
+  const appDefaults = await getAppDefaults();
+  // Ventana de búsqueda: lo más lejano que puede estar un aviso por delante
+  // (mayor antelación configurada) y 24 h hacia atrás (reintentos).
+  const maxLead = Math.max(0, ...prefs.taskRemindOffsets, ...prefs.taskDueOffsets, ...prefs.leadFollowUpOffsets);
+  const from = new Date(now.getTime() - GRACE_MS);
+  const to = new Date(now.getTime() + (maxLead + 1) * 60_000 + 36 * 60 * 60_000);
 
-  const [dueTasks, dueLeads] = await Promise.all([
+  const [tasks, leads] = await Promise.all([
     prisma.task.findMany({
       where: {
         deletedAt: null,
-        remindAt: { lte: threshold, gte: oldest },
-        remindedAt: null,
         status: { in: OPEN_TASK_STATUSES },
+        OR: [
+          { remindAt: { gte: from, lte: to } },
+          // Con resumen diario también cuentan las vencidas de cualquier fecha.
+          { dueAt: prefs.summaryEnabled ? { lte: to } : { gte: from, lte: to } },
+        ],
       },
-      select: { id: true, title: true },
-      take: 100,
+      select: { id: true, title: true, priority: true, dueAt: true, remindAt: true, remindedAt: true },
+      take: 500,
     }),
     prisma.lead.findMany({
       where: {
         deletedAt: null,
-        nextActionAt: { lte: threshold, gte: oldest },
-        remindedAt: null,
         status: { notIn: CLOSED_LEAD_STATUSES },
+        nextActionAt: prefs.summaryEnabled ? { lte: to } : { gte: from, lte: to },
       },
-      select: { id: true, name: true, nextAction: true },
-      take: 100,
+      select: { id: true, name: true, nextAction: true, nextActionAt: true, remindedAt: true },
+      take: 500,
     }),
   ]);
 
-  const [taskResults, leadResults] = await Promise.all([
-    Promise.all(
-      dueTasks.map(async (task) => ({
-        id: task.id,
-        result: await broadcastPush({
-          title: "Recordatorio de tarea",
-          body: task.title,
-          url: `/tasks/${task.id}`,
-          tag: `task-${task.id}`,
-        }),
-      })),
-    ),
-    Promise.all(
-      dueLeads.map(async (lead) => ({
-        id: lead.id,
-        result: await broadcastPush({
-          title: "Seguimiento pendiente",
-          body: lead.nextAction ? `${lead.name}: ${lead.nextAction}` : lead.name,
-          url: `/leads/${lead.id}`,
-          tag: `lead-${lead.id}`,
-        }),
-      })),
-    ),
-  ]);
+  // Avisos ya enviados (las claves incluyen elemento, antelación y fecha base).
+  const sentRows = await prisma.reminderLog.findMany({
+    where: { sentAt: { gte: new Date(now.getTime() - 60 * 24 * 60 * 60_000) } },
+    select: { key: true },
+  });
+  const sentKeys = new Set(sentRows.map((r) => r.key));
 
-  // Solo se marcan como avisados los que llegaron a algún dispositivo.
-  const deliveredTasks = taskResults.filter((r) => r.result.sent > 0).map((r) => r.id);
-  const deliveredLeads = leadResults.filter((r) => r.result.sent > 0).map((r) => r.id);
+  const { pushes, silentKeys } = planReminders({
+    prefs,
+    tasks,
+    leads,
+    sentKeys,
+    now,
+    timeZone: appDefaults.timezone,
+  });
 
-  await Promise.all([
-    deliveredTasks.length
-      ? prisma.task.updateMany({
-          where: { id: { in: deliveredTasks } },
-          data: { remindedAt: now },
-        })
-      : Promise.resolve(),
-    deliveredLeads.length
-      ? prisma.lead.updateMany({
-          where: { id: { in: deliveredLeads } },
-          data: { remindedAt: now },
-        })
-      : Promise.resolve(),
-  ]);
+  const results = await Promise.all(
+    pushes.map(async (push) => ({
+      push,
+      result: await broadcastPush({ title: push.title, body: push.body, url: push.url, tag: push.tag }),
+    })),
+  );
+  const delivered = results.filter((r) => r.result.sent > 0);
+  const keysToLog = [...delivered.flatMap((r) => r.push.keys), ...silentKeys];
+  if (keysToLog.length) {
+    await prisma.reminderLog.createMany({
+      data: keysToLog.map((key) => ({ key, sentAt: now })),
+      skipDuplicates: true,
+    });
+  }
+  // Limpieza: los avisos de más de 60 días ya no pueden repetirse.
+  await prisma.reminderLog.deleteMany({
+    where: { sentAt: { lt: new Date(now.getTime() - 60 * 24 * 60 * 60_000) } },
+  });
 
   return NextResponse.json({
     ok: true,
     pushConfigured: isPushConfigured(),
-    due: { tasks: dueTasks.length, leads: dueLeads.length },
-    tasksNotified: deliveredTasks.length,
-    leadsNotified: deliveredLeads.length,
+    candidates: { tasks: tasks.length, leads: leads.length },
+    planned: pushes.length,
+    delivered: delivered.length,
   });
 }

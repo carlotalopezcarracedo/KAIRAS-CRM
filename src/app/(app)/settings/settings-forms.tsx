@@ -4,6 +4,12 @@ import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
+import {
+  NOTIFICATION_OFFSET_OPTIONS,
+  NOTIFICATION_PRIORITIES,
+  PRIORITY_LABELS,
+  offsetLabel,
+} from "@/lib/notification-options";
 import type { ActionResult } from "@/lib/action-result";
 import type {
   CompanyProfile,
@@ -241,6 +247,74 @@ export function ExpenseDefaultsForm({ defaults }: { defaults: ExpenseDefaults })
   );
 }
 
+function Toggle({
+  name,
+  label,
+  hint,
+  defaultChecked,
+}: {
+  name: string;
+  label: string;
+  hint?: string;
+  defaultChecked: boolean;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-ink/40 p-3 has-[:checked]:border-violet-line has-[:checked]:bg-violet-soft">
+      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="mt-0.5" />
+      <span>
+        <span className="block text-sm font-medium text-foam">{label}</span>
+        {hint ? <span className="block text-xs text-faint">{hint}</span> : null}
+      </span>
+    </label>
+  );
+}
+
+function ChipGroup({
+  name,
+  options,
+  selected,
+}: {
+  name: string;
+  options: { value: string | number; label: string }[];
+  selected: (string | number)[];
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((o) => (
+        <label
+          key={o.value}
+          className="cursor-pointer rounded-full border border-line bg-ink/40 px-3 py-1.5 text-xs text-mist has-[:checked]:border-violet-line has-[:checked]:bg-violet-soft has-[:checked]:text-foam"
+        >
+          <input
+            type="checkbox"
+            name={name}
+            value={o.value}
+            defaultChecked={selected.includes(o.value)}
+            className="sr-only"
+          />
+          {o.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function SectionTitle({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-foam">{title}</h3>
+      {hint ? <p className="text-xs text-faint">{hint}</p> : null}
+    </div>
+  );
+}
+
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+const hourOption = (h: number) => (
+  <option key={h} value={h}>
+    {String(h).padStart(2, "0")}:00
+  </option>
+);
+
 export function NotificationDefaultsForm({ defaults }: { defaults: NotificationDefaults }) {
   const [state, formAction, pending] = useActionState<
     ActionResult | undefined,
@@ -252,45 +326,99 @@ export function NotificationDefaultsForm({ defaults }: { defaults: NotificationD
   }, [state]);
 
   const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
+  const offsetOptions = NOTIFICATION_OFFSET_OPTIONS.map((m) => ({ value: m, label: offsetLabel(m) }));
 
   return (
-    <form action={formAction} className="space-y-4">
-      <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-ink/40 p-3 has-[:checked]:border-violet-line has-[:checked]:bg-violet-soft">
-        <input
-          type="checkbox"
-          name="enabled"
-          defaultChecked={defaults.enabled}
-          className="mt-0.5"
+    <form action={formAction} className="space-y-6">
+      <Toggle
+        name="enabled"
+        label="Recibir notificaciones"
+        hint="Interruptor general. Si lo apagas no se manda ningún aviso, aunque tengas un dispositivo activado."
+        defaultChecked={defaults.enabled}
+      />
+
+      <section className="space-y-3">
+        <SectionTitle
+          title="Tareas"
+          hint="Puedes marcar varias antelaciones: recibirás un aviso por cada una."
         />
-        <span>
-          <span className="block text-sm font-medium text-foam">
-            Recibir recordatorios
-          </span>
-          <span className="block text-xs text-faint">
-            Avisos de tareas y seguimientos de leads vencidos. Si lo apagas,
-            el cron no manda ningún push aunque tengas un dispositivo
-            activado.
-          </span>
-        </span>
-      </label>
-      <Field
-        label="Avisar con antelación"
-        error={errors.reminderLeadMinutes?.[0]}
-        className="sm:w-60"
-      >
-        <Select name="reminderLeadMinutes" defaultValue={String(defaults.reminderLeadMinutes)}>
-          <option value="0">En el momento exacto</option>
-          <option value="15">15 minutos antes</option>
-          <option value="30">30 minutos antes</option>
-          <option value="60">1 hora antes</option>
-          <option value="120">2 horas antes</option>
-          <option value="1440">1 día antes</option>
-        </Select>
-      </Field>
+        <Toggle name="tasksEnabled" label="Avisar de tareas" defaultChecked={defaults.tasksEnabled} />
+        <Field label="Recordatorio de la tarea" error={errors.taskRemindOffsets?.[0]}>
+          <ChipGroup name="taskRemindOffsets" options={offsetOptions} selected={defaults.taskRemindOffsets} />
+        </Field>
+        <p className="-mt-1 text-xs text-faint">
+          Respecto a la hora de «Recordatorio» que pones dentro de cada tarea.
+        </p>
+        <Field label="Fecha límite de la tarea" error={errors.taskDueOffsets?.[0]}>
+          <ChipGroup name="taskDueOffsets" options={offsetOptions} selected={defaults.taskDueOffsets} />
+        </Field>
+        <p className="-mt-1 text-xs text-faint">
+          Respecto al vencimiento de la tarea. Ejemplo: «1 día antes» + «1 h antes» + «En el
+          momento». Si no marcas ninguna, no se avisa por fecha límite.
+        </p>
+        <Field label="Solo tareas con prioridad" error={errors.taskPriorities?.[0]}>
+          <ChipGroup
+            name="taskPriorities"
+            options={NOTIFICATION_PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p] }))}
+            selected={defaults.taskPriorities}
+          />
+        </Field>
+      </section>
+
+      <section className="space-y-3 border-t border-line pt-5">
+        <SectionTitle title="Leads" hint="Avisos de la fecha de «siguiente acción» de cada lead." />
+        <Toggle name="leadsEnabled" label="Avisar de seguimientos de leads" defaultChecked={defaults.leadsEnabled} />
+        <Field label="Cuándo avisar" error={errors.leadFollowUpOffsets?.[0]}>
+          <ChipGroup name="leadFollowUpOffsets" options={offsetOptions} selected={defaults.leadFollowUpOffsets} />
+        </Field>
+      </section>
+
+      <section className="space-y-3 border-t border-line pt-5">
+        <SectionTitle
+          title="Resumen diario"
+          hint="Un único aviso al día con lo pendiente. Si no hay nada, no se manda."
+        />
+        <Toggle name="summaryEnabled" label="Recibir resumen diario" defaultChecked={defaults.summaryEnabled} />
+        <Field label="Hora del resumen" className="sm:w-48">
+          <Select name="summaryHour" defaultValue={String(defaults.summaryHour)}>
+            {HOURS.map(hourOption)}
+          </Select>
+        </Field>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Toggle name="summaryIncludeOverdue" label="Tareas vencidas" defaultChecked={defaults.summaryIncludeOverdue} />
+          <Toggle name="summaryIncludeToday" label="Tareas de hoy" defaultChecked={defaults.summaryIncludeToday} />
+          <Toggle name="summaryIncludeLeads" label="Seguimientos" defaultChecked={defaults.summaryIncludeLeads} />
+        </div>
+      </section>
+
+      <section className="space-y-3 border-t border-line pt-5">
+        <SectionTitle
+          title="Modo silencio"
+          hint="Durante estas horas no suena nada; lo pendiente llega al terminar (hasta 24 h después)."
+        />
+        <Toggle name="quietEnabled" label="Activar modo silencio" defaultChecked={defaults.quietEnabled} />
+        <div className="grid gap-3 sm:grid-cols-2 sm:w-96">
+          <Field label="Desde">
+            <Select name="quietStartHour" defaultValue={String(defaults.quietStartHour)}>
+              {HOURS.map(hourOption)}
+            </Select>
+          </Field>
+          <Field label="Hasta">
+            <Select name="quietEndHour" defaultValue={String(defaults.quietEndHour)}>
+              {HOURS.map(hourOption)}
+            </Select>
+          </Field>
+        </div>
+        <Toggle
+          name="quietAllowUrgent"
+          label="Las tareas urgentes ignoran el silencio"
+          defaultChecked={defaults.quietAllowUrgent}
+        />
+      </section>
+
       <p className="text-xs text-faint">
-        Se aplica a la hora de recordatorio de las tareas y a la fecha de
-        siguiente acción de los leads. El chequeo corre cada 15 min, así que
-        el aviso puede llegar con hasta ese margen de retraso.
+        El chequeo corre cada 15 min, así que un aviso puede llegar con hasta ese margen de
+        retraso. Las horas son las de tu zona horaria de Ajustes.
       </p>
       {state && !state.ok && !state.fieldErrors ? (
         <p className="text-sm text-danger">{state.error}</p>

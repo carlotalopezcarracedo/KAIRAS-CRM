@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { requireUser } from "@/server/auth";
 import { prisma } from "@/server/db/prisma";
 import { audit } from "@/server/audit/audit";
+import { NOTIFICATION_OFFSET_OPTIONS, NOTIFICATION_PRIORITIES } from "@/lib/notification-options";
 import { setSetting } from "@/server/services/settings-service";
 import { expenseDefaultsSchema } from "@/server/validators/expense";
 import type { ActionResult } from "@/lib/action-result";
@@ -60,21 +61,53 @@ const appDefaultsSchema = z.object({
     }),
 });
 
-const LEAD_MINUTES = [0, 15, 30, 60, 120, 1440] as const;
+const hour = z.coerce.number().int().min(0).max(23);
+const offsets = z
+  .array(z.coerce.number())
+  .transform((v) => [...new Set(v)].sort((x, y) => y - x))
+  .refine((v) => v.every((n) => (NOTIFICATION_OFFSET_OPTIONS as readonly number[]).includes(n)), {
+    message: "Antelación no válida",
+  });
+const flag = z.boolean();
 
 const notificationDefaultsSchema = z.object({
-  enabled: z
-    .string()
-    .optional()
-    .transform((v) => v === "on" || v === "true"),
-  reminderLeadMinutes: z
-    .string()
-    .trim()
-    .transform((v) => Number(v))
-    .refine((v) => (LEAD_MINUTES as readonly number[]).includes(v), {
-      message: "Antelación no válida",
-    }),
+  enabled: flag,
+  tasksEnabled: flag,
+  taskRemindOffsets: offsets,
+  taskDueOffsets: offsets,
+  taskPriorities: z
+    .array(z.enum(NOTIFICATION_PRIORITIES))
+    .min(1, "Elige al menos una prioridad"),
+  leadsEnabled: flag,
+  leadFollowUpOffsets: offsets,
+  summaryEnabled: flag,
+  summaryHour: hour,
+  summaryIncludeOverdue: flag,
+  summaryIncludeToday: flag,
+  summaryIncludeLeads: flag,
+  quietEnabled: flag,
+  quietStartHour: hour,
+  quietEndHour: hour,
+  quietAllowUrgent: flag,
 });
+
+const NOTIFICATION_FLAGS = [
+  "enabled",
+  "tasksEnabled",
+  "leadsEnabled",
+  "summaryEnabled",
+  "summaryIncludeOverdue",
+  "summaryIncludeToday",
+  "summaryIncludeLeads",
+  "quietEnabled",
+  "quietAllowUrgent",
+] as const;
+const NOTIFICATION_LISTS = [
+  "taskRemindOffsets",
+  "taskDueOffsets",
+  "taskPriorities",
+  "leadFollowUpOffsets",
+] as const;
 
 const passwordSchema = z
   .object({
@@ -211,7 +244,12 @@ export async function saveNotificationDefaultsAction(
   const auth = await withUser();
   if (!auth.ok) return auth;
 
-  const parsed = notificationDefaultsSchema.safeParse(formToObject(formData));
+  // Las casillas sin marcar no viajan en el formulario, y las listas llegan
+  // como varias entradas con el mismo nombre.
+  const raw: Record<string, unknown> = formToObject(formData);
+  for (const name of NOTIFICATION_FLAGS) raw[name] = formData.get(name) === "on";
+  for (const name of NOTIFICATION_LISTS) raw[name] = formData.getAll(name);
+  const parsed = notificationDefaultsSchema.safeParse(raw);
   if (!parsed.success) {
     return {
       ok: false,

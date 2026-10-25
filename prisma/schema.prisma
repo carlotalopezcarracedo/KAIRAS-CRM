@@ -1510,6 +1510,16 @@ model AuditLog {
   @@index([createdAt])
 }
 
+/// Avisos push ya enviados (clave única por elemento + antelación + fecha base),
+/// para que el cron no repita ninguno y permita varias antelaciones por tarea.
+model ReminderLog {
+  id     String   @id @default(cuid())
+  key    String   @unique
+  sentAt DateTime @default(now())
+
+  @@index([sentAt])
+}
+
 model Settings {
   id        String   @id @default(cuid())
   key       String   @unique
