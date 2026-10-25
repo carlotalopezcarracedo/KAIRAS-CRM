@@ -16,5 +16,13 @@ jobs:
     steps:
       - name: Llamar a /api/cron/reminders
         run: |
-          curl -sf -X GET "https://kairas-crm.vercel.app/api/cron/reminders" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          # Sin -L a propósito: una redirección (p. ej. al login) debe fallar
+          # el job en vez de pasar por buena. Se exige un 200 explícito.
+          status=$(curl -sS -o response.json -w "%{http_code}" -X GET \
+            "https://kairas-crm.vercel.app/api/cron/reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          cat response.json; echo
+          if [ "$status" != "200" ]; then
+            echo "::error::El cron respondió HTTP $status"
+            exit 1
+          fi

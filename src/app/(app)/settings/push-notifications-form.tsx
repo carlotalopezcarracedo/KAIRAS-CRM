@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, BellOff, BellRing } from "lucide-react";
+import { Bell, BellOff, BellRing, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +16,7 @@ function base64ToUint8Array(base64: string) {
 export function PushNotificationsForm() {
   const [status, setStatus] = useState<Status>("checking");
   const [pending, setPending] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     async function check() {
@@ -30,6 +31,15 @@ export function PushNotificationsForm() {
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = await reg?.pushManager.getSubscription();
       setStatus(sub ? "on" : "off");
+      // Si el navegador tiene la suscripción pero el servidor la perdió (o el
+      // alta falló a medias), se vuelve a guardar para que lleguen los avisos.
+      if (sub) {
+        fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sub.toJSON()),
+        }).catch(() => {});
+      }
     }
     check();
   }, []);
@@ -49,6 +59,8 @@ export function PushNotificationsForm() {
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
+      // Una suscripción antigua con otra clave VAPID haría fallar el envío.
+      await (await reg.pushManager.getSubscription())?.unsubscribe();
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: base64ToUint8Array(vapidPublicKey),
@@ -65,6 +77,25 @@ export function PushNotificationsForm() {
       toast.error("No se pudieron activar las notificaciones");
     } finally {
       setPending(false);
+    }
+  }
+
+  async function sendTest() {
+    setTesting(true);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo enviar la prueba");
+      } else if (json.sent > 0) {
+        toast.success("Prueba enviada: debería aparecer en unos segundos");
+      } else {
+        toast.error("El servicio push rechazó el envío. Desactiva y vuelve a activar.");
+      }
+    } catch {
+      toast.error("No se pudo enviar la prueba");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -121,16 +152,22 @@ export function PushNotificationsForm() {
         tarea o de un seguimiento de lead.
       </p>
       {status === "on" ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-danger hover:text-danger"
-          disabled={pending}
-          onClick={disable}
-        >
-          <BellOff className="h-4 w-4" />
-          Desactivar en este dispositivo
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" disabled={testing} onClick={sendTest}>
+            <Send className="h-4 w-4" />
+            {testing ? "Enviando…" : "Enviar aviso de prueba"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-danger hover:text-danger"
+            disabled={pending}
+            onClick={disable}
+          >
+            <BellOff className="h-4 w-4" />
+            Desactivar en este dispositivo
+          </Button>
+        </div>
       ) : (
         <Button size="sm" disabled={pending} onClick={enable}>
           {pending ? <BellRing className="h-4 w-4 animate-pulse" /> : <Bell className="h-4 w-4" />}

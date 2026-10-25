@@ -11,7 +11,7 @@
 import { NextResponse } from "next/server";
 import type { LeadStatus, TaskStatus } from "@prisma/client";
 import { prisma } from "@/server/db/prisma";
-import { broadcastPush } from "@/server/services/push-service";
+import { broadcastPush, isPushConfigured } from "@/server/services/push-service";
 import { getNotificationDefaults } from "@/server/services/settings-service";
 
 export const dynamic = "force-dynamic";
@@ -38,12 +38,16 @@ export async function GET(request: Request) {
   // "Avisar con antelación": el aviso dispara cuando falten <= X minutos
   // para remindAt/nextActionAt, no solo cuando ya haya pasado.
   const threshold = new Date(now.getTime() + prefs.reminderLeadMinutes * 60_000);
+  // Si un aviso no pudo entregarse (sin dispositivos suscritos o fallo del
+  // servicio push) se reintenta en la siguiente pasada, pero solo durante 24 h
+  // para no soltar avisos viejísimos al activar las notificaciones.
+  const oldest = new Date(now.getTime() - 24 * 60 * 60_000);
 
   const [dueTasks, dueLeads] = await Promise.all([
     prisma.task.findMany({
       where: {
         deletedAt: null,
-        remindAt: { lte: threshold },
+        remindAt: { lte: threshold, gte: oldest },
         remindedAt: null,
         status: { in: OPEN_TASK_STATUSES },
       },
@@ -53,7 +57,7 @@ export async function GET(request: Request) {
     prisma.lead.findMany({
       where: {
         deletedAt: null,
-        nextActionAt: { lte: threshold },
+        nextActionAt: { lte: threshold, gte: oldest },
         remindedAt: null,
         status: { notIn: CLOSED_LEAD_STATUSES },
       },
@@ -62,35 +66,45 @@ export async function GET(request: Request) {
     }),
   ]);
 
-  await Promise.all([
-    ...dueTasks.map((task) =>
-      broadcastPush({
-        title: "Recordatorio de tarea",
-        body: task.title,
-        url: `/tasks/${task.id}`,
-        tag: `task-${task.id}`,
-      }),
+  const [taskResults, leadResults] = await Promise.all([
+    Promise.all(
+      dueTasks.map(async (task) => ({
+        id: task.id,
+        result: await broadcastPush({
+          title: "Recordatorio de tarea",
+          body: task.title,
+          url: `/tasks/${task.id}`,
+          tag: `task-${task.id}`,
+        }),
+      })),
     ),
-    ...dueLeads.map((lead) =>
-      broadcastPush({
-        title: "Seguimiento pendiente",
-        body: lead.nextAction ? `${lead.name}: ${lead.nextAction}` : lead.name,
-        url: `/leads/${lead.id}`,
-        tag: `lead-${lead.id}`,
-      }),
+    Promise.all(
+      dueLeads.map(async (lead) => ({
+        id: lead.id,
+        result: await broadcastPush({
+          title: "Seguimiento pendiente",
+          body: lead.nextAction ? `${lead.name}: ${lead.nextAction}` : lead.name,
+          url: `/leads/${lead.id}`,
+          tag: `lead-${lead.id}`,
+        }),
+      })),
     ),
   ]);
 
+  // Solo se marcan como avisados los que llegaron a algún dispositivo.
+  const deliveredTasks = taskResults.filter((r) => r.result.sent > 0).map((r) => r.id);
+  const deliveredLeads = leadResults.filter((r) => r.result.sent > 0).map((r) => r.id);
+
   await Promise.all([
-    dueTasks.length
+    deliveredTasks.length
       ? prisma.task.updateMany({
-          where: { id: { in: dueTasks.map((t) => t.id) } },
+          where: { id: { in: deliveredTasks } },
           data: { remindedAt: now },
         })
       : Promise.resolve(),
-    dueLeads.length
+    deliveredLeads.length
       ? prisma.lead.updateMany({
-          where: { id: { in: dueLeads.map((l) => l.id) } },
+          where: { id: { in: deliveredLeads } },
           data: { remindedAt: now },
         })
       : Promise.resolve(),
@@ -98,7 +112,9 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    tasksNotified: dueTasks.length,
-    leadsNotified: dueLeads.length,
+    pushConfigured: isPushConfigured(),
+    due: { tasks: dueTasks.length, leads: dueLeads.length },
+    tasksNotified: deliveredTasks.length,
+    leadsNotified: deliveredLeads.length,
   });
 }
