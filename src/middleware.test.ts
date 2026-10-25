@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next-auth", () => ({ default: () => ({ auth: () => undefined }) }));
 import { config } from "./middleware";
 
 // Next compila el matcher como path-to-regexp; para esta comprobación basta
